@@ -182,8 +182,6 @@
             })
         }
 
-        window.getAudioBuffer = getAudioBuffer;
-
         function getAudioBuffer(url, start, end) {
 
             url = convertURL2URI(url);
