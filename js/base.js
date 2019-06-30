@@ -789,7 +789,7 @@
                         console.error(e);
                     });
                 } else {
-                    that._autoplayFlag = false;
+                    this._autoplayFlag = false;
                 }
             }
         };
