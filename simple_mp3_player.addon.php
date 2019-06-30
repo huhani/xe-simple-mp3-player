@@ -543,7 +543,6 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                 $file_srls = array($file_srl);
             }
             if($file_srls) {
-                debugPrint($file_srls);
                 SimpleMP3Describer::prepareToRemoveFilesFromByFileSrls($file_srls);
             }
         }
