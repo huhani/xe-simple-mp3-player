@@ -85,8 +85,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $valueStr .= $_arg->value;
             }
 
-            header('X-T: '.$valueStr);
-            header('X-T1: '.$this->password);
             $hash = md5($valueStr.$this->password);
             $url .= "&arguments=".implode(",", $keys);
             $url .= "&SN=".substr($hash, 0, 12);
