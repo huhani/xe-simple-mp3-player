@@ -44,9 +44,6 @@
 				this._audio.load();
 			}
 			this._audio.addEventListener('playing', this._onAudioPlayingHandler, false);
-			if(this._useMediaSession) {
-				this._registerMediaSessionHandlers();
-			}
 		};
 
 		SimplePlayer.prototype._updateMediaSessionMetadata = function() {
@@ -89,6 +86,7 @@
 		SimplePlayer.prototype._onAudioPlaying = function() {
 			if(this._useMediaSession) {
 				this._updateMediaSessionMetadata();
+				this._registerMediaSessionHandlers();
 			}
 		};
 
