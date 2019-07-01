@@ -49,8 +49,11 @@
     function buildAPlayer($target, data) {
         var useMediaSession = !!($SimpleMP3Player.config && $SimpleMP3Player.config.use_mediasession);
         var targetSelector = $SimpleMP3Player.config && $SimpleMP3Player.config.playlist_player_selector ? $SimpleMP3Player.config.playlist_player_selector : null;
-        if(targetSelector && $target.find(targetSelector).length) {
-            $target = $target.find(targetSelector).first();
+        if(targetSelector) {
+            var $documentTarget = $(document).find(targetSelector);
+            if($documentTarget.length) {
+                $target = $documentTarget.first();
+            }
         }
 
         var ua = typeof window.navigator !== "undefined" ? window.navigator.userAgent : "";
