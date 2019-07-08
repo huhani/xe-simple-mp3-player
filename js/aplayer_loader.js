@@ -39,14 +39,15 @@
                 url: mp3URL,
                 description: description,
                 file_srl: file_srl,
-                type: 'customHls'
+                type: 'customHls',
+                lrc: window.request_uri+'index.php?act=getSimpleMP3Lyric&file_srl='+file_srl+"&type=text"
             };
         }).filter(function(each){
             return each !== null;
         });
     }
 
-    function buildAPlayer($target, data) {
+    function buildAPlayer($target, data, useLyric) {
         var useMediaSession = !!($SimpleMP3Player.config && $SimpleMP3Player.config.use_mediasession);
         var targetSelector = $SimpleMP3Player.config && $SimpleMP3Player.config.playlist_player_selector ? $SimpleMP3Player.config.playlist_player_selector : null;
         if(targetSelector) {
@@ -73,6 +74,7 @@
             theme: '#FADFA3',
             preload: 'auto',
             volume: 1,
+            lrcType: useLyric ? 3 : void 0,
             listFolded: false,
             listMaxHeight: '240px',
             customAudioType: {
@@ -95,6 +97,7 @@
         function handleOnPlaying() {
             var currentList = this.list.audios.length && this.list.index >= 0 ? this.list.audios[this.list.index] : null;
             if(currentList) {
+                var file_srl = currentList.file_srl;
                 var description = currentList.description;
                 var title = currentList.name ? currentList.name : 'Untitled';
                 var artist = null;
@@ -164,7 +167,15 @@
         var document_srl_regex = /document_(\d+)/.exec($('.xe_content[class*=document_]').attr('class') || '');
         document_srl = document_srl_regex ? document_srl_regex[1] : null;
         if(document_srl && data && data.length) {
-            buildAPlayer($document_content, data);
+            var useLyric = false;
+            if($SimpleMP3Player.config) {
+                var config = $SimpleMP3Player.config;
+                if((config.isMobile && config.use_m_lyric) || (!config.isMobile && config.use_lyric)) {
+                    useLyric = true;
+                }
+            }
+
+            buildAPlayer($document_content, data, useLyric);
         }
     }
 
