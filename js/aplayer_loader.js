@@ -57,12 +57,6 @@
             }
         }
 
-        var ua = typeof window.navigator !== "undefined" ? window.navigator.userAgent : "";
-        if (ua.indexOf("Trident/") >= 0 || ua.indexOf("MSIE ") >= 0) {
-            $target.prepend('<p style="font-weight:bold;">통합 플레이어를 지원하지 않는 브라우저입니다.</p>');
-            return;
-        }
-
         var $SimpleMP3PlaylistPlayer = $('<div id="SimpleMP3PlaylistPlayer__container"></div>');
         $target.prepend($SimpleMP3PlaylistPlayer);
         var playlist = getAPlayerPlaylist(data);

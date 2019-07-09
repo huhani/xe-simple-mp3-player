@@ -48,10 +48,6 @@
     }
 
     function buildAPlayer($target, data, useLyric) {
-        var ua = typeof window.navigator !== "undefined" ? window.navigator.userAgent : "";
-        if (ua.indexOf("Trident/") >= 0 || ua.indexOf("MSIE ") >= 0) {
-            return;
-        }
         var useMediaSession = !!($SimpleMP3Player.config && $SimpleMP3Player.config.use_mediasession);
         var $SimpleMP3PlaylistPlayer = $('<div id="SimpleMP3PlaylistPlayer__container"></div>');
         $target.prepend($SimpleMP3PlaylistPlayer);

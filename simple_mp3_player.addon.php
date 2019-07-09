@@ -542,8 +542,8 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
                             if($lyric) {
                                 return $lyric;
-                            } else if($lyricFileExists) {
-                                return $lyricFromFile;
+                            } else if($lyricFileExists && isset($lyricFromFile->lyric)) {
+                                return $lyricFromFile->lyric;
                             } else {
                                 return null;
                             }
@@ -585,7 +585,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $obj->lyric = $lyric;
                 $obj->birthtime = time();
                 $json = json_encode($obj);
-                FileHandler::writeFile($basepath."lyric.json", $json);
+                FileHandler::writeFile($lrcFilename, $json);
             }
         }
 
