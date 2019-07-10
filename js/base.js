@@ -980,7 +980,7 @@
             descriptions.forEach(function(each){
                 var description = each.description;
                 if(description) {
-                    if(description.tags === void 0) {
+                    if(!description.tags) {
                         description.tags = {
                             title: null,
                             artist: null,
