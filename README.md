@@ -46,8 +46,8 @@ XE환경
 
 # 리소스
 
-core-js https://github.com/zloirock/core-js#readme
-PHP-MP3 https://github.com/thegallagher/PHP-MP3
-multimedia-js https://github.com/tchakabam/multimedia-js
-APlayer https://github.com/MoePlayer/APlayer
-getID3 https://github.com/JamesHeinrich/getID3
+core-js https://github.com/zloirock/core-js#readme  
+PHP-MP3 https://github.com/thegallagher/PHP-MP3  
+multimedia-js https://github.com/tchakabam/multimedia-js  
+APlayer https://github.com/MoePlayer/APlayer  
+getID3 https://github.com/JamesHeinrich/getID3  
