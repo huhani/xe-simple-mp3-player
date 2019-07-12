@@ -42,3 +42,12 @@ XE환경
 파일을 첨부한 후 mp3파일을 본문에 삽입할 경우 자동으로 Audio 태그로 변환해 줍니다.
 
 > **Note:** 이 기능은 CK에디터를 기준으로 제작하였으며, 다른 에디터를 사용할 경우 작동이 되지 않을 수 있습니다.
+
+
+# 리소스
+
+core-js https://github.com/zloirock/core-js#readme
+PHP-MP3 https://github.com/thegallagher/PHP-MP3
+multimedia-js https://github.com/tchakabam/multimedia-js
+APlayer https://github.com/MoePlayer/APlayer
+getID3 https://github.com/JamesHeinrich/getID3
