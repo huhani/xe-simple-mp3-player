@@ -28,7 +28,7 @@
             var filename = description.filename;
             var tags = description.tags || {};
             var title = tags.title  ? tags.title : filename ? filename : 'Untitled';
-            var artist = tags.artist ? tags.artist : '-';
+            var artist = tags.artist ? tags.artist : void 0;
             var albumArt = tags.albumArt ? convertURL2URI(tags.albumArt) : void 0;
             var mp3URL = convertURL2URI(description.filePath);
 
