@@ -524,6 +524,10 @@
         }
 
         MSE.prototype.seekResetAction = function() {
+            if(!this._audio && this.isDestructed()) {
+                return;
+            }
+
             var that = this;
             this.abort();
             if(this._request && !this._request.isSettled()) {
@@ -550,7 +554,7 @@
                         throw new Error('Current playback head outside of buffer in append-continue state.');
                     }, 0);
                 }
-                
+
                 return;
             }
             this._lastSegmentIndex--;
