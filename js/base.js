@@ -397,6 +397,17 @@
             };
         };
 
+        MSE.prototype.getDurationFromOffsets = function() {
+            var duration = null;
+            if(this._offsets && this._offsets.length > 0) {
+                var offset = this._offsets[this._offsets.length-1];
+                var timeRange = offset.TimeRange;
+                duration = timeRange.end;
+            }
+
+            return duration;
+        };
+
         MSE.prototype.getFormerBufferDuration = function(position) {
             if(!position) {
                 position = 0;
@@ -529,7 +540,18 @@
             var offsetData = segmentOffset.offset;
             this._lastSegmentIndex = segmentOffset.index;
             if(this._lastSegmentIndex === -1) {
-                throw new Error('Current playback head outside of buffer in append-continue state.');
+                if(this._audio && !isNaN(this._audio.currentTime) && this._audio.currentTime) {
+                    var duration = this.getDurationFromOffsets();
+                    if(duration) {
+                        this._audio.currentTime = duration - 0.2;
+                    }
+                } else {
+                    window.setTimeout(function(){
+                        throw new Error('Current playback head outside of buffer in append-continue state.');
+                    }, 0);
+                }
+                
+                return;
             }
             this._lastSegmentIndex--;
             this.setTimestampOffset(offsetData.TimeRange.start);
