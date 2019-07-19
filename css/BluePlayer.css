@@ -7,6 +7,7 @@ body {margin: 0; padding: 0;}
     font-family: Arial, Helvetica, sans-serif; margin: 5px; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.07), 0 1px 5px 0 rgba(0, 0, 0, 0.1);  border-radius: 2px;
     line-height: 1.4; font-size: 16px; color: #5A5A5A;
 }
+
 #BluePlayer p, #BluePlayer span {margin: 0; padding: 0; font-size: 13px; font-weight: normal; color: #5A5A5A; line-height: 1.4;}
 #BluePlayer a {text-decoration: none;}
 #BluePlayer .BluePlayer__Controls__container {float:left; width: 324px; box-sizing: border-box;}
@@ -110,10 +111,12 @@ body {margin: 0; padding: 0;}
 #BluePlayer .ControlBtns__Volume .Volume__Slider .VlumeSlider__extend {position:relative; top: -8px; height: 24px;}
 
 
-#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick {display: none; position: absolute; z-index: 3; background-color: #FFFFFF; min-width: 40px; min-height: 12px; border-radius: 3px; box-shadow: 0 0 15px rgba(14,42,71,0.25);}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick {display: none; position: absolute; z-index: 3; background-color: #FFFFFF; min-width: 40px; min-height: 12px; border-radius: 3px; box-shadow: 0 0 15px rgba(14,42,71,0.25);
+    -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+}
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick.show {display: block;}
-#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick ul {list-style:none; font-size: 14px;}
-#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 5px 10px; white-space: nowrap;}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick ul {list-style:none; color: #424242; font-size: 12px; font-weight: bold; padding:0; margin: 0}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 6px 14px; cursor: pointer; white-space: nowrap; line-height: 1.3; }
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li:hover {background-color:#EFEFEF;}
 
 
@@ -164,6 +167,11 @@ body {margin: 0; padding: 0;}
 #BluePlayer.mobile .TrackInfo__Lyric__container {background-color: #38404c;}
 
 #BluePlayer.mobile .TrackList {max-height: 300px; min-height: 180px;}
+
+#BluePlayer.mobile .BluePlayer__TrackList__container .TrackList__RightClick ul {font-size: 11px; }
+
+#BluePlayer.mobile .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls {display: none;}
+#BluePlayer.mobile .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: table-cell;}
 
 #BluePlayer.mobile .EnableLyric .TrackInfo__Description__container { background-color: #38404c; padding: 20px 10px 5px;}
 #BluePlayer.mobile .TrackInfo__Description__container { background-color: #38404c; padding: 20px 10px;}
