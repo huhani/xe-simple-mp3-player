@@ -196,6 +196,7 @@
                 this._$VolumeSlider = null;
                 this._$TrackLisContainer = null;
                 this._$TrackListWrapper = null;
+                this._$TrackListRightClickMenu = null;
                 this._$TrackList = null;
                 this._$ModeButton = null;
                 this._$RandomButton = null;
@@ -218,6 +219,8 @@
                 this._onVolumeButtonClickHandler = this._handleVolumeButtonClick.bind(this);
                 this._onTrackItemClickHandler = this._handleTrackItemClick.bind(this);
                 this._onResizeHandler = this._onResize.bind(this);
+                this._onDocumentClickHandler = this._handleDocumentClick.bind(this);
+                this._onTrackListContextHandler = this._handleTrackListContext.bind(this);
 
                 this._init();
             }
@@ -277,13 +280,13 @@
                     '                    <div class="PlaybackTimeline__container">\n' +
                     '                        <div class="PlaybackTimeline">\n' +
                     '                            <div class="PlaybackTimeline__TimePassed">\n' +
-                    '                                <p>0:00</p>\n' +
+                    '                                <span>0:00</span>\n' +
                     '                            </div>\n' +
                     '                            <div class="PlaybackTimeline__ProgressBar">\n' +
                     '\n' +
                     '                            </div>\n' +
                     '                            <div class="PlaybackTimeline__Duration">\n' +
-                    '                                <p>0:00</p>\n' +
+                    '                                <span>0:00</span>\n' +
                     '                            </div>\n' +
                     '                            <div class="clear"></div>\n' +
                     '                        </div>\n' +
@@ -292,7 +295,7 @@
                     '                    <div class="Controls__ControlBtns__container">\n' +
                     '                        <div class="ControlBtns__Left">\n' +
                     '                            <a href="javascript:;" class="controls-Icon repeat repeatStats"></a>\n' +
-                    '                            <a href="javascript:;" class="controls-Icon random randomStats"></a>\n' +
+                    '                            <a href="javascript:;" class="controls-Icon random randomStats" title="Random"></a>\n' +
                     '                        </div>\n' +
                     '\n' +
                     '                        <div class="ControlBtns__Right">\n' +
@@ -305,16 +308,17 @@
                     '                        </div>\n' +
                     '                        <div class="clear"></div>\n' +
                     '                        <div class="ControlBtns__Main">\n' +
-                    '                            <a href="javascript:;" class="controls-Icon playPrev"></a>\n' +
-                    '                            <a href="javascript:;" class="controls-Icon play playStats"></a>\n' +
-                    '                            <a href="javascript:;" class="controls-Icon playNext"></a>\n' +
+                    '                            <a href="javascript:;" class="controls-Icon playPrev" title="Skip to previous track"</a>\n' +
+                    '                            <a href="javascript:;" class="controls-Icon play playStats" title="Play"></a>\n' +
+                    '                            <a href="javascript:;" class="controls-Icon playNext" title="Skip to next track"></a>\n' +
                     '                        </div>\n' +
                     '                    </div>\n' +
                     '                </div>\n' +
                     '            </div>\n' +
                     '        </div>\n' +
                     '\n' +
-                    '        <div class="BluePlayer__TrackList__container">\n' +
+                    '        <div class="BluePlayer__TrackList__container">' +
+                    '<div class="TrackList__RightClick"></div>' +
                     '            <div class="BluePlayer__TrackList">\n' +
                     '                <div class="TrackList">\n' +
                     '                </div>\n' +
@@ -327,12 +331,13 @@
                 return html;
             };
 
-            UI.getTrackItemTemplate = function(trackItem) {
+            UI.getTrackItemTemplate = function(trackItem, enableMoreButton) {
                 var id = trackItem.id;
                 var title = trackItem.title;
                 var artist = trackItem.artist;
                 var albumArt = trackItem.albumArt;
                 var duration = trackItem.duration;
+                var controlsTemplate = null;
                 var html = '<div class="TrackItem" data-id="'+id+'">\n' +
                     '<div class="TrackItemDescription">\n' +
                     '<div class="TrackItemDescription__left">\n' +
@@ -340,10 +345,24 @@
                     '<div class="albumCover">' +
                     (albumArt ? ('<img class="albumCover__img" src="'+albumArt+'" />') : '') +
                     '</div></div><div class="info"><div class="artist">'+
-                    (artist ? ('<p>'+artist+'</p>') : '') +
-                    '</div><div class="title"><p>'+title+'</p>' +
-                    '</div></div></div>' +
-                    '<div class="TrackItemDescription__right">' +
+                    (artist ? ('<span>'+artist+'</span>') : '') +
+                    '</div><div class="title"><span>'+title+'</span>' +
+                    '</div></div></div>';
+
+                enableMoreButton = true;
+                if(trackItem.allowRemove || enableMoreButton) {
+                    controlsTemplate = '<div class="controls">';
+                    if(trackItem.allowRemove) {
+                        controlsTemplate += '<a class="controls-icon remove" href="javascript:;" title="Remove"><i class="icon"></i></a>';
+                    }
+                    if(enableMoreButton) {
+                        controlsTemplate += '<a class="controls-icon more" href="javascript:;" title="More"><i class="icon"></i></a>';
+                    }
+                    controlsTemplate += '</div>';
+                }
+
+                    html += '<div class="TrackItemDescription__right'+(controlsTemplate ? ' enableControl' : '')+'">' +
+                        (controlsTemplate ? controlsTemplate : '') +
                     '<div class="duration"><span>'+(duration ? UI.secToTimeStr(duration) : '')+'</span>' +
                     '</div>' +
                     ' </div>' +
@@ -355,9 +374,9 @@
             };
 
             UI.getTrackInfoTagsTemplate = function(title, artist) {
-                var html = '<div class="Tags__Title"> <p>'+(title ? title : 'unknown')+'</p></div>';
+                var html = '<div class="Tags__Title"> <span>'+(title ? title : 'unknown')+'</span></div>';
                 if(artist) {
-                    html += '<div class="Tags__Artist"><p>'+artist+'</p></div>';
+                    html += '<div class="Tags__Artist"><span>'+artist+'</span></div>';
                 }
 
                 return html;
@@ -365,6 +384,35 @@
 
             UI.getAlbumCoverTemplate = function(url) {
                 return url ? ('<img class="AlbumCover__image" src="'+url+'" />') : '';
+            };
+
+            UI.getTrackListRightClickTemplate = function(menuObj, trackItem, player, menuCloseHandler) {
+                var isAppended = false;
+                var $ul = $('<ul></ul>');
+                if(menuObj) {
+                    menuObj.forEach(function(each){
+                        var name = each.name;
+                        var handler = each.handler;
+                        var callback = function() {
+                            if(handler && typeof handler === 'function') {
+                                handler(trackItem, player);
+                            }
+                            if(menuCloseHandler) {
+                                menuCloseHandler();
+                            }
+                        };
+                        var $li = $('<li>'+name+'</li>');
+                        $li.click(callback);
+                        $ul.append($li);
+                        isAppended = true;
+                    });
+
+                    if(isAppended) {
+                        return $ul;
+                    }
+                }
+
+                return null;
             };
 
             UI.prototype._init = function() {
@@ -377,6 +425,7 @@
                     this._$VolumeSlider = this._$UI.find('.Volume__Slider');
                     this._$TrackLisContainer = this._$UI.find('.BluePlayer__TrackList__container');
                     this._$TrackListWrapper = this._$UI.find('.BluePlayer__TrackList');
+                    this._$TrackListRightClickMenu = this._$TrackLisContainer.find('.TrackList__RightClick');
                     this._$TrackList = this._$TrackLisContainer.find('.TrackList');
                     this._$ModeButton = this._$UI.find('.ControlBtns__Left .repeatStats');
                     this._$RandomButton = this._$UI.find('.ControlBtns__Left .randomStats');
@@ -385,8 +434,8 @@
                     this._$PlayNextButton = this._$UI.find('.ControlBtns__Main .playNext');
                     this._$VolumeButton = this._$UI.find('.ControlBtns__Volume .volume');
                     this._$TrackInfoTags = this._$UI.find('.TrackInfo__Tags');
-                    this._$Duration = this._$UI.find('.PlaybackTimeline__Duration p');
-                    this._$CurrentTime = this._$UI.find('.PlaybackTimeline__TimePassed p');
+                    this._$Duration = this._$UI.find('.PlaybackTimeline__Duration span');
+                    this._$CurrentTime = this._$UI.find('.PlaybackTimeline__TimePassed span');
                     this._$AlbumCoverContainer = this._$UI.find('.AlbumCover__image__container');
                     this._$PlaybackTimelineSlider.slider({
                         orientation: "horizontal",
@@ -409,6 +458,10 @@
                         stop: sliderStopHandler
                     });
                     this._$VolumeSlider.prepend('<div class="VlumeSlider__extend"></div>');
+
+
+                    $(document).on('click', this._onDocumentClickHandler);
+                    this._$TrackLisContainer.on('contextmenu', this._onTrackListContextHandler);
                     this._$PlayToggleButton.on('click', this._onPlayToggleButtonClickHandler);
                     this._$PlayPrevButton.on('click', this._onPrevButtonClickHandler);
                     this._$PlayNextButton.on('click', this._onNextButtonClickHandler);
@@ -457,14 +510,27 @@
             };
 
             UI.prototype._handleTrackItemClick = function(evt) {
-                var $target = $(evt.currentTarget);
-                var trackID = $target.attr('data-id');
+                var $item = $(evt.currentTarget);
+                var $target = $(evt.srcElement ? evt.srcElement : evt.target);
+                var $parents = $target.parent('.controls-icon');
+                if($parents.length) {
+                    $target = $parents;
+                }
+                var trackID = $item.attr('data-id');
                 if(trackID) {
                     trackID = parseInt(trackID, 10);
                     var playlist = this._Player._Playlist;
                     var trackItem = playlist.getTrackItem(trackID);
-                    this.setCurrentTrackItem(trackItem);
-                    this.onTrackItemClick.dispatch(trackItem);
+                    if($target.length && $target.hasClass('controls-icon')) {
+                        if($target.hasClass('remove')) {
+                            this._handleRemoveButtonClick(trackItem);
+                        } else if($target.hasClass('more')) {
+                            this._handleMoreButtonClick(trackItem);
+                        }
+                    } else {
+                        this.setCurrentTrackItem(trackItem);
+                        this.onTrackItemClick.dispatch(trackItem);
+                    }
                 }
             };
 
@@ -515,6 +581,18 @@
                 this.onRandomButtonClick.dispatch(!random);
             };
 
+            UI.prototype._handleRemoveButtonClick = function(trackItem) {
+                if(trackItem) {
+                    var playlist = this._Player._Playlist;
+                    playlist.removeTrackItem(trackItem.id);
+                    this.removeTrackItem(trackItem.id);
+                }
+            };
+
+            UI.prototype._handleMoreButtonClick = function(trackItem) {
+
+            };
+
             UI.prototype._handleVolumeButtonClick = function() {
                 var playback = this._Player._Playback;
                 var mute = this.isMuted();
@@ -543,6 +621,111 @@
                 this._setCurrentPosition(position);
                 playback.seek(position);
                 this.onPlaybackTimelineChange.dispatch(position);
+            };
+
+            UI.prototype._handleTrackListContext = function(evt) {
+                var $target = $(evt.srcElement ? evt.srcElement : evt.target);
+                var $TrackItem = $target.hasClass('TrackItem') ? $target : $target.parents('.TrackItem');
+                var trackItemID = $TrackItem.attr('data-id');
+                if($TrackItem.length && trackItemID) {
+                    trackItemID = parseInt(trackItemID, 10);
+                    var playback = this._Player._Playback;
+                    var trackItem = this._Player._Playlist.getTrackItem(trackItemID);
+
+                    if(trackItem) {
+                        var $TrackLisContainer = this._$TrackLisContainer;
+                        var trackListContainerOffset = $TrackLisContainer.offset();
+                        var containerOffsetX = trackListContainerOffset.left;
+                        var containerOffsetY = trackListContainerOffset.top;
+                        var offsetX = evt.pageX - containerOffsetX;
+                        var offsetY = evt.pageY - containerOffsetY;
+                        var menuObj = [];
+
+                        if(playback.getCurrentTrackItem() !== trackItem || !playback.isPlaying()) {
+                            menuObj.push({
+                                name: 'Play',
+                                handler: this._getTrackItemPlayHandler(trackItem)
+                            });
+                        } else {
+                            menuObj.push({
+                                name: 'Pause',
+                                handler: this._getTrackItemPauseHandler(trackItem)
+                            });
+                        }
+                        if(trackItem.allowRemove) {
+                            menuObj.push({
+                                name: 'Remove',
+                                handler: this._getTrackItemRemoveHandler(trackItem)
+                            });
+                        }
+
+                        this._showTrackListRightClickMenu(menuObj, trackItem, offsetX, offsetY);
+
+                        return false;
+                    }
+                }
+
+                return true;
+            };
+
+            UI.prototype._handleDocumentClick = function(evt) {
+                var $target = $(evt.srcElement ? evt.srcElement : evt.target);
+                if(!($target.parents('.TrackList__RightClick').length || $target.is(this._$TrackListRightClickMenu))) {
+                    this._hideTrackListRightClickMenu();
+                }
+            };
+
+            UI.prototype._getTrackItemPlayHandler = function(trackItem) {
+                if(trackItem) {
+                    var that = this;
+                    return function() {
+                        var player = that._Player;
+                        var playback = player._Playback;
+                        var playlist = player._Playlist;
+                        var controller = player._Controller;
+                        var currentTrackItem = playback.getCurrentTrackItem();
+                        var trackItemIdx = playlist.getTrackItemIndex(trackItem);
+                        if(!player.isDestructed() && trackItemIdx >= 0) {
+                            if(currentTrackItem !== trackItem) {
+                                controller.setCurrentTrackItem(trackItem, true);
+                            } else {
+                                playback.play();
+                            }
+                        }
+                    };
+                }
+
+                return null;
+            };
+
+            UI.prototype._getTrackItemPauseHandler = function(trackItem) {
+                if(trackItem) {
+                    var that = this;
+                    return function() {
+                        var player = that._Player;
+                        var playback = player._Playback;
+                        var playlist = player._Playlist;
+                        var controller = player._Controller;
+                        var currentTrackItem = playback.getCurrentTrackItem();
+                        var trackItemIdx = playlist.getTrackItemIndex(trackItem);
+                        if(!player.isDestructed() && trackItemIdx >= 0 && currentTrackItem === trackItem) {
+                            controller.pause();
+                        }
+                    };
+                }
+
+                return null;
+            };
+
+            UI.prototype._getTrackItemRemoveHandler = function(trackItem) {
+                if(trackItem) {
+                    var that = this;
+                    return function() {
+                        return that.removeTrackItem(trackItem.id);
+                    };
+                }
+
+                return null;
             };
 
             UI.prototype._resizePlayer = function() {
@@ -583,10 +766,10 @@
 
             UI.prototype._resizeTrackItemWidth = function() {
                 var trackListWidth = this._$TrackList.width();
-                var strMaxWidth = trackListWidth - 125;
+                var strMaxWidth = trackListWidth - 130;
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
-                var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info p {max-width: '+strMaxWidth+'px;}';
+                var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}';
 
                 var $lastCSS = this._$UI.find('style#BluePlayer__'+playerID+"."+className);
                 if($lastCSS.length) {
@@ -610,6 +793,27 @@
                 var id = trackItem.id;
                 var $target = this._$TrackList.find('.TrackItem[data-id="'+id+'"]');
                 return $target.length ? $target : null;
+            };
+
+            UI.prototype._showTrackListRightClickMenu = function(menuObject, trackItem, posX, posY) {
+                var player = this._Player;
+                var $template = this.constructor.getTrackListRightClickTemplate(menuObject, trackItem, player, this._hideTrackListRightClickMenu.bind(this));
+                if($template) {
+                    this._$TrackListRightClickMenu.html('');
+                    this._$TrackListRightClickMenu.css({
+                        top: posY,
+                        left: posX
+                    });
+                    this._$TrackListRightClickMenu.append($template);
+                    this._$TrackListRightClickMenu.addClass('show');
+                } else {
+                    this._hideTrackListRightClickMenu();
+                }
+            };
+
+            UI.prototype._hideTrackListRightClickMenu = function() {
+                this._$TrackListRightClickMenu.html('');
+                this._$TrackListRightClickMenu.removeClass('show');
             };
 
             UI.prototype._setTitleAndArtist = function(title, artist) {
@@ -650,6 +854,7 @@
             UI.prototype.setMode = function(mode) {
                 this._mode = mode;
                 this._$ModeButton.removeClass('repeat repeat-one repeat-and-auto active');
+                var title = null;
                 switch(mode) {
                     case TrackMode.NONE:
                         this._$ModeButton.addClass('repeat');
@@ -657,16 +862,21 @@
 
                     case TrackMode.REPEAT_LIST:
                         this._$ModeButton.addClass('repeat active');
+                        title = 'Repeat';
                         break;
 
                     case TrackMode.REPEAT_TRACK:
                         this._$ModeButton.addClass('repeat-one active');
+                        title = 'Repeat Track';
                         break;
 
                     case TrackMode.CUSTOM_LIST:
                         this._$ModeButton.addClass('repeat-and-auto active');
+                        title = 'Custom List';
                         break;
                 }
+
+                this._$ModeButton.attr('title', title);
             };
 
             UI.prototype.setDuration = function(duration) {
@@ -750,7 +960,7 @@
 
             UI.prototype.getMode = function() {
                 return this._mode;
-            }
+            };
 
             UI.prototype.isMobileMode = function() {
                 return this._$UI.hasClass('mobile');
@@ -1091,6 +1301,10 @@
                 return this._destructed;
             };
 
+            Playback.prototype.getCurrentTrackItem = function() {
+                return this._currentTrackItem;
+            };
+
             Playback.prototype.play = function() {
                 if(this.isReady()) {
                     var promise = this._audio.play();
@@ -1111,7 +1325,7 @@
             Playback.prototype.pause = function() {
                 if(this._playDeferred && !this._playDeferred.isResolved()) {
                     this._playDeferred.reject({
-                        type: pause,
+                        type: 'paused',
                         error: null
                     });
                 }
@@ -1223,6 +1437,7 @@
                                 type: eachPlaylist.type,
                                 lrcType: eachPlaylist.lrcType,
                                 lrc: eachPlaylist.lrc,
+                                allowRemove: eachPlaylist.allowRemove
                             }, eachPlaylist.description);
                         } else {
                             return null;
@@ -1302,7 +1517,7 @@
             };
 
             Playlist.prototype.getTrackItemIndexByTrackID = function(trackID) {
-                if(!trackItem) {
+                if(!trackID) {
                     return -1;
                 }
                 return this._playlist.findIndex(function(each){
@@ -1437,30 +1652,18 @@
             };
 
             Controller.prototype._handlePreviousButtonClick = function() {
-                this._abortTrackRequestJob();
-                this._trackRequestJob = this._Playlist.getPreviousTrackItem();
-                var that = this;
-                var promise = this._trackRequestJob.promise;
-                promise.then(function(data){
-                    that._handleCurrentTrackItem(data, true);
-                });
+                this.skipBackwardTrack();
             };
 
             Controller.prototype._handleNextButtonClick = function() {
-                this._abortTrackRequestJob();
-                this._trackRequestJob = this._Playlist.getNextTrackItem();
-                var that = this;
-                var promise = this._trackRequestJob.promise;
-                promise.then(function(data){
-                    that._handleCurrentTrackItem(data, true);
-                });
+                this.skipForwardTrack();
             };
 
-            Controller.prototype._handleCurrentTrackItem = function(data, play) {
-                if(data) {
-                    this._currentTrackItem = data;
-                    this._UI.setCurrentTrackItem(data);
-                    this._Playback.setTrack(data);
+            Controller.prototype.setCurrentTrackItem = function(trackItem, play) {
+                if(trackItem) {
+                    this._currentTrackItem = trackItem;
+                    this._UI.setCurrentTrackItem(trackItem);
+                    this._Playback.setTrack(trackItem);
                     if(play) {
                         this._Playback.play();
                     }
@@ -1479,7 +1682,7 @@
                 var promise = this._trackRequestJob.promise;
                 promise.then(function(data) {
                     if(data) {
-                        that._handleCurrentTrackItem(data, true);
+                        that.setCurrentTrackItem(data, true);
                     } else if(that._Player._mode !== TrackMode.CUSTOM_LIST) {
                         that._resetPlaylistSequence();
                     }
@@ -1494,7 +1697,7 @@
                 this._trackRequestJob = this._Playlist.getNextTrackItem();
                 var promise = this._trackRequestJob.promise;
                 promise.then(function(data){
-                    that._handleCurrentTrackItem(data, play);
+                    that.setCurrentTrackItem(data, play);
                 });
             };
 
@@ -1510,7 +1713,31 @@
                     var subscriber = this._subscribers.shift();
                     subscriber.remove();
                 }
-            }
+            };
+
+            Controller.prototype.skipBackwardTrack = function() {
+                this._abortTrackRequestJob();
+                this._trackRequestJob = this._Playlist.getPreviousTrackItem();
+                var that = this;
+                var promise = this._trackRequestJob.promise;
+                promise.then(function(data){
+                    that.setCurrentTrackItem(data, true);
+                });
+            };
+
+            Controller.prototype.skipForwardTrack = function() {
+                this._abortTrackRequestJob();
+                this._trackRequestJob = this._Playlist.getNextTrackItem();
+                var that = this;
+                var promise = this._trackRequestJob.promise;
+                promise.then(function(data){
+                    that.setCurrentTrackItem(data, true);
+                });
+            };
+
+            Controller.prototype.pause = function() {
+                this._Playback.pause();
+            };
 
             Controller.prototype.isDestructed = function() {
                 return this._destructed;
@@ -1682,36 +1909,42 @@
             }
         };
 
-        Player.prototype.play = function() {
+        Player.prototype._ensureNotDestructed = function() {
+            if(this.isDestructed()) {
+                throw new Error("Player was destructed.");
+            }
+        };
 
+        Player.prototype.play = function() {
+            this._ensureNotDestructed();
         };
 
         Player.prototype.pause = function() {
-
+            this._ensureNotDestructed();
         };
 
         Player.prototype.seek = function() {
-
-        };
-
-        Player.prototype.skipForward = function() {
-
-        };
-
-        Player.prototype.skipBackward = function() {
-
+            this._ensureNotDestructed();
         };
 
         Player.prototype.getPosition = function() {
-
+            if(this.isDestructed()) {
+                return 0;
+            }
         };
 
         Player.prototype.getDuration = function() {
+            if(this.isDestructed()) {
+                return 0;
+            }
+        };
 
+        Player.prototype.isDestructed = function() {
+            return this._destructed;
         };
 
         Player.prototype.destruct = function() {
-            if(!this._destructed) {
+            if(!this.isDestructed()) {
                 if(this._initTimerID) {
                     this._initTimerID = null;
                 }

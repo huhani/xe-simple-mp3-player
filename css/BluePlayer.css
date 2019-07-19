@@ -7,11 +7,12 @@ body {margin: 0; padding: 0;}
     font-family: Arial, Helvetica, sans-serif; margin: 5px; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.07), 0 1px 5px 0 rgba(0, 0, 0, 0.1);  border-radius: 2px;
     line-height: 1.4; font-size: 16px; color: #5A5A5A;
 }
-#BluePlayer p {margin: 0; font-size: 13px;}
+#BluePlayer p, #BluePlayer span {margin: 0; padding: 0; font-size: 13px; font-weight: normal; color: #5A5A5A; line-height: 1.4;}
+#BluePlayer a {text-decoration: none;}
 #BluePlayer .BluePlayer__Controls__container {float:left; width: 324px; box-sizing: border-box;}
 #BluePlayer .BluePlayer__Controls {    background-color: #f1f1f1;}
 
-#BluePlayer .BluePlayer__TrackList__container {float:right; width:326px;}
+#BluePlayer .BluePlayer__TrackList__container {float:right; width:326px;position:relative;}
 #BluePlayer .BluePlayer__TrackList { max-height: 100%;}
 
 #BluePlayer .TrackInfo__AlbumCover .AlbumCover__image__container {width: 324px; height: 324px; background-color: #dedede; background-size: cover; background-position: 50% 50%;}
@@ -22,10 +23,11 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .TrackInfo__Tags__wrapper {z-index: 1;}
 #BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags {position: absolute; top: 0; background-color: rgba(0, 0, 0, 0.75); width: 100%; opacity: 1; transition: opacity .5s .15s; text-align: center;box-sizing: border-box; padding: 2px;}
-#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags p {font-size: 12px; margin: 5px; color: #9A9A9A;}
+#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags:hover {opacity: 1; transition: opacity .5s;}
+#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags span {font-size: 12px; margin: 5px; color: #9A9A9A; text-align: center;}
 
-#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Title p  {color: #FFFFFF; font-size: 14px;}
-#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Artist p {color: #AFAFAF;}
+#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Title span {color: #FFFFFF; font-size: 14px;}
+#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Artist span {color: #AFAFAF;}
 
 #BluePlayer .TrackInfo__Lyric__container {display: none; background-color: #f1f1f1;}
 #BluePlayer .BluePlayer__Controls.EnableLyric .TrackInfo__Lyric__container {display: block;}
@@ -37,7 +39,7 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .PlaybackTimeline { padding: 32px 0 10px;}
 #BluePlayer .BluePlayer__Controls.EnableLyric .PlaybackTimeline { padding: 5px 0 10px;}
-#BluePlayer .PlaybackTimeline p {font-size: 12px; color: #607d8b; width:32px;}
+#BluePlayer .PlaybackTimeline span {display: inline-block; font-size: 12px; color: #607d8b; width:32px; text-align: left; vertical-align: top;}
 #BluePlayer .PlaybackTimeline__TimePassed {display:inline-block; float: left; margin: 0 2px 0 10px;}
 #BluePlayer .PlaybackTimeline__ProgressBar {display:inline-block; position:relative; top: -8px; width: 240px;}
 #BluePlayer .PlaybackTimeline__ProgressBar .PlaybackTimelineSlider__extend { position: relative; top: -10px; height: 25px;}
@@ -46,14 +48,14 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .ui-widget {font-family: Arial,Helvetica,sans-serif; font-size: 1em;}
 #BluePlayer .ui-slider { position: relative; text-align: left; cursor: pointer;}
-#BluePlayer .ui-slider-horizontal {height: 1px;}
+#BluePlayer .ui-slider-horizontal {height: 2px;}
 #BluePlayer .ui-widget-content {border: unset; color: unset; background-color: #CECECE;}
 #BluePlayer .ui-slider-horizontal .ui-slider-range-min {left: 0;}
 #BluePlayer .ui-slider-horizontal .ui-slider-range {top: 0; height: 100%;}
 #BluePlayer .ui-slider .ui-slider-range { position: absolute;  z-index: 1;  font-size: .7em;  display: block;  border: 0;  background-position: 0 0;}
 
 #BluePlayer .ui-state-default, .ui-widget-content .ui-state-default, #BluePlayer .ui-widget-header .ui-state-default {border: unset; color: unset; background: unset;}
-#BluePlayer .ui-slider-horizontal .ui-slider-handle {top: -4px; margin-left: -5px;}
+#BluePlayer .ui-slider-horizontal .ui-slider-handle {top: -3px; margin-left: -5px;}
 #BluePlayer .ui-slider .ui-slider-handle {position: absolute; z-index: 2; background-color: #00a0ff; width: 9px; height: 9px; border: 0px; border-radius: 5px; outline: none; opacity: 0; transition: opacity .15s;
 }
 #BluePlayer .ui-slider:hover .ui-slider-handle,#BluePlayer .ui-slider .ui-slider-handle:active, #BluePlayer .ui-slider.sliding .ui-slider-handle {position: absolute; z-index: 2; background-color: #00a0ff; width: 9px; height: 9px; border: 0px; border-radius: 5px; outline: none;
@@ -73,7 +75,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .ControlBtns__Main .controls-Icon {width: 18px ;height: 18px;}
 #BluePlayer .controls-Icon.play {width: 24px ;height: 24px; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgZmlsbD0iIzYwN2Q4YiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InBsYXktYXJyb3ciPg0KCQk8cG9seWdvbiBwb2ludHM9IjM4LjI1LDAgMzguMjUsMzU3IDMxOC43NSwxNzguNSAJCSIvPg0KCTwvZz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjwvc3ZnPg0K') no-repeat;background-size: cover;}
 #BluePlayer .controls-Icon.pause {width: 24px ;height: 24px; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgZmlsbD0iIzYwN2Q4YiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InBhdXNlIj4NCgkJPHBhdGggZD0iTTI1LjUsMzU3aDEwMlYwaC0xMDJWMzU3eiBNMjI5LjUsMHYzNTdoMTAyVjBIMjI5LjV6Ii8+DQoJPC9nPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPC9zdmc+DQo=') no-repeat;background-size: cover;}
-#BluePlayer .controls-Icon.playPrev {position: relative;top: -3px; margin: 0 8px 0 0; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjMwNnB4IiBoZWlnaHQ9IjMwNnB4IiBmaWxsPSIjNjA3ZDhiIiB2aWV3Qm94PSIwIDAgMzA2IDMwNiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzA2IDMwNjsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InNraXAtcHJldmlvdXMiPg0KCQk8cmVjdCB3aWR0aD0iNTEiIGhlaWdodD0iMzA2Ii8+DQoJCTxwb2x5Z29uIHBvaW50cz0iODkuMjUsMTUzIDMwNiwzMDYgMzA2LDAgCQkiLz4NCgk8L2c+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat;background-size: cover;}
+#BluePlayer .controls-Icon.playPrev {position: relative;top: -3px; margin: 0 12px 0 0; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjMwNnB4IiBoZWlnaHQ9IjMwNnB4IiBmaWxsPSIjNjA3ZDhiIiB2aWV3Qm94PSIwIDAgMzA2IDMwNiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzA2IDMwNjsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InNraXAtcHJldmlvdXMiPg0KCQk8cmVjdCB3aWR0aD0iNTEiIGhlaWdodD0iMzA2Ii8+DQoJCTxwb2x5Z29uIHBvaW50cz0iODkuMjUsMTUzIDMwNiwzMDYgMzA2LDAgCQkiLz4NCgk8L2c+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat;background-size: cover;}
 #BluePlayer .controls-Icon.playNext {position: relative;top: -3px; margin: 0 0 0 8px; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjMwNnB4IiBoZWlnaHQ9IjMwNnB4IiBmaWxsPSIjNjA3ZDhiIiB2aWV3Qm94PSIwIDAgMzA2IDMwNiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzA2IDMwNjsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InNraXAtbmV4dCI+DQoJCTxwYXRoIGQ9Ik0wLDMwNmwyMTYuNzUtMTUzTDAsMFYzMDZ6IE0yNTUsMHYzMDZoNTFWMEgyNTV6Ii8+DQoJPC9nPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPC9zdmc+DQo=') no-repeat;background-size: cover;}
 
 
@@ -107,26 +109,50 @@ body {margin: 0; padding: 0;}
 #BluePlayer .ControlBtns__Volume .Volume__Slider {display: inline-block; width: 50px;}
 #BluePlayer .ControlBtns__Volume .Volume__Slider .VlumeSlider__extend {position:relative; top: -8px; height: 24px;}
 
+
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick {display: none; position: absolute; z-index: 3; background-color: #FFFFFF; min-width: 40px; min-height: 12px; border-radius: 3px; box-shadow: 0 0 15px rgba(14,42,71,0.25);}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick.show {display: block;}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick ul {list-style:none; font-size: 14px;}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 5px 10px; white-space: nowrap;}
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li:hover {background-color:#EFEFEF;}
+
+
 #BluePlayer .BluePlayer__TrackList {max-height: 420px; overflow-y:auto;}
+#BluePlayer .BluePlayer__TrackList::-webkit-scrollbar {width: 8px; border: 3px solid #fff; background-color :#FFF }
+#BluePlayer .BluePlayer__TrackList::-webkit-scrollbar-thumb {background: #C0C0C0; -webkit-border-radius: 8px; border-radius: 8px; }
+
+
 #BluePlayer .TrackList {background-color: #FFFFFF; -webkit-user-select: none;  -moz-user-select: none; -ms-user-select: none; user-select: none; line-height: 1.5; outline: none; }
-#BluePlayer .TrackItem {width: 100%; height: 48px; cursor:pointer; transition: all 0.15s ease; overflow: hidden;}
+#BluePlayer .TrackItem {width: 100%; height: 48px; cursor:pointer; transition: all 0.15s ease; overflow: hidden; line-height: 1.2;}
 #BluePlayer .TrackItem:hover {background-color: #EFEFEF;}
 #BluePlayer .TrackItem:active {background-color: #E0E0E0;}
 #BluePlayer .TrackItem.current {background-color: #EAEAEA;}
-
+#BluePlayer .TrackItem .artist {line-height: 1.2; padding: 0;}
+#BluePlayer .TrackItem .title {line-height: 1.2;  padding: 0;}
 #BluePlayer .TrackItemDescription {height:100%; }
-
 #BluePlayer .TrackItemDescription__left {float:left; display: table; height: 100%;}
 #BluePlayer .TrackItemDescription__left .albumCover__wrapper {display: table-cell; vertical-align: middle; padding: 0 4px 0 8px; }
 #BluePlayer .TrackItemDescription__left .albumCover {width: 32px; height: 32px; background-color: #E0E0E0; display: block;}
 #BluePlayer .TrackItemDescription__left .albumCover .albumCover__img {width: 32px; height: 32px;}
 #BluePlayer .TrackItemDescription__left .info {display: table-cell; vertical-align: middle; padding: 0 5px;}
-#BluePlayer .TrackItemDescription__left .info .artist p{font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
-#BluePlayer .TrackItemDescription__left .info .title p{font-size: 12px; color: #353535; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
-
+#BluePlayer .TrackItemDescription__left .info span {display: inline-block; text-align: left; vertical-align: middle;}
+#BluePlayer .TrackItemDescription__left .info .artist span{font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+#BluePlayer .TrackItemDescription__left .info .title span{font-size: 12px; color: #353535; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
 
 #BluePlayer .TrackItemDescription__right {float:right; display: table; height: 100%;}
-#BluePlayer .TrackItemDescription__right .duration {display: table-cell; vertical-align: middle; font-size: 11px; color: #A0A0A0; padding: 0px 10px 0 0;}
+
+#BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls {display:table-cell;}
+#BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: none;}
+
+#BluePlayer .TrackItemDescription__right .controls {display:none; vertical-align: middle; width: 65px; text-align:center; }
+#BluePlayer .TrackItemDescription__right .controls-icon {padding: 2px 6px;}
+#BluePlayer .TrackItemDescription__right .controls-icon:focus {outline-color: #333; outline-width: 1px; outline-style: dotted; }
+#BluePlayer .TrackItemDescription__right .controls-icon .icon {display: inline-block; width:10px; height: 10px;}
+#BluePlayer .TrackItemDescription__right .controls-icon.remove .icon {background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9ImNsb3NlIj4NCgkJPHBvbHlnb24gcG9pbnRzPSIzNTcsMzUuNyAzMjEuMywwIDE3OC41LDE0Mi44IDM1LjcsMCAwLDM1LjcgMTQyLjgsMTc4LjUgMCwzMjEuMyAzNS43LDM1NyAxNzguNSwyMTQuMiAzMjEuMywzNTcgMzU3LDMyMS4zIA0KCQkJMjE0LjIsMTc4LjUgCQkiLz4NCgk8L2c+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
+#BluePlayer .TrackItemDescription__right .controls-icon.more .icon {background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJDYXBhXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgNjAgNjAiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDYwIDYwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8Zz4NCgk8cGF0aCBkPSJNOCwyMmMtNC40MTEsMC04LDMuNTg5LTgsOHMzLjU4OSw4LDgsOHM4LTMuNTg5LDgtOFMxMi40MTEsMjIsOCwyMnoiLz4NCgk8cGF0aCBkPSJNNTIsMjJjLTQuNDExLDAtOCwzLjU4OS04LDhzMy41ODksOCw4LDhzOC0zLjU4OSw4LThTNTYuNDExLDIyLDUyLDIyeiIvPg0KCTxwYXRoIGQ9Ik0zMCwyMmMtNC40MTEsMC04LDMuNTg5LTgsOHMzLjU4OSw4LDgsOHM4LTMuNTg5LDgtOFMzNC40MTEsMjIsMzAsMjJ6Ii8+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
+
+#BluePlayer .TrackItemDescription__right .duration {display: table-cell; vertical-align: middle; padding: 0px 10px 0 0;}
+#BluePlayer .TrackItemDescription__right .duration span {font-size: 11px; color: #A0A0A0;}
 
 #BluePlayer.mobile {max-height: 620px;}
 #BluePlayer.mobile .BluePlayer__Controls__container {display:block; width: 100%; border-right: unset;}
@@ -145,8 +171,9 @@ body {margin: 0; padding: 0;}
 #BluePlayer.mobile .TrackInfo__Description__container .TrackInfo__Description { display: table; height: 60px; width: 100%;border: 1px solid #1a1a1a; background-color: #182436;}
 #BluePlayer.mobile .TrackInfo__Description__container .TrackInfo__Tags {background-color: unset;}
 #BluePlayer.mobile .TrackInfo__AlbumCover {display: table-cell; vertical-align: middle; width: 40px; margin:0 5px;  padding: 0 5px 0 8px;}
-#BluePlayer.mobile .TrackInfo__Tags__wrapper .TrackInfo__Tags p {margin: 2px; font-size: 11px; text-align: left;}
+#BluePlayer.mobile .TrackInfo__Tags__wrapper .TrackInfo__Tags span {margin: 2px; font-size: 11px; text-align: left;}
 #BluePlayer.mobile .TrackInfo__Tags__wrapper {display: table-cell; vertical-align: middle;}
+#BluePlayer.mobile .TrackInfo__Tags__wrapper .TrackInfo__Tags {text-align:left;}
 #BluePlayer.mobile .AlbumCover__image__container {width: 40px; height: 40px;}
 #BluePlayer.mobile .TrackInfo__AlbumCover .AlbumCover__image__container .AlbumCover__image {width: 40px; height: 40px;}
 #BluePlayer.mobile .TrackInfo__Tags { position: relative; padding: 0 5px; box-sizing: border-box;}

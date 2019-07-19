@@ -61,7 +61,7 @@
                 duration: duration,
                 url: url,
                 type: null,
-                allowRemove: false,
+                allowRemove: true,
                 description: description
             });
         });
