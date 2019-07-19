@@ -7,6 +7,85 @@ require_once('./addons/simple_mp3_player/lib/phpmp3.php');
 require_once('./addons/simple_mp3_player/lib/getid3/getid3.php');
 require_once('./addons/simple_mp3_player/simple_encrypt.module.php');
 
+if(!class_exists('SimpleMP3Tools', false)) {
+    class SimpleMP3Tools {
+        public static function getNextDocumentFile($mid, $document_srl, $page = 1, $document_count = 10, $direction = 'next', $category_srl = null, $search_target = null, $search_keyword = null) {
+            $module_data = self::getBoardModuleInfo($mid);
+            if(!$module_data) {
+                return null;
+            }
+
+            $module_info = $module_data->module_info;
+            $module_grant = $module_data->grant;
+            if(!$module_grant || !$module_grant->access || !$module_grant->view) {
+                return null;
+            }
+
+            $oDocumentModel = getModel('document');
+            $oDocument = $oDocumentModel->getDocument($document_srl);
+            if(!$oDocument || !$oDocument->isExists() || !$oDocument->isAccessible() || $module_info->module_srl != $oDocument->get('module_srl')) {
+                return null;
+            }
+
+            $order_target = $module_info->order_target;
+            $order_type = $module_info->order_type;
+
+            $args = new stdClass;
+            $args->module_srl = $module_info->module_srl;
+            $args->status = 'PUBLIC';
+            $args->category_srl = $category_srl ? $category_srl : null;
+            $args->search_target = $search_target ? $search_target : null;
+            $args->search_keyword = $search_keyword ? $search_keyword : null;
+            $args->file_extension = implode(',', array('.mp3', '.m4a'));
+            $args->isvalid = "Y";
+            $args->page = $page;
+            if($order_target === 'list_order') {
+                $args->list_order = $oDocument->get('list_order');
+                $args->sort_index = 'documents.list_order';
+            } else {
+                $args->update_order = $oDocument->get('update_order');
+                $args->sort_index = 'documents.update_order';
+            }
+            if($direction === 'next') {
+                $args->order_type = 'desc';
+            } else {
+                $args->order_type = 'asc';
+            }
+            $args->list_count = $document_count;
+            $output = executeQueryArray('addons.simple_mp3_player.'.($direction === 'prev' ? 'getPrevDocument' : 'getNextDocument'), $args);
+            if(!$output->toBool()) {
+                return null;
+            }
+
+            return $output;
+        }
+
+        public static function getBoardModuleInfo($mid = null) {
+            if($mid) {
+                $oModuleModel = getModel('module');
+                $module_info = $oModuleModel->getModuleInfoByMid($mid);
+                if(!$module_info) {
+                    return null;
+                }
+                $member_info = Context::get('logged_info');
+                if(!$member_info) {
+                    $member_info = new stdClass;
+                    $member_info->is_admin = "N";
+                    $member_info->member_srl = null;
+                }
+                $oModuleGrant = $oModuleModel->getGrant($module_info, $member_info);
+                $obj = new stdClass;
+                $obj->module_info = $module_info;
+                $obj->grant = $oModuleGrant;
+
+                return $obj;
+            }
+
+            return null;
+        }
+    }
+}
+
 if(!class_exists('SimpleMP3Describer', false)) {
     class SimpleMP3Describer {
         private $use_encrypt = false;
@@ -639,7 +718,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
 $act = Context::get('act');
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric'))) {
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getSimpleMP3Test'))) {
         $config = new stdClass();
         $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
         $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
@@ -698,6 +777,47 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             } else {
                 $result->lyric = $lyric;
             }
+        } else if($act === 'getSimpleMP3Test') {
+            $result->descriptions = null;
+            $result->totalPage = null;
+            $result->currentPage = null;
+
+            $mid = Context::get('mid');
+            $document_srl = Context::get('document_srl');
+            $page = Context::get('page');
+            $documentCount = 10;
+            $direction = Context::get('direction');
+            $category_srl = Context::get('category_srl');
+            $search_target = Context::get('search_target');
+            $search_keyword = Context::get('search_keyword');
+            if(!$direction || !in_array($direction, array('prev', 'next'))) {
+                $direction = null;
+            }
+            if(!$page) {
+                $page = 1;
+            }
+            if($mid && $document_srl && $direction) {
+                $oNextTrackData = SimpleMP3Tools::getNextDocumentFile($mid, $document_srl, $page, $documentCount, $direction, $category_srl, $search_target, $search_keyword);
+                if($oNextTrackData) {
+                    $oDescriptionList = array();
+                    foreach($oNextTrackData->data as $each) {
+                        $oDescription = SimpleMP3Describer::getDescription($each->file_srl, $each->uploaded_filename, $each->source_filename, $each->document_srl);
+                        if($oDescription) {
+                            $obj = new stdClass;
+                            $obj->document_srl = $each->document_srl;
+                            $obj->title = $each->title;
+                            $obj->file_srl = $each->file_srl;
+                            $obj->description = $oDescription;
+                            $oDescriptionList[] = $obj;
+                        }
+                    }
+                    $page_navigation = $oNextTrackData->page_navigation;
+                    $result->totalPage = $page_navigation->total_page;
+                    $result->currentPage = $page_navigation->cur_page;
+                }
+            }
+
+            $result->descriptions = $oDescriptionList;
         }
         $result->message = "success";
         echo json_encode($result);
@@ -744,6 +864,13 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         Context::loadFile('./addons/simple_mp3_player/css/APlayer.min.css', true);
         Context::loadFile(array('./addons/simple_mp3_player/js/APlayer.min.js', 'body', '', null), true);
         Context::loadFile(array('./addons/simple_mp3_player/js/aplayer_fixed_loader.js', 'body', '', null), true);
+    } else if($addon_info->playlist_player === 'BluePlayer') {
+        Context::loadFile('./addons/simple_mp3_player/css/clusterize.css', true);
+        Context::loadFile('./addons/simple_mp3_player/css/BluePlayer.css', true);
+        Context::loadFile(array('./common/js/plugins/ui/jquery-ui.min.js', 'body', '', null), true);
+        Context::loadFile(array('./addons/simple_mp3_player/js/clusterize.js', 'body', '', null), true);
+        Context::loadFile(array('./addons/simple_mp3_player/js/BluePlayer.js', 'body', '', null), true);
+        Context::loadFile(array('./addons/simple_mp3_player/js/blueplayer_loader.js', 'body', '', null), true);
     }
     if(isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y") {
         Context::loadFile(array('./addons/simple_mp3_player/js/mp3link_to_player.js', 'body', '', null), true);

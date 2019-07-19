@@ -17,6 +17,9 @@
             <options value="APlayer_fixed">
                 <title xml:lang="ko">APlayer (Fixed)</title>
             </options>
+            <options value="BluePlayer">
+                <title xml:lang="ko">BluePlayer</title>
+            </options>
             <options value="N">
                 <title xml:lang="ko">사용하지 않음</title>
             </options>
