@@ -166,8 +166,8 @@ body {margin: 0; padding: 0;}
 #BluePlayer.mobile .TrackInfo__Lyric__container .Lyric__contents p {margin: 0; font-size: 12px; color: #FFFFFF;}
 #BluePlayer.mobile .TrackInfo__Lyric__container {background-color: #38404c;}
 
-#BluePlayer.mobile .TrackList {max-height: 300px; min-height: 180px;}
 
+#BluePlayer.mobile .BluePlayer__TrackList {max-height: 300px; min-height: 180px;}
 #BluePlayer.mobile .BluePlayer__TrackList__container .TrackList__RightClick ul {font-size: 11px; }
 
 #BluePlayer.mobile .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls {display: none;}

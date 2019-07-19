@@ -858,6 +858,13 @@
 
                 this._resizeTrackItemWidth();
                 this._ListClusterize.refresh();
+                if(this._TrackListSimpleBar) {
+                    this._TrackListSimpleBar.recalculate();
+                    this._$TrackListWrapper.find('.simplebar-content-wrapper').css({
+                        paddingRight: 0,
+                        paddingBottom: 0
+                    });
+                }
             };
 
             UI.prototype._resizeTrackItemWidth = function() {
