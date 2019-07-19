@@ -865,10 +865,13 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         Context::loadFile(array('./addons/simple_mp3_player/js/APlayer.min.js', 'body', '', null), true);
         Context::loadFile(array('./addons/simple_mp3_player/js/aplayer_fixed_loader.js', 'body', '', null), true);
     } else if($addon_info->playlist_player === 'BluePlayer') {
+        Context::loadFile('./addons/simple_mp3_player/css/simplebar.css', true);
         Context::loadFile('./addons/simple_mp3_player/css/clusterize.css', true);
         Context::loadFile('./addons/simple_mp3_player/css/BluePlayer.css', true);
         Context::loadFile(array('./common/js/plugins/ui/jquery-ui.min.js', 'body', '', null), true);
+        Context::loadFile(array('./addons/simple_mp3_player/js/jquery.ui.touch-punch.min.js', 'body', '', null), true);
         Context::loadFile(array('./addons/simple_mp3_player/js/clusterize.js', 'body', '', null), true);
+        Context::loadFile(array('./addons/simple_mp3_player/js/simplebar.min.js', 'body', '', null), true);
         Context::loadFile(array('./addons/simple_mp3_player/js/BluePlayer.js', 'body', '', null), true);
         Context::loadFile(array('./addons/simple_mp3_player/js/blueplayer_loader.js', 'body', '', null), true);
     }

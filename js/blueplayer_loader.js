@@ -21,7 +21,24 @@
             enableRadio: false,
             random: false,
             autoplay: true,
-            mode: 1
+            mode: 1,
+            labels: {
+                play: '재생',
+                pause: '일시정지',
+                random: "랜덤재생",
+                repeat: "반복설정",
+                remove: "목록에서 삭제",
+                more: "더 보기",
+                skipBackward: "이전 곡으로",
+                skipForward: "다음 곡으로",
+                rightClickPlay: "재생",
+                rightClickPause: "일시정지",
+                rightClickRemoveTrack: "목록에서 삭제"
+            },
+            messages: {
+                loadingLyric: "가사를 불러오는 중입니다.",
+                notFoundLyric: "가사를 찾을 수 없습니다."
+            }
         });
 
         window.tt=player;
