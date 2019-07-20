@@ -1941,15 +1941,13 @@
 
                 RandomPlaylistManager.prototype.removeTrackItem = function(trackItem) {
                     var jobCompleted = PlaylistManager.prototype.removeTrackItem.call(this, trackItem);
-                    if(jobCompleted) {
-                        var pickedTrackItemIndex = this._pickedPlaylist.indexOf(trackItem);
-                        var standByTrackItemIndex = this._standByPlaylist.indexOf(trackItem);
-                        if(pickedTrackItemIndex > -1) {
-                            this._pickedPlaylist.splice(pickedTrackItemIndex, 1);
-                        }
-                        if(standByTrackItemIndex > -1) {
-                            this._standByPlaylist.splice(standByTrackItemIndex, 1);
-                        }
+                    var pickedTrackItemIndex = this._pickedPlaylist.indexOf(trackItem);
+                    var standByTrackItemIndex = this._standByPlaylist.indexOf(trackItem);
+                    if(pickedTrackItemIndex > -1) {
+                        this._pickedPlaylist.splice(pickedTrackItemIndex, 1);
+                    }
+                    if(standByTrackItemIndex > -1) {
+                        this._standByPlaylist.splice(standByTrackItemIndex, 1);
                     }
                 };
 
