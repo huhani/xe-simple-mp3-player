@@ -182,7 +182,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $timestamp = time();
             if($files) {
                 foreach($files as $file) {
-                    $description = self::getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl);
+                    $description = self::getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl, $file->sid, $file->module_srl);
                     if($description) {
                         $fileParts = pathinfo($file->uploaded_filename);
                         $sourceFileParts = pathinfo($file->source_filename);
@@ -273,10 +273,14 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return $descriptions;
         }
 
-        static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null) {
+        static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null) {
             $description = self::getDescriptionFile($file_srl, $uploaded_filename);
             if(!$description) {
                 $description = self::getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename);
+            }
+            if($description && $file_srl && $file_sid && $module_srl) {
+                $oFileModel = getModel('file');
+                $description->download_url = $oFileModel->getDownloadUrl($file_srl, $file_sid, $module_srl);
             }
 
             return $description;
@@ -305,7 +309,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return null;
         }
 
-        static function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null) {
+        static function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null, $file_sid = null, $module_srl = null) {
             if(!$filepath) {
                 $filepathData = self::getFilePathname($file_srl, $document_srl);
                 if($filepathData) {
@@ -411,7 +415,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
         function getMultipleFilePathname($upload_target_srl = null) {
             if($upload_target_srl) {
                 $oFileModel = getModel('file');
-                $oFileList = $oFileModel->getFiles($upload_target_srl, array('file_srl', 'uploaded_filename', 'source_filename'));
+                $oFileList = $oFileModel->getFiles($upload_target_srl, array('file_srl', 'uploaded_filename', 'source_filename', 'module_srl', 'sid'));
                 if($oFileList) {
                     return $oFileList;
                 }
@@ -801,7 +805,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                 if($oNextTrackData) {
                     $oDescriptionList = array();
                     foreach($oNextTrackData->data as $each) {
-                        $oDescription = SimpleMP3Describer::getDescription($each->file_srl, $each->uploaded_filename, $each->source_filename, $each->document_srl);
+                        $oDescription = SimpleMP3Describer::getDescription($each->file_srl, $each->uploaded_filename, $each->source_filename, $each->document_srl, $each->sid, $each->module_srl);
                         if($oDescription) {
                             $obj = new stdClass;
                             $obj->document_srl = $each->document_srl;
