@@ -508,7 +508,7 @@
                     this._$VolumeSlider.prepend('<div class="VlumeSlider__extend"></div>');
 
 
-                    $(document).on('click', this._onDocumentClickHandler);
+                    $(document).on('click touchstart', this._onDocumentClickHandler);
                     this._$TrackLisContainer.on('contextmenu', this._onTrackListContextHandler);
                     this._$PlayToggleButton.on('click', this._onPlayToggleButtonClickHandler);
                     this._$PlayPrevButton.on('click', this._onPrevButtonClickHandler);
