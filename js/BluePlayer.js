@@ -819,7 +819,7 @@
                 if(trackItem) {
                     var that = this;
                     return function() {
-                        return that.removeTrackItem(trackItem.id);
+                        return that._handleRemoveButtonClick(trackItem);
                     };
                 }
 
