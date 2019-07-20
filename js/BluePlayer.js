@@ -869,7 +869,7 @@
                     $rightControlSection.show();
                 }
 
-                this._resizeTrackItemWidth();
+                this._resizeTrackItemWidth(isMobile);
                 this._ListClusterize.refresh();
                 if(this._TrackListSimpleBar) {
                     this._TrackListSimpleBar.recalculate();
@@ -880,9 +880,9 @@
                 }
             };
 
-            UI.prototype._resizeTrackItemWidth = function() {
+            UI.prototype._resizeTrackItemWidth = function(isMobile) {
                 var trackListWidth = this._$TrackList.width();
-                var strMaxWidth = trackListWidth - 130;
+                var strMaxWidth = trackListWidth - 130 + (isMobile ? 25 : 0);
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
                 var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}';
@@ -1799,9 +1799,15 @@
                 };
 
                 PlaylistManager.prototype.getPreviousTrackFromHistory = function() {
-                    var lastIndex = this._lastHistoryItemIndex === null ? this._playingTrackHistory.length : this._lastHistoryItemIndex;
+                    var lastIndex = -1;
+                    if(this._lastHistoryItemIndex === null && this._lastTrackItem) {
+                        lastIndex = this._playingTrackHistory.indexOf(this._lastTrackItem);
+                    }
+                    if(lastIndex === -1) {
+                        lastIndex = this._lastHistoryItemIndex === null ? this._playingTrackHistory.length : this._lastHistoryItemIndex;
+                    }
                     var trackItem = null;
-                    this._lastHistoryItemIndex = lastIndex >= 0 ? (lastIndex-1) : lastIndex;
+                    this._lastHistoryItemIndex = lastIndex >= 0 ? (--lastIndex) : lastIndex;
                     if(this._lastHistoryItemIndex >= 0) {
                         trackItem = this._playingTrackHistory[lastIndex] || null;
                     }
@@ -1921,7 +1927,7 @@
                     if(shiftTrackItem) {
                         this._pickedPlaylist.push(shiftTrackItem);
                     }
-                    this._lastTrackItem = null;
+                    this._lastHistoryItemIndex = null;
                     return getDefaultSongRequest( shiftTrackItem || null);
                 };
 
