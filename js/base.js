@@ -1027,6 +1027,9 @@
                     if(tags.album) {
                         tags.album = ampToAmp(tags.album);
                     }
+                    if(description.download_url) {
+                        description.download_url = window.default_url + "index.php" + ampToAmp(description.download_url);
+                    }
                 }
             });
         }

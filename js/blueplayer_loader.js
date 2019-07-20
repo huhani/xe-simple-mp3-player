@@ -4,8 +4,6 @@
         return;
     }
 
-
-
     function buildAPlayer($target, descriptions) {
 
         var $section = $('<div></div>');
@@ -41,10 +39,31 @@
             },
             handlers: {
                 trackMenu: getTrackMenu
+            },
+            customAudioType: {
+                hls: handlePlaybackLoading
             }
         });
 
         window.tt=player;
+    }
+
+    var MSE = $SimpleMP3Player.MSE;
+    var lastMSE = null;
+    function handlePlaybackLoading(audioElement, trackItem) {
+        if(trackItem) {
+            console.log(arguments);
+            var description = trackItem.description;
+            if(lastMSE) {
+                lastMSE.destruct();
+            }
+            if(MSE && MSE.isSupported() && description && description.offsetInfo) {
+                lastMSE = new MSE(audioElement, trackItem.url, description.offsetInfo);
+            } else {
+                audioElement.src = trackItem.url;
+                audioElement.load()
+            }
+        }
     }
 
     function buildPlaylist(descriptions) {
@@ -67,7 +86,7 @@
             var artist = tags.artist ? tags.artist : null;
             var album = tags.album ? tags.album : null;
             var albumArt = tags.albumArt ? tags.albumArt : null;
-            var duration = offsetInfo.duration ? offsetInfo.duration : (stream.duration ? stream.duration : null);
+            var duration = offsetInfo.duration ? offsetInfo.duration * 1000 : (stream.duration ? stream.duration * 1000 : null);
             var url = description.filePath;
             var type = null;
             var lrc = null;
@@ -80,7 +99,7 @@
                 albumArt: albumArt,
                 duration: duration,
                 url: url,
-                type: null,
+                type: 'hls',
                 allowRemove: true,
                 description: description
             });
