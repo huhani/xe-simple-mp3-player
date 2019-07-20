@@ -38,6 +38,9 @@
             messages: {
                 loadingLyric: "가사를 불러오는 중입니다.",
                 notFoundLyric: "가사를 찾을 수 없습니다."
+            },
+            handlers: {
+                trackMenu: getTrackMenu
             }
         });
 
@@ -101,6 +104,34 @@
 
             buildAPlayer($document_content, data, useLyric);
         }
+    }
+
+    function getTrackMenu(trackItem) {
+        var menu = [];
+        if(!trackItem.description) {
+            return;
+        }
+        var description = trackItem.description;
+        if(description.download_url) {
+            menu.push({
+                name: "다운로드",
+                handler: getDownloadLinkHandler(trackItem)
+            });
+        }
+
+        return menu;
+    }
+
+    function getDownloadLinkHandler(trackItem) {
+        return function() {
+            if(!trackItem.description) {
+                return;
+            }
+            var description = trackItem.description;
+            if(description.download_url) {
+                window.open(description.download_url);
+            }
+        };
     }
 
     function boot() {

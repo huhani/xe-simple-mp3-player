@@ -231,6 +231,7 @@
                 this._volume = config.volume !== void 0 ? config.volume : 100;
                 this._random = config.random !== void 0 ? config.random : false;
                 this._mode = config.mode !== void 0 && isValidMode(config.mode) ? config.mode : TrackMode.REPEAT_LIST;
+                this._handlers = config.handlers;
                 this._initialized = false;
                 this._destructed = false;
                 this._$container = $(container);
@@ -764,8 +765,9 @@
                             handler: this._getTrackItemRemoveHandler(trackItem)
                         });
                     }
-
-                    //do something else
+                    if(this._handlers && this._handlers.trackMenu) {
+                        menuObj = menuObj.concat(this._handlers.trackMenu(trackItem));
+                    }
                 }
 
                 return menuObj;
@@ -2000,6 +2002,9 @@
             if(config.playlist === void 0) {
                 config.playlist = [];
             }
+            if(config.handlers === void 0) {
+                config.handlers = {};
+            }
 
             var that = this;
 
@@ -2016,6 +2021,7 @@
             this._initPlaylist = config.playlist;
             this._labels = config.labels || {};
             this._messages = config.messages || {};
+            this._handlers = config.handlers;
             this._initialized = false;
             this._initTimerID = null;
             this._UI = null;
@@ -2049,7 +2055,8 @@
                     enableLyric: this._enableLyric,
                     playlist: this._initPlaylist,
                     labels: this._labels,
-                    messages: this._messages
+                    messages: this._messages,
+                    handlers: this._handlers
                 };
 
                 this._initialized = true;

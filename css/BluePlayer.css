@@ -116,7 +116,7 @@ body {margin: 0; padding: 0;}
 }
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick.show {display: block;}
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick ul {list-style:none; color: #424242; font-size: 12px; font-weight: bold; padding:0; margin: 0}
-#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 6px 14px; cursor: pointer; white-space: nowrap; line-height: 1.3; }
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 8px 14px; cursor: pointer; white-space: nowrap; line-height: 1.2; }
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li:hover {background-color:#EFEFEF;}
 
 
