@@ -1360,7 +1360,7 @@
 
             Playback.prototype._handleAudioTimeUpdateEvent = function() {
                 if(this.isReady()) {
-                    var position = this._audio.currentTime * 1000;
+                    var position = this._getElementPosition();
                     var ui = this._Player._UI;
                     this.onTimeUpdate.dispatch(position);
                     ui.setPosition(position);
@@ -1515,7 +1515,7 @@
             };
 
             Playback.prototype._getElementPosition = function() {
-                return this._audio ? this._audio.currentTime : 0;
+                return this._audio && this._audio.currentTime && !isNaN(this._audio.currentTime) ? this._audio.currentTime * 1000 : 0;
             };
 
             Playback.prototype.isReady = function() {
@@ -1534,21 +1534,25 @@
                 return this._currentTrackItem;
             };
 
-            Playback.prototype.getElementDuration = function() {
+            Playback.prototype._getElementDuration = function() {
                 return this._audio && !isNaN(this._audio.duration) && this._audio.duration ? this._audio.duration * 1000 : 0;
             };
 
             Playback.prototype.getDuration = function() {
-                var elementDuration = this.getElementDuration();
+                var elementDuration = this._getElementDuration();
                 var currentTrackItem = this.getCurrentTrackItem();
                 if(elementDuration) {
                     return elementDuration;
                 }
                 if(currentTrackItem && currentTrackItem.duration) {
-                    return currentTrackItem.duration
+                    return currentTrackItem.duration;
                 }
 
                 return 0;
+            };
+
+            Playback.prototype.getPosition = function() {
+                return this._getElementPosition();
             };
 
             Playback.prototype._handleElementPlay = function() {
@@ -1716,6 +1720,7 @@
 
             Playback.prototype.destruct = function() {
                 if(!this.isDestructed()) {
+                    this._removeListeners();
                     this._destructed = true;
                 }
             };
@@ -1940,7 +1945,7 @@
                 };
 
                 RandomPlaylistManager.prototype.removeTrackItem = function(trackItem) {
-                    var jobCompleted = PlaylistManager.prototype.removeTrackItem.call(this, trackItem);
+                    PlaylistManager.prototype.removeTrackItem.call(this, trackItem);
                     var pickedTrackItemIndex = this._pickedPlaylist.indexOf(trackItem);
                     var standByTrackItemIndex = this._standByPlaylist.indexOf(trackItem);
                     if(pickedTrackItemIndex > -1) {
@@ -2591,6 +2596,9 @@
             if(this.isDestructed()) {
                 return 0;
             }
+
+            var playback = this._Playback;
+            return playback.getPosition();
         };
 
         Player.prototype.getDuration = function() {
@@ -2599,7 +2607,7 @@
                 return 0;
             }
 
-            return playback.getDuration;
+            return playback.getDuration();
         };
 
         Player.prototype.getMode = function() {
