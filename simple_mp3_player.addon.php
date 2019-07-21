@@ -60,6 +60,76 @@ if(!class_exists('SimpleMP3Tools', false)) {
             return $output;
         }
 
+        public static function getRandomDocument($mid, $document_srl, $offset = 1, $category_srl = null, $search_target = null, $search_keyword = null) {
+            $module_data = self::getBoardModuleInfo($mid);
+            if(!$module_data) {
+                return null;
+            }
+            $module_info = $module_data->module_info;
+            $module_grant = $module_data->grant;
+            if(!$module_grant || !$module_grant->access || !$module_grant->view) {
+                return null;
+            }
+            $oDocumentModel = getModel('document');
+            $oDocument = $oDocumentModel->getDocument($document_srl);
+            if(!$oDocument || !$oDocument->isExists() || !$oDocument->isAccessible() || $module_info->module_srl != $oDocument->get('module_srl')) {
+                return null;
+            }
+
+            $args = new stdClass;
+            $args->module_srl = $module_info->module_srl;
+            $args->status = 'PUBLIC';
+            $args->category_srl = $category_srl ? $category_srl : null;
+            $args->search_target = $search_target ? $search_target : null;
+            $args->search_keyword = $search_keyword ? $search_keyword : null;
+            $args->file_extension = implode(',', array('.mp3', '.m4a'));
+            $args->isvalid = "Y";
+            $args->page = $offset;
+            $args->list_order = $oDocument->get('list_order');
+            $args->sort_index = 'documents.list_order';
+            $output = executeQuery('addons.simple_mp3_player.getRandomDocumentByOffset', $args);
+            if(!$output->toBool()) {
+                return null;
+            }
+
+            return $output;
+        }
+
+        public static function getRandomDocumentCount($mid, $document_srl, $category_srl = null, $search_target = null, $search_keyword = null) {
+            $module_data = self::getBoardModuleInfo($mid);
+            if(!$module_data) {
+                return null;
+            }
+            $module_info = $module_data->module_info;
+            $module_grant = $module_data->grant;
+            if(!$module_grant || !$module_grant->access || !$module_grant->view) {
+                return null;
+            }
+            $oDocumentModel = getModel('document');
+            $oDocument = $oDocumentModel->getDocument($document_srl);
+
+            if(!$oDocument || !$oDocument->isExists() || !$oDocument->isAccessible() || $module_info->module_srl != $oDocument->get('module_srl')) {
+                return null;
+            }
+
+            $args = new stdClass;
+            $args->module_srl = $module_info->module_srl;
+            $args->status = 'PUBLIC';
+            $args->category_srl = $category_srl ? $category_srl : null;
+            $args->search_target = $search_target ? $search_target : null;
+            $args->search_keyword = $search_keyword ? $search_keyword : null;
+            $args->file_extension = implode(',', array('.mp3', '.m4a'));
+            $args->isvalid = "Y";
+            $args->list_order = $oDocument->get('list_order');
+            $args->sort_index = 'documents.list_order';
+            $output = executeQuery('addons.simple_mp3_player.getRandomDocumentCount', $args);
+            if(!$output->toBool()) {
+                return null;
+            }
+
+            return $output->data->count;
+        }
+
         public static function getBoardModuleInfo($mid = null) {
             if($mid) {
                 $oModuleModel = getModel('module');
@@ -722,7 +792,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
 $act = Context::get('act');
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getSimpleMP3Test'))) {
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getSimpleMP3Test', 'getRandomDocumentCount', 'getRandomDocument'))) {
         $config = new stdClass();
         $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
         $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
@@ -822,6 +892,29 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             }
 
             $result->descriptions = $oDescriptionList;
+        } else if($act === 'getRandomDocumentCount') {
+            $mid = Context::get('mid');
+            $document_srl = Context::get('document_srl');
+            $totalCount = SimpleMP3Tools::getRandomDocumentCount($mid, $document_srl);
+            $result->totalCount = $totalCount;
+        } else if($act === 'getRandomDocument') {
+            $mid = Context::get('mid');
+            $document_srl = Context::get('document_srl');
+            $offset = Context::get('offset');
+            $result->description = null;
+            if($mid && $document_srl && is_numeric($offset)) {
+                $randomData = SimpleMP3Tools::getRandomDocument($mid, $document_srl, $offset);
+                if($randomData && $randomData->data) {
+                    $data = array_shift($randomData->data);
+                    $description = SimpleMP3Describer::getDescription($data->file_srl, $data->uploaded_filename, $data->source_filename, $data->document_srl, $data->sid, $data->module_srl);
+                    if($description) {
+                        $description->document_srl = $data->document_srl;
+                        $description->document_title = $data->title;
+                        $description->module_srl = $data->module_srl;
+                        $result->description = $description;
+                    }
+                }
+            }
         }
         $result->message = "success";
         echo json_encode($result);

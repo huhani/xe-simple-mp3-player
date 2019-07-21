@@ -1984,6 +1984,10 @@
                 this._PlaylistManager = null;
             }
 
+            Playlist.PlaylistManager = PlaylistManager;
+
+            Playlist.RandomPlaylistManager = RandomPlaylistManager;
+
             Playlist.parse = function(playlistArr) {
                 if(playlistArr && playlistArr.length > 0) {
                     return playlistArr.map(function(eachPlaylist){
@@ -2464,6 +2468,12 @@
         }
 
         Player.TrackMode = TrackMode;
+
+        Player.Playlist = Playlist;
+
+        Player.Tools = {
+            extend: __extend
+        };
 
         Player.prototype.getID = function() {
             return this._id;

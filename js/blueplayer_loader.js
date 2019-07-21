@@ -48,11 +48,71 @@
         window.tt=player;
     }
 
+    var customPlaylistManager = function() {
+
+        var BasePlaylist = BluePlayer.Playlist;
+
+        function getXHR(mid, document_srl, act, querystring) {
+            var xhr = null;
+            var ended = false;
+            var aborted = false;
+            var promise = new Promise(function(resolve, reject){
+                xhr = new XMLHttpRequest;
+                xhr.open('GET', window.default_url + 'index.php?mid='+mid+"&document_srl="+document_srl+"&act="+act+(querystring ? ("&"+querystring) : ""), true);
+                xhr.send();
+                xhr.addEventListener('readystatechange', function() {
+                    if(xhr.status >= 400 && xhr.status < 500) {
+                        ended = true;
+                        reject(xhr.status);
+                    } else if(xhr.readyState === XMLHttpRequest.DONE) {
+                        if(xhr.status === 200) {
+                            ended = true;
+                            resolve(JSON.parse(xhr.response));
+                        } else {
+                            reject(xhr.status);
+                        }
+                    }
+                }, false);
+
+                xhr.addEventListener('abort', function() {
+                    reject('aborted');
+                }, false);
+            });
+
+            return {
+                promise: promise,
+                abort: function() {
+                    if(!ended && !aborted && xhr) {
+                        xhr.abort();
+                    }
+                }
+            }
+        }
+
+        function getRandomFileCount(mid, document_srl) {
+            return getXHR(mid, document_srl, 'getRandomDocumentCount');
+        }
+
+        function getRandomFileDescription(mid, document_srl, offset) {
+            return getXHR(mid, document_srl, 'getRandomDocumentCount', 'offset='+offset);
+        }
+
+
+        function customPlaylistManager(Player) {
+            var that = BasePlaylist.PlaylistManager.apply(this, arguments) || this;
+
+        }
+
+        BluePlayer.Tools.extend(customPlaylistManager, BasePlaylist.PlaylistManager);
+
+        return customPlaylistManager;
+
+    }();
+
     var MSE = $SimpleMP3Player.MSE;
     var lastMSE = null;
     function handlePlaybackLoading(audioElement, trackItem) {
         if(trackItem) {
-            console.log(arguments);
             var description = trackItem.description;
             if(lastMSE) {
                 lastMSE.destruct();
