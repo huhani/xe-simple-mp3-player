@@ -42,7 +42,7 @@
         </var>
 
         <var name="BluePlayer__track_mode" type="select">
-            <title xml:lang="ko">BluePlayer AutoStation 곡 갯수</title>
+            <title xml:lang="ko">BluePlayer 재생 모드</title>
             <description xml:lang="ko">BluePlayer 재생 모드를 설정합니다. AutoStation 설정은 해당 기능이 사용중일 경우에만 적용 가능합니다.</description>
             <options value="">
                 <title xml:lang="ko">AutoStation</title>
