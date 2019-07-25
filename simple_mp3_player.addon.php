@@ -9,58 +9,7 @@ require_once('./addons/simple_mp3_player/simple_encrypt.module.php');
 
 if(!class_exists('SimpleMP3Tools', false)) {
     class SimpleMP3Tools {
-        public static function getNextDocumentFile($mid, $document_srl, $page = 1, $document_count = 10, $direction = 'next', $category_srl = null, $search_target = null, $search_keyword = null) {
-            $module_data = self::getBoardModuleInfo($mid);
-            if(!$module_data) {
-                return null;
-            }
-
-            $module_info = $module_data->module_info;
-            $module_grant = $module_data->grant;
-            if(!$module_grant || !$module_grant->access || !$module_grant->view) {
-                return null;
-            }
-
-            $oDocumentModel = getModel('document');
-            $oDocument = $oDocumentModel->getDocument($document_srl);
-            if(!$oDocument || !$oDocument->isExists() || !$oDocument->isAccessible() || $module_info->module_srl != $oDocument->get('module_srl')) {
-                return null;
-            }
-
-            $order_target = $module_info->order_target;
-            $order_type = $module_info->order_type;
-
-            $args = new stdClass;
-            $args->module_srl = $module_info->module_srl;
-            $args->status = 'PUBLIC';
-            $args->category_srl = $category_srl ? $category_srl : null;
-            $args->search_target = $search_target ? $search_target : null;
-            $args->search_keyword = $search_keyword ? $search_keyword : null;
-            $args->file_extension = implode(',', array('.mp3', '.m4a'));
-            $args->isvalid = "Y";
-            $args->page = $page;
-            if($order_target === 'list_order') {
-                $args->list_order = $oDocument->get('list_order');
-                $args->sort_index = 'documents.list_order';
-            } else {
-                $args->update_order = $oDocument->get('update_order');
-                $args->sort_index = 'documents.update_order';
-            }
-            if($direction === 'next') {
-                $args->order_type = 'desc';
-            } else {
-                $args->order_type = 'asc';
-            }
-            $args->list_count = $document_count;
-            $output = executeQueryArray('addons.simple_mp3_player.'.($direction === 'prev' ? 'getPrevDocument' : 'getNextDocument'), $args);
-            if(!$output->toBool()) {
-                return null;
-            }
-
-            return $output;
-        }
-
-        public static function getRandomDocument($mid, $document_srl, $offset = 1, $category_srl = null, $search_target = null, $search_keyword = null) {
+        public static function getRandomFile($mid, $document_srl, $offset = 1, $category_srl = null, $search_target = null, $search_keyword = null) {
             $module_data = self::getBoardModuleInfo($mid);
             if(!$module_data) {
                 return null;
@@ -95,7 +44,7 @@ if(!class_exists('SimpleMP3Tools', false)) {
             return $output;
         }
 
-        public static function getRandomDocumentCount($mid, $document_srl, $category_srl = null, $search_target = null, $search_keyword = null) {
+        public static function getFileCount($mid, $document_srl, $category_srl = null, $search_target = null, $search_keyword = null) {
             $module_data = self::getBoardModuleInfo($mid);
             if(!$module_data) {
                 return null;
@@ -107,10 +56,16 @@ if(!class_exists('SimpleMP3Tools', false)) {
             }
             $oDocumentModel = getModel('document');
             $oDocument = $oDocumentModel->getDocument($document_srl);
-
             if(!$oDocument || !$oDocument->isExists() || !$oDocument->isAccessible() || $module_info->module_srl != $oDocument->get('module_srl')) {
                 return null;
             }
+
+            $order_target = $module_info->order_target;
+
+            $countData = new stdClass;
+            $countData->prev = null;
+            $countData->next = null;
+            $countData->random = null;
 
             $args = new stdClass;
             $args->module_srl = $module_info->module_srl;
@@ -122,12 +77,29 @@ if(!class_exists('SimpleMP3Tools', false)) {
             $args->isvalid = "Y";
             $args->list_order = $oDocument->get('list_order');
             $args->sort_index = 'documents.list_order';
+            if($order_target === 'list_order') {
+                $args->list_order = $oDocument->get('list_order');
+                $args->sort_index = 'documents.list_order';
+            } else {
+                $args->update_order = $oDocument->get('update_order');
+                $args->sort_index = 'documents.update_order';
+            }
             $output = executeQuery('addons.simple_mp3_player.getRandomDocumentCount', $args);
-            if(!$output->toBool()) {
-                return null;
+            $args->order_type = 'desc';
+            $output1 = executeQuery('addons.simple_mp3_player.getNextDocumentCount', $args);
+            $args->order_type = 'asc';
+            $output2 = executeQuery('addons.simple_mp3_player.getPrevDocumentCount', $args);
+            if($output->toBool()) {
+                $countData->random = $output->data->count;
+            }
+            if($output1->toBool()) {
+                $countData->next = $output1->data->count;
+            }
+            if($output2->toBool()) {
+                $countData->prev = $output2->data->count;
             }
 
-            return $output->data->count;
+            return $countData;
         }
 
         public static function getBoardModuleInfo($mid = null) {
@@ -248,90 +220,11 @@ if(!class_exists('SimpleMP3Describer', false)) {
             }
             $descriptions = array();
             $files = $this->getMultipleFilePathname($document_srl);
-            $ip = $_SERVER['REMOTE_ADDR'];
-            $timestamp = time();
             if($files) {
                 foreach($files as $file) {
                     $description = self::getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl, $file->sid, $file->module_srl);
                     if($description) {
-                        $fileParts = pathinfo($file->uploaded_filename);
-                        $sourceFileParts = pathinfo($file->source_filename);
-                        $extension = $fileParts && isset($fileParts['extension']) ? $fileParts['extension'] :
-                            (isset($sourceFileParts['extension']) ? $sourceFileParts['extension'] : null);
-                        if($extension) {
-                            $extension = strtolower($extension);
-                        }
-                        if(isset($description->stream) && $description->stream && $description->stream->format) {
-                            $format = $description->stream->format;
-                            if($format === 'mp3' && $extension !== 'mp3') {
-                                $extension = 'mp3';
-                            }
-                            if($format === 'flac' && $extension !== 'flac') {
-                                $extension = 'flac';
-                            }
-                            if($format === 'mp4' && !($extension === 'mp4' ||$extension === 'm4a')) {
-                                $extension = 'm4a';
-                            }
-                        }
-                        $mime = $this->getMIMEType($extension);
-                        if(!$mime) {
-                            $mime = 'unknown';
-                        }
-                        if($description->offsetInfo) {
-                            $offsetInfo = $description->offsetInfo;
-                            $offsets = $offsetInfo->offsets;
-                            $duration = $offsetInfo->duration;
-                            $offsetSize = count($offsets);
-                            $streamStartOffset = $offsets[0]->startOffset;
-                            $streamEndOffset = $offsets[$offsetSize-1]->endOffset;
-                            $description->filePath = $this->createMP3URL($file->uploaded_filename, array(
-                                array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
-                                array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
-                                array('key'=>'document_srl', 'value'=>$document_srl),
-                                array('key'=>'file_srl', 'value'=>$file->file_srl),
-                                array('key'=>'mime', 'value'=>$mime),
-                                array('key'=>'duration', 'value'=>$duration),
-                                array('key'=>'timestamp', 'value'=>$timestamp),
-                                array('key'=>'type', 'value'=>'progressive')
-                            ));
-                            if(!$this->allow_browser_cache) {
-                                $currentOffset = 0;
-                                foreach ($offsets as $eachOffset) {
-                                    $eachOffset->url = $this->createMP3URL($file->uploaded_filename, array(
-                                        array('key'=>'document_srl', 'value'=>$document_srl),
-                                        array('key'=>'file_srl', 'value'=>$file->file_srl),
-                                        array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
-                                        array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
-                                        array('key'=>'mime', 'value'=>$mime),
-                                        array('key'=>'start', 'value'=>$eachOffset->startOffset),
-                                        array('key'=>'end', 'value'=>$eachOffset->endOffset),
-                                        array('key'=>'duration', 'value'=>$duration),
-                                        array('key'=>'ip', 'value'=>$ip),
-                                        array('key'=>'offset', 'value'=>$currentOffset),
-                                        array('key'=>'timestamp', 'value'=>$timestamp),
-                                        array('key'=>'type', 'value'=>'realtime')
-                                    ));
-                                    $currentOffset += $eachOffset->time;
-                                }
-                            }
-                        } else {
-                            $arguments = array(
-                                array('key'=>'document_srl', 'value'=>$document_srl),
-                                array('key'=>'file_srl', 'value'=>$file->file_srl),
-                                array('key'=>'mime', 'value'=>$mime),
-                                array('key'=>'ip', 'value'=>$ip),
-                                array('key'=>'timestamp', 'value'=>$timestamp),
-                                array('key'=>'type', 'value'=>'progressive')
-                            );
-                            if(isset($description->stream)) {
-                                $stream = $description->stream;
-                                if(isset($stream->duration)) {
-                                    $arguments[] = array('key'=>'duration', 'value'=>$stream->duration);
-                                }
-                            }
-
-                            $description->filePath = $this->createMP3URL($file->uploaded_filename, $arguments);
-                        }
+                        $this->normalizeDescription($description, $document_srl, $file->file_srl);
                     }
                     $obj = new stdClass;
                     $obj->file_srl = $file->file_srl;
@@ -341,6 +234,92 @@ if(!class_exists('SimpleMP3Describer', false)) {
             }
 
             return $descriptions;
+        }
+
+        public function normalizeDescription($description, $document_srl, $file_srl) {
+            if($description && isset($description->filePath) && $description->filePath) {
+                $filepath = $description->filePath;;
+                $timestamp = time();
+                $fileParts = pathinfo($description->filePath);
+                $ip = $_SERVER['REMOTE_ADDR'];
+                $sourceFileParts = pathinfo($description->filename);
+                $extension = $fileParts && isset($fileParts['extension']) ? $fileParts['extension'] :
+                    (isset($sourceFileParts['extension']) ? $sourceFileParts['extension'] : null);
+                if($extension) {
+                    $extension = strtolower($extension);
+                }
+                if(isset($description->stream) && $description->stream && $description->stream->format) {
+                    $format = $description->stream->format;
+                    if($format === 'mp3' && $extension !== 'mp3') {
+                        $extension = 'mp3';
+                    }
+                    if($format === 'flac' && $extension !== 'flac') {
+                        $extension = 'flac';
+                    }
+                    if($format === 'mp4' && !($extension === 'mp4' ||$extension === 'm4a')) {
+                        $extension = 'm4a';
+                    }
+                }
+                $mime = $this->getMIMEType($extension);
+                if(!$mime) {
+                    $mime = 'unknown';
+                }
+                if($description->offsetInfo) {
+                    $offsetInfo = $description->offsetInfo;
+                    $offsets = $offsetInfo->offsets;
+                    $duration = $offsetInfo->duration;
+                    $offsetSize = count($offsets);
+                    $streamStartOffset = $offsets[0]->startOffset;
+                    $streamEndOffset = $offsets[$offsetSize-1]->endOffset;
+                    $description->filePath = $this->createMP3URL($filepath, array(
+                        array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
+                        array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
+                        array('key'=>'document_srl', 'value'=>$document_srl),
+                        array('key'=>'file_srl', 'value'=>$file_srl),
+                        array('key'=>'mime', 'value'=>$mime),
+                        array('key'=>'duration', 'value'=>$duration),
+                        array('key'=>'timestamp', 'value'=>$timestamp),
+                        array('key'=>'type', 'value'=>'progressive')
+                    ));
+                    if(!$this->allow_browser_cache) {
+                        $currentOffset = 0;
+                        foreach ($offsets as $eachOffset) {
+                            $eachOffset->url = $this->createMP3URL($filepath, array(
+                                array('key'=>'document_srl', 'value'=>$document_srl),
+                                array('key'=>'file_srl', 'value'=>$file_srl),
+                                array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
+                                array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
+                                array('key'=>'mime', 'value'=>$mime),
+                                array('key'=>'start', 'value'=>$eachOffset->startOffset),
+                                array('key'=>'end', 'value'=>$eachOffset->endOffset),
+                                array('key'=>'duration', 'value'=>$duration),
+                                array('key'=>'ip', 'value'=>$ip),
+                                array('key'=>'offset', 'value'=>$currentOffset),
+                                array('key'=>'timestamp', 'value'=>$timestamp),
+                                array('key'=>'type', 'value'=>'realtime')
+                            ));
+                            $currentOffset += $eachOffset->time;
+                        }
+                    }
+                } else {
+                    $arguments = array(
+                        array('key'=>'document_srl', 'value'=>$document_srl),
+                        array('key'=>'file_srl', 'value'=>$file_srl),
+                        array('key'=>'mime', 'value'=>$mime),
+                        array('key'=>'ip', 'value'=>$ip),
+                        array('key'=>'timestamp', 'value'=>$timestamp),
+                        array('key'=>'type', 'value'=>'progressive')
+                    );
+                    if(isset($description->stream)) {
+                        $stream = $description->stream;
+                        if(isset($stream->duration)) {
+                            $arguments[] = array('key'=>'duration', 'value'=>$stream->duration);
+                        }
+                    }
+
+                    $description->filePath = $this->createMP3URL($filepath, $arguments);
+                }
+            }
         }
 
         static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null) {
@@ -792,7 +771,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
 $act = Context::get('act');
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getSimpleMP3Test', 'getRandomDocumentCount', 'getRandomDocument'))) {
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getFileCount', 'getFileDescription'))) {
         $config = new stdClass();
         $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
         $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
@@ -801,6 +780,12 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->default_cover = isset($addon_info->default_cover) ? $addon_info->default_cover : null;
         $config->allow_browser_cache = (isset($addon_info->allow_browser_cache) && $addon_info->allow_browser_cache === "Y");
         $config->playlist_player_selector = isset($addon_info->playlist_player_selector) ? $addon_info->playlist_player_selector : null;
+
+        $config->BluePlayer__use_autostation = !(isset($addon_info->BluePlayer__use_autostation) && $addon_info->BluePlayer__use_autostation === "N");
+        $config->BluePlayer__autostation_max_size = isset($addon_info->BluePlayer__autostation_max_size) && $addon_info->BluePlayer__autostation_max_size ? $addon_info->BluePlayer__autostation_max_size : 0;
+        $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "AutoStation";
+        $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
+
 
         $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
         $config->use_m_lyric = (isset($addon_info->use_m_lyric) && $addon_info->use_m_lyric === "Y");
@@ -851,67 +836,39 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             } else {
                 $result->lyric = $lyric;
             }
-        } else if($act === 'getSimpleMP3Test') {
-            $result->descriptions = null;
-            $result->totalPage = null;
-            $result->currentPage = null;
-
+        } else if($act === 'getFileCount') {
             $mid = Context::get('mid');
             $document_srl = Context::get('document_srl');
-            $page = Context::get('page');
-            $documentCount = 10;
-            $direction = Context::get('direction');
             $category_srl = Context::get('category_srl');
             $search_target = Context::get('search_target');
             $search_keyword = Context::get('search_keyword');
-            if(!$direction || !in_array($direction, array('prev', 'next'))) {
-                $direction = null;
-            }
-            if(!$page) {
-                $page = 1;
-            }
-            if($mid && $document_srl && $direction) {
-                $oNextTrackData = SimpleMP3Tools::getNextDocumentFile($mid, $document_srl, $page, $documentCount, $direction, $category_srl, $search_target, $search_keyword);
-                if($oNextTrackData) {
-                    $oDescriptionList = array();
-                    foreach($oNextTrackData->data as $each) {
-                        $oDescription = SimpleMP3Describer::getDescription($each->file_srl, $each->uploaded_filename, $each->source_filename, $each->document_srl, $each->sid, $each->module_srl);
-                        if($oDescription) {
-                            $obj = new stdClass;
-                            $obj->document_srl = $each->document_srl;
-                            $obj->title = $each->title;
-                            $obj->file_srl = $each->file_srl;
-                            $obj->description = $oDescription;
-                            $oDescriptionList[] = $obj;
+            $count = SimpleMP3Tools::getFileCount($mid, $document_srl, $category_srl, $search_target, $search_keyword);
+            $result->prev = $count->prev;
+            $result->next = $count->next;
+            $result->random = $count->random;
+        } else if($act === 'getFileDescription') {
+            $mid = Context::get('mid');
+            $document_srl = Context::get('document_srl');
+            $category_srl = Context::get('category_srl');
+            $search_target = Context::get('search_target');
+            $search_keyword = Context::get('search_keyword');
+            $offsets = Context::get('offset');
+            $result->descriptions = array();
+            $describer = new SimpleMP3Describer($config->allow_browser_cache, $config->use_url_encrypt, $password);
+            if($mid && $document_srl && is_array($offsets)) {
+                foreach($offsets as $offset) {
+                    $randomData = SimpleMP3Tools::getRandomFile($mid, $document_srl, $offset, $category_srl, $search_target, $search_keyword);
+                    if($randomData && $randomData->data) {
+                        $data = array_shift($randomData->data);
+                        $description = $describer->getDescription($data->file_srl, $data->uploaded_filename, $data->source_filename, $data->document_srl, $data->sid, $data->module_srl);
+                        $describer->normalizeDescription($description, $data->document_srl, $data->file_srl);
+                        if($description) {
+                            $description->offset = $offset;
+                            $description->document_srl = $data->document_srl;
+                            $description->document_title = $data->title;
+                            $description->module_srl = $data->module_srl;
+                            $result->descriptions[] = $description;
                         }
-                    }
-                    $page_navigation = $oNextTrackData->page_navigation;
-                    $result->totalPage = $page_navigation->total_page;
-                    $result->currentPage = $page_navigation->cur_page;
-                }
-            }
-
-            $result->descriptions = $oDescriptionList;
-        } else if($act === 'getRandomDocumentCount') {
-            $mid = Context::get('mid');
-            $document_srl = Context::get('document_srl');
-            $totalCount = SimpleMP3Tools::getRandomDocumentCount($mid, $document_srl);
-            $result->totalCount = $totalCount;
-        } else if($act === 'getRandomDocument') {
-            $mid = Context::get('mid');
-            $document_srl = Context::get('document_srl');
-            $offset = Context::get('offset');
-            $result->description = null;
-            if($mid && $document_srl && is_numeric($offset)) {
-                $randomData = SimpleMP3Tools::getRandomDocument($mid, $document_srl, $offset);
-                if($randomData && $randomData->data) {
-                    $data = array_shift($randomData->data);
-                    $description = SimpleMP3Describer::getDescription($data->file_srl, $data->uploaded_filename, $data->source_filename, $data->document_srl, $data->sid, $data->module_srl);
-                    if($description) {
-                        $description->document_srl = $data->document_srl;
-                        $description->document_title = $data->title;
-                        $description->module_srl = $data->module_srl;
-                        $result->description = $description;
                     }
                 }
             }
