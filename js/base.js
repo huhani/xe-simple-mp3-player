@@ -1097,6 +1097,7 @@
     $SimpleMP3Player.isDescriptionLoaded = false;
     $SimpleMP3Player.onMP3DescriptionLoad = onMP3DescriptionLoad;
     $SimpleMP3Player.getMP3Description = getMP3Description;
+    $SimpleMP3Player.descriptionDecorator = descriptionDecorator;
     $SimpleMP3Player.EventDispatcher = EventDispatcher;
     $SimpleMP3Player.MP3Muxer = MP3Muxer;
     $SimpleMP3Player.MSE = MSE;

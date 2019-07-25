@@ -1,0 +1,19 @@
+<query id="getPrevDocumentCount" action="select">
+    <tables>
+        <table name="documents" />
+        <table name="files" />
+    </tables>
+    <columns>
+        <column name="count(*)" alias="count" />
+    </columns>
+    <conditions>
+        <condition operation="in" column="documents.module_srl" var="module_srl" filter="number" />
+        <group pipe="and">
+            <condition operation="excess" column="documents.list_order" var="list_order" filter="number" pipe="and" />
+            <condition operation="excess" column="documents.update_order" var="update_order" filter="number" pipe="and" />
+            <condition operation="equal" column="files.upload_target_srl" var="documents.document_srl" filter="number" notnull="notnull" pipe="and" />
+            <condition operation="in" column="substr(files.uploaded_filename, -4)" var="file_extension" notnull="notnull" pipe="and" />
+            <condition operation="equal" column="files.isvalid" var="isvalid" default="Y" pipe="and" />
+        </group>
+    </conditions>
+</query>

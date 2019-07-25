@@ -27,7 +27,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags:hover {opacity: 1; transition: opacity .5s;}
 #BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags span {font-size: 12px; margin: 5px; color: #9A9A9A; text-align: center;}
 
-#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Title span {color: #FFFFFF; font-size: 14px;}
+#BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Title span {color: #FFFFFF; font-size: 14px; display: inline-block; line-height: 1.3;}
 #BluePlayer .TrackInfo__Tags__wrapper .TrackInfo__Tags .Tags__Artist span {color: #AFAFAF;}
 
 #BluePlayer .TrackInfo__Lyric__container {display: none; background-color: #f1f1f1;}
@@ -102,7 +102,7 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .Controls__ControlBtns__container {display: block; min-height: 62px;}
 #BluePlayer .ControlBtns__Left {position: relative; top: 8px; padding: 5px 10px 5px 20px; float: left; height: 20px; z-index: 1; }
-#BluePlayer .ControlBtns__Right {float: right; width: 78px; height: 20px; z-index: 1; position: relative;top: 5px;}
+#BluePlayer .ControlBtns__Right {float: right; width: 78px; height: 20px; z-index: 1; position: relative;top: 7px;}
 
 #BluePlayer .ControlBtns__Volume {position:relative; right: 10px;}
 
@@ -179,7 +179,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer.mobile .TrackInfo__Description__container .TrackInfo__Description { display: table; height: 60px; width: 100%;border: 1px solid #1a1a1a; background-color: #182436;}
 #BluePlayer.mobile .TrackInfo__Description__container .TrackInfo__Tags {background-color: unset;}
 #BluePlayer.mobile .TrackInfo__AlbumCover {display: table-cell; vertical-align: middle; width: 40px; margin:0 5px;  padding: 0 5px 0 8px;}
-#BluePlayer.mobile .TrackInfo__Tags__wrapper .TrackInfo__Tags span {margin: 2px; font-size: 11px; text-align: left;}
+#BluePlayer.mobile .TrackInfo__Tags__wrapper .TrackInfo__Tags span {display:inline-block; margin: 2px; font-size: 11px; text-align: left; line-height: 1.3;}
 #BluePlayer.mobile .TrackInfo__Tags__wrapper {display: table-cell; vertical-align: middle;}
 #BluePlayer.mobile .TrackInfo__Tags__wrapper .TrackInfo__Tags {text-align:left;}
 #BluePlayer.mobile .AlbumCover__image__container {width: 40px; height: 40px;}

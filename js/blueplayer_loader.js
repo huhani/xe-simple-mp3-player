@@ -4,22 +4,431 @@
         return;
     }
 
-    function buildAPlayer($target, descriptions) {
+    function buildBluePlayer($target, descriptions, usingLyric, document_srl, mid) {
+        var autoplay = false;
+        var use_autostation = false;
+        var mode = 1;
+        var random = false;
+        var limitMaxAutoStationTrack = 0;
+        if($SimpleMP3Player && $SimpleMP3Player.config) {
+            var config = $SimpleMP3Player.config;
+            var confMode = config.BluePlayer__track_mode;
+            use_autostation = config.BluePlayer__use_autostation;
+            mode = confMode === 'AutoStation' && use_autostation ? 3 : confMode === 'RepeatTrack' ? 2 : confMode === 'RepeatList' ? 1 : 0;
+            random = config.BluePlayer__track_random;
+            limitMaxAutoStationTrack = config.BluePlayer__autostation_max_size;
+            autoplay = config.allow_autoplay;
+        }
 
+        var CustomPlaylistManager = function(mid, document_srl, maxLoadedTrackCount) {
+            var DEFAULT_REQUESTING_LIST_COUNT = 1;
+
+            var BasePlaylist = BluePlayer.Playlist;
+            var PlaylistManager = BasePlaylist.PlaylistManager;
+            var RandomPlaylistManager = BasePlaylist.RandomPlaylistManager;
+            var getDefaultSongRequest = BasePlaylist.getDefaultSongRequest;
+            var Tools = BluePlayer.Tools;
+            var makeDeferred = Tools.makeDeferred;
+            var TrackMode = BluePlayer.TrackMode;
+            var __extend = Tools.extend;
+
+
+            function getCustomSongRequest(promise, playlistManager) {
+                var aborted = false;
+                var resolved = false;
+                promise.then(function(){
+                    resolved = true;
+                });
+                return {
+                    promise: promise,
+                    abort: function() {
+                        if(!resolved && !aborted) {
+                            playlistManager.abortRequestingJob();
+                            aborted = true;
+                        }
+                    },
+                    isResolved: function() {
+                        return resolved || aborted;
+                    },
+                    type: 'unknown'
+                };
+            }
+
+            function getXHR(mid, document_srl, act, querystring) {
+                var xhr = null;
+                var ended = false;
+                var aborted = false;
+                var promise = new Promise(function(resolve, reject){
+                    xhr = new XMLHttpRequest;
+                    xhr.open('GET', window.default_url + 'index.php?mid='+mid+"&document_srl="+document_srl+"&act="+act+(querystring ? ("&"+querystring) : ""), true);
+                    xhr.send();
+                    xhr.addEventListener('readystatechange', function() {
+                        if(xhr.status >= 400 && xhr.status < 500) {
+                            ended = true;
+                            reject(xhr.status);
+                        } else if(xhr.readyState === XMLHttpRequest.DONE) {
+                            if(aborted) {
+                                return reject({
+                                    type: 'aborted',
+                                    error: null
+                                })
+                            }
+                            if(xhr.status === 200) {
+                                ended = true;
+                                resolve(JSON.parse(xhr.response));
+                            } else {
+                                reject(xhr.status);
+                            }
+                        }
+                    }, false);
+                });
+
+                return {
+                    promise: promise,
+                    isResolved: function(){
+                        return ended || aborted;
+                    },
+                    abort: function() {
+                        if(!ended && !aborted && xhr) {
+                            aborted = true;
+                            xhr.abort();
+                        }
+                    }
+                }
+            }
+
+            function getFileCount(mid, document_srl) {
+                return getXHR(mid, document_srl, 'getFileCount');
+            }
+
+            function getFileDescription(mid, document_srl, offsets) {
+                var offsetString = offsets.map(function(offset){
+                    return 'offset[]='+offset;
+                }).join('&');
+                return getXHR(mid, document_srl, 'getFileDescription', offsetString);
+            }
+
+            function CustomPlaylistManager(Player) {
+                var that = BasePlaylist.PlaylistManager.call(this, []) || this;
+                that._player = Player;
+                that._mid = mid;
+                that._document_srl = document_srl;
+                that._loadedListCount = false;
+                that._requestingCountJob = null;
+                that._requestingCountJobDeferred = null;
+                that._previousListCount = null;
+                that._nextListCount = null;
+                that._randomListCount = null;
+                that._previousListOffset = null;
+                that._nextListOffset = null;
+                that._randomListOffset = null;
+                that._listOffsets = [];
+                that._lastNextListOffset = null;
+                that._lastPrevListOffset = null;
+                that._lastRequestedNextListOffset = null;
+                that._lastRequestedPrevListOffset = null;
+                that._errors = [];
+                that._requestingJob = null;
+                that._descriptionQueue = [];
+                that._random = false;
+                that._RandomPlaylistManager = null;
+                that._init();
+            }
+
+            __extend(CustomPlaylistManager, PlaylistManager);
+
+            CustomPlaylistManager.prototype._init = function() {
+                if(!this._loadedListCount) {
+                    this._loadListCount();
+                }
+            };
+
+            CustomPlaylistManager.prototype._loadListCount = function() {
+                var that = this;
+                if(this._requestingCountJob && !this._requestingCountJob.isResolved()) {
+                    this._requestingCountJob.abort();
+                }
+                this._requestingCountJobDeferred = makeDeferred();
+                this._requestingCountJob = this.getTrackCount();
+                this._requestingCountJob.promise.then(function(data){
+                    that._previousListCount = data.prev;
+                    that._nextListCount = data.next;
+                    that._randomListCount = data.random;
+                    that._listOffsets = that.buildRandomOffset(that._randomListCount);
+                    that._loadedListCount = true;
+                    that._lastNextListOffset = that._previousListCount+1;
+                    that._lastPrevListOffset = that._previousListCount;
+                    that._lastRequestedNextListOffset = that._lastNextListOffset;
+                    that._lastRequestedPrevListOffset = that._lastPrevListOffset;
+                    that._totalLoadedCount = 0;
+                    that._requestingCountJobDeferred.resolve(data);
+                })['catch'](function(e) {
+                    that._requestingCountJobDeferred.reject(e);
+                });
+                return this._requestingCountJobDeferred.promise;
+            };
+
+            CustomPlaylistManager.prototype.buildRandomOffset = function(size) {
+                var arr = [];
+                for(var i=1; i<=size; i++) {
+                    arr.push(i);
+                }
+
+                return RandomPlaylistManager.prototype.buildPlaylist(arr);
+            };
+
+            CustomPlaylistManager.prototype.abortRequestingJob = function() {
+                if(this._requestingJob && !this._requestingJob.isResolved()) {
+                    this._requestingJob.abort();
+                }
+                this._requestingJob = null;
+            };
+
+            CustomPlaylistManager.prototype._handleError = function(err) {
+                this._errors.push(err);
+                console.error(err);
+            };
+
+            CustomPlaylistManager.prototype.getTrackCount = function() {
+                var that = this;
+                var deferred = makeDeferred();
+                this._requestingCountJob = getFileCount(this._mid, this._document_srl);
+                this._requestingCountJob.promise.then(function(data){
+                    deferred.resolve(data);
+                }).catch(function(e){
+                    that._handleError(e);
+                });
+
+                return deferred;
+            };
+
+            CustomPlaylistManager.prototype.isCountLoading = function() {
+                return this._requestingCountJob && !this._requestingCountJob.isResolved();
+            };
+
+            CustomPlaylistManager.prototype.isCountLoaded = function() {
+                return this._loadedListCount;
+            };
+
+            CustomPlaylistManager.prototype.isRandom = function() {
+                return this._random;
+            };
+
+            CustomPlaylistManager.prototype.getPlaylist = function() {
+                var player = this._player;
+                var playlist = player._Playlist;
+                return playlist ? playlist.getPlaylist() : [];
+            };
+
+            CustomPlaylistManager.prototype.getNextSequenceOffsets = function() {
+                var offsets = [];
+                this._lastNextListOffset = this._lastRequestedNextListOffset;
+                this._lastPrevListOffset = this._lastRequestedPrevListOffset;
+                if(this.isRandom()) {
+                    for(var i=0; i<this._listOffsets.length; i++) {
+                        var targetOffset = this._listOffsets[i];
+                        if(this._listOffsets.indexOf(targetOffset) > -1) {
+                            offsets.push(this._listOffsets[i]);
+                        }
+                        if(offsets.length >= DEFAULT_REQUESTING_LIST_COUNT) {
+                            break;
+                        }
+                    }
+                } else {
+                    var nextListEndedOffset = this._previousListCount + this._nextListCount;
+                    for(var i= this._lastNextListOffset; i<= nextListEndedOffset; i++) {
+                        if(offsets.length >= DEFAULT_REQUESTING_LIST_COUNT) {
+                            break;
+                        }
+                        if(this._listOffsets.indexOf(i) > -1) {
+                            offsets.push(i);
+                            this._lastNextListOffset = i;
+                        }
+                    }
+                    if(offsets.length < DEFAULT_REQUESTING_LIST_COUNT) {
+                        for(var i=this._lastPrevListOffset; i>0; i--) {
+                            if(this._listOffsets.indexOf(i) > -1) {
+                                offsets.push(i);
+                                this._lastPrevListOffset = i;
+                            }
+                            if(offsets.length >= DEFAULT_REQUESTING_LIST_COUNT) {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                return offsets;
+            };
+
+            CustomPlaylistManager.prototype.getNextTrackDescriptions = function() {
+                this.abortRequestingJob();
+                var that = this;
+                var deferred = makeDeferred();
+                this._requestingJob = deferred;
+                var countLoadingPromise = null;
+                if(this.isCountLoading()) {
+                    countLoadingPromise = this._requestingCountJobDeferred.promise;
+                } else if(this.isCountLoaded()) {
+                    countLoadingPromise = window.Promise.resolve();
+                } else {
+                    countLoadingPromise = this._loadListCount();
+                }
+                countLoadingPromise.then(function(){
+                    var offsets = that.getNextSequenceOffsets();
+                    that._requestingJob = getFileDescription(that._mid, that._document_srl, offsets);
+                    that._requestingJob.promise.then(function(data){
+                        if(data && data.descriptions && data.descriptions.length) {
+                            offsets.forEach(function(eachOffset){
+                                var idx = that._listOffsets.indexOf(eachOffset);
+                                if(idx > -1) {
+                                    that._listOffsets.splice(idx, 1);
+                                }
+                            });
+                            that._descriptionQueue = that._descriptionQueue.concat(data.descriptions);
+                            deferred.resolve(that._descriptionQueue);
+                        } else {
+                            deferred.reject({
+                                type: 'not_found',
+                                error: null
+                            });
+                        }
+                        that._lastRequestedNextListOffset = that._lastNextListOffset;
+                        that._lastRequestedPrevListOffset = that._lastPrevListOffset;
+                    })['catch'](function(e){
+                        if(e instanceof Error) {
+                            that._handleError(e);
+                        }
+                        deferred.reject(e);
+                    });
+                });
+
+                return deferred.promise;
+            };
+
+            CustomPlaylistManager.prototype.getTrackItemIndex = function(trackItem) {
+                var player = this._player;
+                var playlist = player._Playlist;
+                return playlist ? playlist.getTrackItemIndex(trackItem) : -1;
+            };
+
+            CustomPlaylistManager.prototype._getNextTrack = function() {
+                var that = this;
+                var deferred = makeDeferred();
+                var player = this._player;
+                var playlist = player._Playlist;
+                var onShift = function() {
+                    var description = that._descriptionQueue.shift();
+                    if(description) {
+                        var descriptions = [{description:description}];
+                        $SimpleMP3Player.descriptionDecorator(descriptions);
+                        var convertPlaylist = buildPlaylist(descriptions);
+                        var trackItemArr = playlist.addTrackItems(convertPlaylist);
+                        deferred.resolve(trackItemArr.length ? trackItemArr[0] : null);
+                        that._totalLoadedCount++;
+                    } else {
+                        deferred.resolve(null);
+                    }
+                };
+                if(this._descriptionQueue.length) {
+                    onShift();
+                }
+                this.getNextTrackDescriptions().then(function(){
+                    onShift();
+                })['catch'](function(){
+                    deferred.resolve(null);
+                });
+
+                return deferred.promise;
+            };
+
+            CustomPlaylistManager.prototype.getPreviousTrackItem = function() {
+                var player = this._player;
+                var playback = player._Playback;
+                var playlist = player._Playlist;
+                var currentTrackItem = playback.getCurrentTrackItem();
+                if(this.isRandom()) {
+                    return this.getPreviousTrackFromHistory();
+                } else {
+                    return playlist._getPreviousTrackItem();
+                }
+            };
+
+            CustomPlaylistManager.prototype.provideCurrentTrackItem = function(trackItem) {
+                if(this._RandomPlaylistManager) {
+                    this._RandomPlaylistManager.provideCurrentTrackItem(trackItem);
+                }
+                PlaylistManager.prototype.provideCurrentTrackItem.call(this, trackItem);
+            };
+
+            CustomPlaylistManager.prototype.getNextTrackItem = function(fromEndedEvent) {
+                var player = this._player;
+                var playback = player._Playback;
+                var playlist = player._Playlist;
+                var currentTrackItem = playback.getCurrentTrackItem();
+                var random = this.isRandom();
+                if(random && playlist && currentTrackItem) {
+                    if(this.hasQueueEmpty()) {
+                        if(!this._RandomPlaylistManager) {
+                            this.setRandomPlaylistManager();
+                        }
+                        return this._RandomPlaylistManager.getNextTrackItem(fromEndedEvent);
+                    } else {
+                        this._RandomPlaylistManager = null;
+                    }
+
+                    return getCustomSongRequest(this._getNextTrack(), this);
+                } else {
+                    var currentTrackItemIndex = this.getTrackItemIndex(currentTrackItem);
+                    var playlistCount = playlist.getTrackItemCount();
+                    if(this.hasQueueEmpty() && currentTrackItemIndex+1>=playlistCount) {
+                        currentTrackItemIndex = -1;
+                    }
+                    if(random && playlistCount) {
+                        currentTrackItemIndex = Math.floor(Math.random() * playlistCount)-1;
+                    }
+                    if(currentTrackItemIndex >= -1 && currentTrackItemIndex+1<playlistCount) {
+                        return getDefaultSongRequest(this.getPlaylist()[currentTrackItemIndex+1]);
+                    } else {
+                        return getCustomSongRequest(this._getNextTrack(), this);
+                    }
+                }
+            };
+
+            CustomPlaylistManager.prototype.hasQueueEmpty = function() {
+                return this._listOffsets.length === 0 || (maxLoadedTrackCount && this._totalLoadedCount >= maxLoadedTrackCount);
+            };
+
+            CustomPlaylistManager.prototype.setRandom = function(random) {
+                this._random = random;
+                if(random && this.hasQueueEmpty()) {
+                    this.setRandomPlaylistManager();
+                } else {
+                    this._RandomPlaylistManager = null;
+                }
+            };
+
+            CustomPlaylistManager.prototype.setRandomPlaylistManager = function() {
+                var player = this._player;
+                var playlist = player ? player._Playlist : null;
+                if(this.hasQueueEmpty() && playlist) {
+                    this._RandomPlaylistManager = new RandomPlaylistManager(playlist.getPlaylist(), TrackMode.REPEAT_LIST);
+                }
+            };
+
+            return CustomPlaylistManager;
+        }(mid, document_srl, limitMaxAutoStationTrack);
         var $section = $('<div></div>');
         $target.prepend($section);
         var playlist = buildPlaylist(descriptions);
-
-
         var player = new window.BluePlayer({
             container: $section[0],
             playlist: playlist,
             volume: 100,
             enableLyric: false,
-            enableRadio: false,
-            random: false,
-            autoplay: true,
-            mode: 1,
+            random: random,
+            autoplay: autoplay,
+            mode: mode,
             labels: {
                 play: '재생',
                 pause: '일시정지',
@@ -38,7 +447,8 @@
                 notFoundLyric: "가사를 찾을 수 없습니다."
             },
             handlers: {
-                trackMenu: getTrackMenu
+                trackMenu: getTrackMenu,
+                CustomPlaylist: mid && document_srl && use_autostation ? CustomPlaylistManager : null
             },
             customAudioType: {
                 hls: handlePlaybackLoading
@@ -48,66 +458,6 @@
         window.tt=player;
     }
 
-    var customPlaylistManager = function() {
-
-        var BasePlaylist = BluePlayer.Playlist;
-
-        function getXHR(mid, document_srl, act, querystring) {
-            var xhr = null;
-            var ended = false;
-            var aborted = false;
-            var promise = new Promise(function(resolve, reject){
-                xhr = new XMLHttpRequest;
-                xhr.open('GET', window.default_url + 'index.php?mid='+mid+"&document_srl="+document_srl+"&act="+act+(querystring ? ("&"+querystring) : ""), true);
-                xhr.send();
-                xhr.addEventListener('readystatechange', function() {
-                    if(xhr.status >= 400 && xhr.status < 500) {
-                        ended = true;
-                        reject(xhr.status);
-                    } else if(xhr.readyState === XMLHttpRequest.DONE) {
-                        if(xhr.status === 200) {
-                            ended = true;
-                            resolve(JSON.parse(xhr.response));
-                        } else {
-                            reject(xhr.status);
-                        }
-                    }
-                }, false);
-
-                xhr.addEventListener('abort', function() {
-                    reject('aborted');
-                }, false);
-            });
-
-            return {
-                promise: promise,
-                abort: function() {
-                    if(!ended && !aborted && xhr) {
-                        xhr.abort();
-                    }
-                }
-            }
-        }
-
-        function getRandomFileCount(mid, document_srl) {
-            return getXHR(mid, document_srl, 'getRandomDocumentCount');
-        }
-
-        function getRandomFileDescription(mid, document_srl, offset) {
-            return getXHR(mid, document_srl, 'getRandomDocumentCount', 'offset='+offset);
-        }
-
-
-        function customPlaylistManager(Player) {
-            var that = BasePlaylist.PlaylistManager.apply(this, arguments) || this;
-
-        }
-
-        BluePlayer.Tools.extend(customPlaylistManager, BasePlaylist.PlaylistManager);
-
-        return customPlaylistManager;
-
-    }();
 
     var MSE = $SimpleMP3Player.MSE;
     var lastMSE = null;
@@ -171,7 +521,7 @@
     function onDescriptionLoad(data) {
         var $document_content = $('.xe_content[class*=document_]');
         var document_srl_regex = /document_(\d+)/.exec($('.xe_content[class*=document_]').attr('class') || '');
-        document_srl = document_srl_regex ? document_srl_regex[1] : null;
+        var document_srl = document_srl_regex ? document_srl_regex[1] : null;
         if(document_srl && data && data.length) {
             var useLyric = false;
             if($SimpleMP3Player.config) {
@@ -181,7 +531,7 @@
                 }
             }
 
-            buildAPlayer($document_content, data, useLyric);
+            buildBluePlayer($document_content, data, useLyric, document_srl, window.current_mid);
         }
     }
 
@@ -197,6 +547,12 @@
                 handler: getDownloadLinkHandler(trackItem)
             });
         }
+        if(description.document_srl) {
+            menu.push({
+                name: "게시글 열기",
+                handler: getDocumentOpenHandler(description.document_srl)
+            });
+        }
 
         return menu;
     }
@@ -209,6 +565,14 @@
             var description = trackItem.description;
             if(description.download_url) {
                 window.open(description.download_url);
+            }
+        };
+    }
+
+    function getDocumentOpenHandler(document_srl) {
+        return function() {
+            if(document_srl) {
+                window.open(window.default_url+'index.php?document_srl='+document_srl);
             }
         };
     }

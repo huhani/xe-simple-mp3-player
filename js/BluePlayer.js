@@ -191,6 +191,7 @@
 
                 var labels = config.labels;
                 var messages = config.messages;
+                var handlers = config.handlers;
 
                 this._Player = player;
                 this._currentTrackItem = null;
@@ -225,7 +226,7 @@
 
                 this._notFoundLyricMessage = messages.notFoundLyric || "";
 
-                this._CustomList= config.CustomList !== void 0 ? config.CustomList : false;
+                this._CustomPlaylist= handlers.CustomPlaylist !== void 0 ? handlers.CustomPlaylist : false;
                 this._enableLyric = config.enableLyric !== void 0 ? config.enableLyric : false;
                 this._mute = config.mute !== void 0 ? config.mute : false;
                 this._volume = config.volume !== void 0 ? config.volume : 100;
@@ -525,7 +526,7 @@
                     this._$TrackLisContainer.on('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
                     this._$container.html(this._$UI);
                     this._initialized = true;
-                    if(!this._CustomList && this._mode === TrackMode.CUSTOM_LIST) {
+                    if(!this._CustomPlaylist && this._mode === TrackMode.CUSTOM_LIST) {
                         this._mode = TrackMode.REPEAT_LIST;
                     }
 
@@ -625,7 +626,7 @@
             UI.prototype._handleModeButtonClick = function() {
                 var mode = this.getMode();
                 var nextMode = TrackMode[mode+1] !== void 0 ? mode+1 : 0;
-                if(!this._CustomList && nextMode === TrackMode.CUSTOM_LIST) {
+                if(!this._CustomPlaylist && nextMode === TrackMode.CUSTOM_LIST) {
                     nextMode = TrackMode[nextMode+1] !== void 0 ? nextMode+1 : 0;
                 }
 
@@ -1168,9 +1169,22 @@
                     return;
                 }
 
+                var listWrapperMaxHeight = this._$TrackListWrapper.css('max-height');
+                if(listWrapperMaxHeight && typeof listWrapperMaxHeight === 'string') {
+                    var regexdata = /\d+/.exec(listWrapperMaxHeight);
+                    if(regexdata && regexdata.length > 0) {
+                        listWrapperMaxHeight = parseInt(regexdata[0], 10);
+                    }
+                    if(isNaN(listWrapperMaxHeight)) {
+                        listWrapperMaxHeight = null;
+                    }
+                } else {
+                    listWrapperMaxHeight = 300;
+                }
+
                 var $TrackListWrapper = this._TrackListSimpleBar ? $(this._TrackListSimpleBar.getScrollElement()) : this._$TrackListWrapper;
                 var playlist = this._Player._Playlist;
-                var trackListWrapperHeight = $TrackListWrapper.height();
+                var trackListWrapperHeight = (this.isMobileMode() ? listWrapperMaxHeight : ($TrackListWrapper.height() || this._$PlayerControls.height()));
                 var totalCount = playlist.getTrackItemCount();
                 var trackListHeight = totalCount * trackItemHeight;
                 var idx = playlist.getTrackItemIndex(trackItem);
@@ -1787,6 +1801,10 @@
                     return this._destructed;
                 };
 
+                PlaylistManager.prototype.isRandom = function() {
+                    return null;
+                };
+
                 PlaylistManager.prototype.getPreviousTrack = function() {
                     return null;
                 };
@@ -1975,18 +1993,29 @@
                 return RandomPlaylistManager;
             }();
 
-            function Playlist(player, playlist, trackMode) {
+            function Playlist(player, config) {
+                var playlist = config.playlist;
+                var trackMode = config.mode;
+                var handlers = config.handlers;
+
                 this._player = player;
                 this._destructed = false;
                 this._playlist = this.constructor.parse(playlist);
                 this._trackMode = TrackMode[trackMode] !== void 0 ? trackMode : TrackMode.REPEAT_LIST;
+                this._CustomPlaylist = handlers.CustomPlaylist ? new handlers.CustomPlaylist(player) : null;
                 this._currentTrackItem = null;
                 this._PlaylistManager = null;
+                this._random = config.random;
+
+                this.setTrackMode(this._trackMode);
+                this.setRandom(this._random);
             }
 
             Playlist.PlaylistManager = PlaylistManager;
 
             Playlist.RandomPlaylistManager = RandomPlaylistManager;
+
+            Playlist.getDefaultSongRequest = getDefaultSongRequest;
 
             Playlist.parse = function(playlistArr) {
                 if(playlistArr && playlistArr.length > 0) {
@@ -2023,6 +2052,11 @@
                 if(this._PlaylistManager) {
                     return this._PlaylistManager.getPreviousTrackItem();
                 }
+
+                return this._getPreviousTrackItem();
+            };
+
+            Playlist.prototype._getPreviousTrackItem = function() {
                 var trackItemCount = this.getTrackItemCount();
                 if(trackItemCount) {
                     var currentTrackIdx = this.getTrackItemIndex(this._currentTrackItem);
@@ -2037,6 +2071,7 @@
                         }
                     }
                 }
+
                 return getDefaultSongRequest(null);
             };
 
@@ -2044,6 +2079,11 @@
                 if(this._PlaylistManager) {
                     return this._PlaylistManager.getNextTrackItem(fromEndedEvent);
                 }
+
+                return this._getNextTrackItem(fromEndedEvent);
+            };
+
+            Playlist.prototype._getNextTrackItem = function(fromEndedEvent) {
                 if(fromEndedEvent && this._currentTrackItem && this._trackMode === TrackMode.REPEAT_TRACK) {
                     return getDefaultSongRequest(this._currentTrackItem);
                 }
@@ -2115,10 +2155,24 @@
 
             Playlist.prototype.setTrackMode = function(mode) {
                 if(TrackMode[mode] !== void 0) {
-                    if(this._PlaylistManager) {
-                        this._PlaylistManager.setTrackMode(mode);
-                    }
                     this._trackMode = mode;
+                    if(TrackMode.CUSTOM_LIST === mode) {
+                        if(this._PlaylistManager && this._CustomPlaylist && this._PlaylistManager.constructor !== this._CustomPlaylist.constructor) {
+                            this._PlaylistManager.destruct();
+                        }
+                        this._PlaylistManager = this._CustomPlaylist;
+                        this._PlaylistManager.setRandom(this.isRandom());
+                    } else {
+                        if(this._PlaylistManager && this._CustomPlaylist && this._PlaylistManager === this._CustomPlaylist) {
+                            this._PlaylistManager = null;
+                            if(this.isRandom()) {
+                                this.setRandom(true);
+                            }
+                        }
+                        if(this._PlaylistManager) {
+                            this._PlaylistManager.setTrackMode(mode);
+                        }
+                    }
                 }
             };
 
@@ -2148,16 +2202,19 @@
             };
 
             Playlist.prototype.addTrackItems = function(trackItems) {
+                var that = this;
+                var player = this._player;
+                var ui = player._UI;
                 var parsedPlaylist = this.constructor.parse(trackItems);
-                while(parsedPlaylist.length > 0) {
-                    var trackItem = parsedPlaylist.shift();
-                    this._playlist.push(trackItem);
-                }
+                parsedPlaylist.forEach(function(trackItem) {
+                    that._playlist.push(trackItem);
+                });
                 if(this._PlaylistManager) {
                     this._PlaylistManager.addTrackItems(trackItems);
                 }
+                ui.addTrackItems(parsedPlaylist);
 
-                return null;
+                return parsedPlaylist;
             };
 
             Playlist.prototype.removeTrackItem = function(trackItem) {
@@ -2215,10 +2272,10 @@
 
             Controller.prototype._init = function() {
                 var that = this;
+                var player = this._Player;
                 var playlist = this._Playlist.getPlaylist();
                 that._UI.addTrackItems(playlist);
                 this._registerUIListeners();
-
                 this.resetPlaylistSequence(this._Player._autoplay);
             };
 
@@ -2447,7 +2504,6 @@
             this._mode = config.mode;
             this._customAudioType = config.customAudioType;
             this._enableLyric = config.enableLyric || false;
-            this._CustomList = config.CustomList || false;
             this._enableMediaSession = config.enableMediaSession || true;
             this._initPlaylist = config.playlist;
             this._labels = config.labels || {};
@@ -2467,12 +2523,15 @@
             }, 0);
         }
 
+        Player.TrackItem = TrackItem;
+
         Player.TrackMode = TrackMode;
 
         Player.Playlist = Playlist;
 
         Player.Tools = {
-            extend: __extend
+            extend: __extend,
+            makeDeferred: makeDeferred
         };
 
         Player.prototype.getID = function() {
@@ -2490,16 +2549,16 @@
                     mode: this._mode,
                     volume: this._volume,
                     customAudioType: this._customAudioType,
-                    CustomList: this._CustomList,
                     enableLyric: this._enableLyric,
                     playlist: this._initPlaylist,
                     labels: this._labels,
+                    random: this._random,
                     messages: this._messages,
                     handlers: this._handlers
                 };
 
                 this._initialized = true;
-                this._Playlist = new Playlist(this, initConfig.playlist, initConfig.mode);
+                this._Playlist = new Playlist(this, initConfig);
                 this._UI = new UI(this._container, this, initConfig);
                 this._Playback = new Playback(this);
                 this._Controller = new Controller(this);
@@ -2526,7 +2585,11 @@
                 });
 
                 _MediaSession.setActionHandler("previoustrack", function() {
-                    that.skipBackward();
+                    if(that.getPosition() > 10000) {
+                        that.seek(0);
+                    } else {
+                        that.skipBackward();
+                    }
                 });
 
                 _MediaSession.setActionHandler("nexttrack", function() {
@@ -2626,6 +2689,10 @@
 
         Player.prototype.isDestructed = function() {
             return this._destructed;
+        };
+
+        Player.prototype.isRandom = function() {
+            return this._random;
         };
 
         Player.prototype.destruct = function() {
