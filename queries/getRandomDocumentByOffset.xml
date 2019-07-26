@@ -20,6 +20,7 @@
     </columns>
     <conditions>
         <condition operation="in" column="documents.module_srl" var="module_srl" filter="number" />
+        <condition operation="equal" column="documents.status" var="status" default="PUBLIC" pipe="and" />
         <group pipe="and">
             <condition operation="excess" column="documents.list_order" var="list_order" filter="number" pipe="or" />
             <condition operation="excess" column="documents.update_order" var="update_order" filter="number" pipe="or" />
