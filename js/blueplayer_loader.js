@@ -40,7 +40,6 @@
             var TrackMode = BluePlayer.TrackMode;
             var __extend = Tools.extend;
 
-
             function getCustomSongRequest(promise, playlistManager) {
                 var aborted = false;
                 var resolved = false;

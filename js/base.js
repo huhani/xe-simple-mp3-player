@@ -1008,7 +1008,18 @@
         return str;
     }
 
+    function removeExtension(filename) {
+        return typeof filename === 'string' ? filename.replace(/\.[^/.]+$/, "") : filename;
+    }
+
     function descriptionDecorator(descriptions) {
+        var defaultCover = null;
+        var removeExtensionInTitle = false;
+        if($SimpleMP3Player.config) {
+            var config = $SimpleMP3Player.config;
+            defaultCover = config.default_cover;
+            removeExtensionInTitle = config.remove_extension_in_title;
+        }
         if(descriptions) {
             descriptions.forEach(function(each){
                 var description = each.description;
@@ -1022,8 +1033,8 @@
                         };
                     }
                     var tags = description.tags;
-                    if(!tags.albumArt && $SimpleMP3Player.config && $SimpleMP3Player.config.default_cover) {
-                        tags.albumArt = convertURL2URI($SimpleMP3Player.config.default_cover);
+                    if(!tags.albumArt && defaultCover) {
+                        tags.albumArt = convertURL2URI(defaultCover);
                     }
                     if(tags.title) {
                         tags.title = ampToAmp(tags.title);
@@ -1036,6 +1047,9 @@
                     }
                     if(description.download_url) {
                         description.download_url = window.default_url + "index.php" + ampToAmp(description.download_url);
+                    }
+                    if(removeExtensionInTitle) {
+                        description.filename = removeExtension(description.filename);
                     }
                 }
             });

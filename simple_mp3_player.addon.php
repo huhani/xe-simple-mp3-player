@@ -788,10 +788,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
         $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
         $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
-
-
-
-
+        $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
         $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
         $config->use_m_lyric = (isset($addon_info->use_m_lyric) && $addon_info->use_m_lyric === "Y");

@@ -2300,6 +2300,7 @@
                     return;
                 }
 
+                this._abortTrackRequestJob();
                 this._currentTrackItem = trackItem;
                 this._Playback.setTrack(trackItem);
                 this._Playback.play();
