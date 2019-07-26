@@ -785,6 +785,12 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->BluePlayer__autostation_max_size = isset($addon_info->BluePlayer__autostation_max_size) && $addon_info->BluePlayer__autostation_max_size ? $addon_info->BluePlayer__autostation_max_size : 0;
         $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "AutoStation";
         $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
+        $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
+        $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
+        $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
+
+
+
 
 
         $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
@@ -798,6 +804,13 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         }
         if(!$config->playlist_player_selector) {
             $config->playlist_player_selector = '.simple_mp3_player';
+        }
+
+        if(!$config->mp3_realtime_buffer_size || $config->mp3_realtime_buffer_size < 1) {
+            $config->mp3_realtime_buffer_size = 12;
+        }
+        if($config->mp3_realtime_buffer_size > 120) {
+            $config->mp3_realtime_buffer_size = 120;
         }
 
         $password = null;

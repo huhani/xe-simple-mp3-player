@@ -36,9 +36,18 @@
 		}
 
 		SimplePlayer.prototype._init = function() {
+			var enableRealtimeStreaming = true;
+			var bufferSize = 12;
+			console.log($SimpleMP3Player.config)
+			if($SimpleMP3Player && $SimpleMP3Player.config) {
+				var config = $SimpleMP3Player.config;
+				var enableRealtimeStreaming = config.use_mp3_realtime_streaming;
+				var bufferSize = config.mp3_realtime_buffer_size;
+			}
+
 			this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
-			if($SimpleMP3Player.MSE.isSupported()) {
-				this._MSE = new $SimpleMP3Player.MSE(this._audio, this._description.filePath, this._description.offsetInfo);
+			if(enableRealtimeStreaming && $SimpleMP3Player.MSE.isSupported()) {
+				this._MSE = new $SimpleMP3Player.MSE(this._audio, this._description.filePath, this._description.offsetInfo, bufferSize);
 			} else {
 				this._audio.src = this._description.filePath;
 				this._audio.load();

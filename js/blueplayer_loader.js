@@ -1,26 +1,34 @@
 (function($, $SimpleMP3Player) {
-
     if ($SimpleMP3Player === void 0 || window.BluePlayer === void 0) {
         return;
     }
 
+    var autoplay = false;
+    var useAutoStation = false;
+    var mode = 1;
+    var random = false;
+    var limitMaxAutoStationTrack = 0;
+    var enableMediaSession = true;
+    var enableRealtimeStreaming = true;
+    var TrackRandomForce = false;
+    var bufferSize = 12;
+
     function buildBluePlayer($target, descriptions, usingLyric, document_srl, mid) {
-        var autoplay = false;
-        var use_autostation = false;
-        var mode = 1;
-        var random = false;
-        var limitMaxAutoStationTrack = 0;
         if($SimpleMP3Player && $SimpleMP3Player.config) {
             var config = $SimpleMP3Player.config;
             var confMode = config.BluePlayer__track_mode;
-            use_autostation = config.BluePlayer__use_autostation;
-            mode = confMode === 'AutoStation' && use_autostation ? 3 : confMode === 'RepeatTrack' ? 2 : confMode === 'RepeatList' ? 1 : 0;
+            useAutoStation = config.BluePlayer__use_autostation;
+            mode = confMode === 'AutoStation' && useAutoStation ? 3 : confMode === 'RepeatTrack' ? 2 : confMode === 'RepeatList' ? 1 : 0;
             random = config.BluePlayer__track_random;
             limitMaxAutoStationTrack = config.BluePlayer__autostation_max_size;
             autoplay = config.allow_autoplay;
+            enableMediaSession = config.use_mediasession;
+            enableRealtimeStreaming = config.use_mp3_realtime_streaming;
+            TrackRandomForce = config.BluePlayer__track_random_force;
+            bufferSize = config.mp3_realtime_buffer_size;
         }
 
-        var CustomPlaylistManager = function(mid, document_srl, maxLoadedTrackCount) {
+        var CustomPlaylistManager = function(mid, document_srl, maxLoadedTrackCount, TrackRandomForce) {
             var DEFAULT_REQUESTING_LIST_COUNT = 1;
 
             var BasePlaylist = BluePlayer.Playlist;
@@ -224,7 +232,7 @@
                 var offsets = [];
                 this._lastNextListOffset = this._lastRequestedNextListOffset;
                 this._lastPrevListOffset = this._lastRequestedPrevListOffset;
-                if(this.isRandom()) {
+                if(this.isRandom() || TrackRandomForce) {
                     for(var i=0; i<this._listOffsets.length; i++) {
                         var targetOffset = this._listOffsets[i];
                         if(this._listOffsets.indexOf(targetOffset) > -1) {
@@ -417,7 +425,7 @@
             };
 
             return CustomPlaylistManager;
-        }(mid, document_srl, limitMaxAutoStationTrack);
+        }(mid, document_srl, limitMaxAutoStationTrack, TrackRandomForce);
         var $section = $('<div></div>');
         $target.prepend($section);
         var playlist = buildPlaylist(descriptions);
@@ -429,6 +437,7 @@
             random: random,
             autoplay: autoplay,
             mode: mode,
+            enableMediaSession: enableMediaSession,
             labels: {
                 play: '재생',
                 pause: '일시정지',
@@ -448,7 +457,7 @@
             },
             handlers: {
                 trackMenu: getTrackMenu,
-                CustomPlaylist: mid && document_srl && use_autostation ? CustomPlaylistManager : null
+                CustomPlaylist: mid && document_srl && useAutoStation ? CustomPlaylistManager : null
             },
             customAudioType: {
                 hls: handlePlaybackLoading
@@ -467,8 +476,8 @@
             if(lastMSE) {
                 lastMSE.destruct();
             }
-            if(MSE && MSE.isSupported() && description && description.offsetInfo) {
-                lastMSE = new MSE(audioElement, trackItem.url, description.offsetInfo);
+            if(enableRealtimeStreaming && MSE && MSE.isSupported() && description && description.offsetInfo) {
+                lastMSE = new MSE(audioElement, trackItem.url, description.offsetInfo, bufferSize);
             } else {
                 audioElement.src = trackItem.url;
                 audioElement.load()

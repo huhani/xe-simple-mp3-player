@@ -49,7 +49,14 @@
 
     function buildAPlayer($target, data, useLyric) {
         var useMediaSession = !!($SimpleMP3Player.config && $SimpleMP3Player.config.use_mediasession);
+        var enableRealtimeStreaming = true;
+        var bufferSize = 12;
         var $SimpleMP3PlaylistPlayer = $('<div id="SimpleMP3PlaylistPlayer__container"></div>');
+        if($SimpleMP3Player && $SimpleMP3Player.config) {
+            var config = $SimpleMP3Player.config;
+            enableRealtimeStreaming = config.use_mp3_realtime_streaming;
+            bufferSize = config.mp3_realtime_buffer_size;
+        }
         $target.prepend($SimpleMP3PlaylistPlayer);
         var playlist = getAPlayerPlaylist(data);
         var _MSE = null;
@@ -69,8 +76,8 @@
                     if(_MSE) {
                         _MSE.destruct();
                     }
-                    if(MSE.isSupported() && audio && audio.description && audio.description.offsetInfo) {
-                        _MSE = new MSE(audioElement, audio.url, audio.description.offsetInfo);
+                    if(enableRealtimeStreaming && MSE.isSupported() && audio && audio.description && audio.description.offsetInfo) {
+                        _MSE = new MSE(audioElement, audio.url, audio.description.offsetInfo, bufferSize);
                     } else {
                         audioElement.src = audio.url;
                     }

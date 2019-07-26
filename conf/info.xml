@@ -27,7 +27,7 @@
 
         <var name="BluePlayer__use_autostation" type="select">
             <title xml:lang="ko">BluePlayer AutoStation 사용</title>
-            <description xml:lang="ko">게시글의 곡 재생이 끝난 경우 다른 게시글의 곡을 자동으로 추가합니다.</description>
+            <description xml:lang="ko">게시글의 곡 재생이 끝난 경우 서버로부터 다른 게시글의 곡을 자동으로 추가합니다.&lt;br/&gt; 곡들은 같은 게시판의 파일들을 참조합니다. &lt;br/&gt; 만약 서버로부터 더 이상 가져올 곡이 없을 경우 불러온 곡들 내에서 재생합니다.</description>
             <options value="">
                 <title xml:lang="ko">사용</title>
             </options>
@@ -60,7 +60,7 @@
 
         <var name="BluePlayer__track_random" type="select">
             <title xml:lang="ko">BluePlayer 곡 랜덤재생</title>
-            <description xml:lang="ko">BluePlayer 곡 랜덤재생 유무를 설정합니다. AutoStation 사용시 곡을 랜덤으로 불러옵니다.</description>
+            <description xml:lang="ko">BluePlayer 초기화시 랜덤재생 설정 유무를 설정합니다. 랜덤재생을 설정할 경우 곡 재생 순서를 무작위로 불러옵니다. &lt;br/&gt;AutoStation사용중 랜덤재생을 설정할 경우 곡 재생후 무조건 서버로부터 다음 곡을 불러옵니다.&lt;br/&gt;만약 서버로부터 더이상 가져올 곡이 없을 경우 불러온 곡들 중에서 무작위로 재생합니다.</description>
             <options value="">
                 <title xml:lang="ko">사용 안 함</title>
             </options>
@@ -69,6 +69,16 @@
             </options>
         </var>
 
+        <var name="BluePlayer__track_random_force" type="select">
+            <title xml:lang="ko">BluePlayer 다음 곡 불러오기 랜덤설정</title>
+            <description xml:lang="ko">BluePlayer AutoStation에서 서버로부터 다음 곡을 불러올 시 랜덤재생 설정에 관계없이 무조건 무작위로 가져옵니다.&lt;br/&gt;AutoStation기능을 사용하면서 랜덤재생 기능을 사용하지 않는다면 기존 곡 목록 재생 이후 곡을 서버로부터 랜덤으로 가져옵니다.</description>
+            <options value="">
+                <title xml:lang="ko">사용 안 함</title>
+            </options>
+            <options value="Y">
+                <title xml:lang="ko">사용</title>
+            </options>
+        </var>
 
         <var name="playlist_player_selector" type="text">
             <title xml:lang="ko">통합 플레이어 위치 Selector</title>
@@ -119,6 +129,23 @@
             </options>
         </var>
 
+
+        <var name="use_mp3_realtime_streaming" type="select">
+            <title xml:lang="ko">mp3 실시간 스트리밍 사용</title>
+            <description xml:lang="ko">mp3파일 재생시 HLS나 MPEG-DASH와 같이 실시간으로 재생합니다. 사용 안 함으로 설정시 기존 프로그래시브 방식으로 재생합니다.</description>
+            <options value="">
+                <title xml:lang="ko">사용</title>
+            </options>
+            <options value="N">
+                <title xml:lang="ko">사용 안 함</title>
+            </options>
+        </var>
+
+        <var name="mp3_realtime_buffer_size" type="text">
+            <title xml:lang="ko">mp3 실시간 재생 버퍼 크기</title>
+            <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다. &lt;br/&gt;단위: 초, 최소: 1, 최대: 120, 기본값: 12, 권장: 50</description>
+        </var>
+
         <var name="allow_autoplay" type="select">
             <title xml:lang="ko">자동 재생</title>
             <description xml:lang="ko">브라우저에서 자동 재생이 가능한 경우 맨 첫 곡을 자동 재생합니다.</description>
@@ -132,7 +159,7 @@
 
         <var name="default_cover" type="text">
             <title xml:lang="ko">기본 앨범아트</title>
-            <description xml:lang="ko">mp3파일에 앨범 아트가 없을 경우 입력한 주소의 앨범 아트를 사용합니다.</description>
+            <description xml:lang="ko">mp3파일에 앨범 아트가 없을 경우 입력한 주소의 앨범 아트를 사용합니다.&lt;br/&gt;기본값: ./addons/simple_mp3_player/img/no_cover.png</description>
         </var>
 
         <var name="use_lyric" type="select">

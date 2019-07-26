@@ -261,7 +261,7 @@
             };
         }
 
-        function MSE(audioNode, mp3URL, playlist) {
+        function MSE(audioNode, mp3URL, playlist, bufferSize) {
             this._audio = audioNode;
             this._playlist = playlist;
             this._duration = playlist.duration;
@@ -282,6 +282,7 @@
             this._onSourceBufferUpdateEndHandler = this._onSourceBufferUpdateEnd.bind(this);
             this._onSourceBufferErrorHandler = this._onSourceBufferError.bind(this);
             this._currentPerformJob = null;
+            this._bufferSize = bufferSize && typeof bufferSize === 'number' ? bufferSize : MAX_BUFFER_SIZE;
             this._MediaSource.addEventListener("sourceopen", this._onMediaSourceInitHandler, false);
             this._MediaSource.addEventListener("error", this._onMediaSourceErrorHandler, false);
             this._jobQueue = [];
@@ -322,6 +323,12 @@
             this._audio.addEventListener('timeupdate', this._onAudioTimeUpdateHandler, false);
             this._audio.src = this.getURL();
             this._audio.load();
+            if(this._bufferSize > 120) {
+                this._bufferSize = 120;
+            }
+            if(this._bufferSize < 1) {
+                this._bufferSize = MAX_BUFFER_SIZE;
+            }
         };
 
         MSE.prototype._ensureNotDestructed = function() {
@@ -370,7 +377,7 @@
                 var currentTime = this._audio.currentTime || 0;
                 var leftBuffer = this._getLeftBuffer(currentTime);
                 if(leftBuffer !== null) {
-                    return leftBuffer < MAX_BUFFER_SIZE;
+                    return leftBuffer < this._bufferSize;
                 }
 
                 return true;
