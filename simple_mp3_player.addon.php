@@ -327,10 +327,14 @@ if(!class_exists('SimpleMP3Describer', false)) {
             if(!$description) {
                 $description = self::getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename);
             }
-            if($description && $file_srl && $file_sid && $module_srl) {
-                $oFileModel = getModel('file');
-                $description->download_url = $oFileModel->getDownloadUrl($file_srl, $file_sid, $module_srl);
+            if($description && $file_srl) {
+                $description->file_srl = $file_srl;
+                if ($file_sid && $module_srl) {
+                    $oFileModel = getModel('file');
+                    $description->download_url = $oFileModel->getDownloadUrl($file_srl, $file_sid, $module_srl);
+                }
             }
+
 
             return $description;
         }

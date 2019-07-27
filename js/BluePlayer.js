@@ -25,14 +25,15 @@
                 priority: priority,
                 dead: false
             };
+            var that = this;
             var removed = false;
             this._listeners.push(subscriber);
             return {
                 remove: function() {
                     if(!subscriber.dead) {
-                        var idx = this._listeners.indexOf(subscriber);
+                        var idx = that._listeners.indexOf(subscriber);
                         if(idx > -1) {
-                            this._listeners.splice(idx, 1);
+                            that._listeners.splice(idx, 1);
                         }
                         subscriber.dead = true;
                     }
@@ -254,6 +255,7 @@
                 this._$Duration = null;
                 this._$CurrentTime = null;
                 this._$AlbumCoverContainer = null;
+                this._$LyricContent = null;
 
                 this._TrackListSimpleBar = null;
 
@@ -360,7 +362,7 @@
                     '                    <div class="TrackInfo__Lyric__container">\n' +
                     '                        <div class="TrackInfo__Lyric">\n' +
                     '                            <div class="Lyric__contents">\n' +
-                    '                                <p class="wait">'+this._notFoundLyricMessage+'</p>\n' +
+                    '                                <span class="wait">'+this._notFoundLyricMessage+'</span>\n' +
                     '                            </div>\n' +
                     '                        </div>\n' +
                     '                    </div>\n' +
@@ -492,6 +494,7 @@
                     this._$Duration = this._$UI.find('.PlaybackTimeline__Duration span');
                     this._$CurrentTime = this._$UI.find('.PlaybackTimeline__TimePassed span');
                     this._$AlbumCoverContainer = this._$UI.find('.AlbumCover__image__container');
+                    this._$LyricContent = this._$UI.find('.TrackInfo__Lyric__container .Lyric__contents');
                     this._$PlaybackTimelineSlider.slider({
                         orientation: "horizontal",
                         range: "min",
@@ -529,8 +532,8 @@
                     if(!this._CustomPlaylist && this._mode === TrackMode.CUSTOM_LIST) {
                         this._mode = TrackMode.REPEAT_LIST;
                     }
-
                     if('SimpleBar' in window) {
+                        SimpleBar.removeObserver();
                         this._TrackListSimpleBar = new SimpleBar(this._$TrackListWrapper[0]);
                     }
 
@@ -1064,6 +1067,21 @@
                 return this._enableLyric;
             };
 
+            UI.prototype.updateLyric = function(lyricArr) {
+                if(this.isEnabledLyric()) {
+                    if(!lyricArr || !lyricArr.length) {
+                        this._$LyricContent.html('');
+                    } else if(lyricArr.length > 0) {
+                        var html = [];
+                        lyricArr.forEach(function(eachLyric){
+                            html.push('<span'+(eachLyric.wait ? ' class="wait"' : '')+'>'+eachLyric.text+'</span>');
+                        });
+
+                        this._$LyricContent.html(html.join(''));
+                    }
+                }
+            };
+
             UI.prototype.setVolume = function(volume, mute, isForce) {
                 this._ensureNotDestructed();
                 if(this._isVolumeSliding() && !isForce) {
@@ -1297,6 +1315,8 @@
                 this.onVolumeChange = new EventDispatcher;
                 this.onDurationChange = new EventDispatcher;
                 this.onActuallyPlaying = new EventDispatcher;
+                this.onSeeking = new EventDispatcher;
+                this.onSeeked = new EventDispatcher;
 
                 this._actuallyPlayingDeferred = null;
                 this._actuallyPlayingTimerID = null;
@@ -1319,6 +1339,7 @@
                 this._currentTrackItem = null;
                 this._onAudioTimeupdate = this._handleAudioTimeUpdateEvent.bind(this);
                 this._onAudioPlaying = this._handleAudioPlayingEvent.bind(this);
+                this._onAudioSeeked = this._handleAudioSeekedEvent.bind(this);
                 this._onAudioSeeking = this._handleAudioSeekingEvent.bind(this);
                 this._onAudioDurationChange = this._handleAudioDurationChangeEvent.bind(this);
                 this._onAudioEnded = this._handleAudioEndedEvent.bind(this);
@@ -1341,6 +1362,7 @@
                 this._listenTo('play', this._onAudioPlay);
                 this._listenTo('pause', this._onAudioPaused);
                 this._listenTo('ended', this._onAudioEnded);
+                this._listenTo('seeked', this._onAudioSeeked);
                 this._listenTo('seeking', this._onAudioSeeking);
                 this._listenTo('timeupdate', this._onAudioTimeupdate);
                 this._listenTo('play', this._onAudioPlay);
@@ -1410,7 +1432,11 @@
             };
 
             Playback.prototype._handleAudioSeekingEvent = function() {
+                this.onSeeking.dispatch(this.getPosition());
+            };
 
+            Playback.prototype._handleAudioSeekedEvent = function() {
+                this.onSeeked.dispatch(this.getPosition());
             };
 
             Playback.prototype._handleAudioEndedEvent = function() {
@@ -2253,7 +2279,6 @@
         }();
 
         var Controller = function() {
-
             function Controller(player) {
                 if(!player) {
                     throw new Error('Player must be extsts.');
@@ -2264,6 +2289,7 @@
                 this._Playback = this._Player._Playback;
                 this._Playlist = this._Player._Playlist;
                 this._UI = this._Player._UI;
+                this._Lyric = this._Player._Lyric;
                 this._destructed = false;
                 this._trackRequestJob = null;
 
@@ -2302,6 +2328,7 @@
 
                 this._abortTrackRequestJob();
                 this._currentTrackItem = trackItem;
+                this.switchLyric(trackItem);
                 this._Playback.setTrack(trackItem);
                 this._Playback.play();
             };
@@ -2321,6 +2348,7 @@
                     this._currentTrackItem = trackItem;
                     this._UI.setCurrentTrackItem(trackItem);
                     this._Playback.setTrack(trackItem);
+                    this.switchLyric(trackItem);
                     if(play) {
                         this._Playback.play();
                     }
@@ -2370,6 +2398,12 @@
                 this._trackRequestJob = null;
             };
 
+            Controller.prototype.switchLyric = function(trackItem) {
+                if(trackItem && this._Lyric) {
+                    this._Lyric.provideCurrentTrackItem(trackItem);
+                }
+            };
+
             Controller.prototype.removeSubscribers = function() {
                 while(this._subscribers.length > 0) {
                     var subscriber = this._subscribers.shift();
@@ -2416,50 +2450,412 @@
 
         }();
 
-        var Lrc = function() {
-            function Lrc(player, trackItem) {
+        var Lyric = function() {
+
+            function getLyricObj(text, wait) {
+                return {
+                    text:text,
+                    wait: wait || false
+                };
+            }
+
+            function Lyric(player, config) {
+                var messages = config.messages;
                 this._player = player;
-                this._enabled = false;
+                this._destructed = false;
+                this._currentTrackItem = null;
+                this._LrcInitDeferred = null;
+                this._lyric = null;
+                this._lastLyricIndex = null;
+                this._listeners = [];
+                this._loadingLyric = messages.loadingLyric || "Loading...";
+                this._notFoundLyric = messages.notFoundLyric || "";
+                this._firstLyric = null;
+                this._secondLyric = null;
+                this._lyricTimerID = null;
+            }
+
+            Lyric.prototype._onTimeupdateHandler = function(position) {
+                this._update(position);
+            };
+
+            Lyric.prototype._onSeekedHandler = function(position) {
+                this._lastLyricIndex = null;
+                this._update(position);
+            };
+
+            Lyric.prototype._getSecondLyric = function() {
+                if(this.isLyricExist()) {
+                    if(this._secondLyric === null) {
+                        this._secondLyric = this._getLyricByOffset(1);
+                    }
+
+                    return this._secondLyric;
+                }
+
+                return null;
+            };
+
+            Lyric.prototype._getFirstLyric = function() {
+                if(this.isLyricExist()) {
+                    if(this._firstLyric === null) {
+                        this._firstLyric = this._getLyricByOffset(0);
+                    }
+
+                    return this._firstLyric;
+                }
+
+                return null;
+            };
+
+            Lyric.prototype._getLyricByOffset = function(offset) {
+                var lyric = [];
+                var lrcOffset = -1;
+                var lastLyricPos = null;
+                for(var i=0; i<this._lyric.length; i++) {
+                    var thisLyric = this._lyric[i];
+                    if(lastLyricPos !== thisLyric[0]) {
+                        lrcOffset++;
+                    }
+                    if(lrcOffset>offset) {
+                        break;
+                    }
+                    if(lrcOffset === offset) {
+                        lyric.push(thisLyric);
+                    }
+                }
+
+                return lyric;
+            };
+
+            Lyric.prototype._update = function(position) {
+                if(position === void 0) {
+                    var player = this._player;
+                    var playback = player._Playback;
+                    position = playback.getPosition();
+                }
+                if(isNaN(position) || position < 0) {
+                    position = 0;
+                }
+
+                var secondLyric = this._getSecondLyric();
+                var secondLyricTimeStamp = null;
+                if(secondLyric && secondLyric.length) {
+                    secondLyricTimeStamp = secondLyric[0][0];
+                }
+                if(this._lastLyricIndex === null && secondLyricTimeStamp && position < secondLyricTimeStamp) {
+                    var firstLyric = this._getFirstLyric();
+                    var firstLyricTimeStamp = firstLyric[0];
+                    return this.updateLyric(firstLyric.map(function(lyric){
+                        return getLyricObj(lyric[1], firstLyricTimeStamp > position);
+                    }));
+                }
+                if(this._lyric && this._lyric.length > 0) {
+                    if(this._lastLyricIndex === null) {
+                        this._lastLyricIndex = -1;
+                    }
+                    var lyric = [];
+                    var lyricTimestamp = null;
+                    for(var i=this._lastLyricIndex+1; i<this._lyric.length; i++) {
+                        var thisLyric = this._lyric[i];
+                        var timestamp = thisLyric[0];
+                        if(position>timestamp) {
+                            if(lyricTimestamp !== timestamp) {
+                                lyric = [];
+                                lyricTimestamp = timestamp;
+                            }
+                            lyric.push(getLyricObj(thisLyric[1]));
+                        } else {
+                            break;
+                        }
+                    }
+
+                    this.updateLyric(lyric);
+                }
+            };
+
+            Lyric.prototype._connectEventHandler = function() {
+                var player = this._player;
+                var playback = player._Playback;
+                this._disconnectEventHandler();
+                var timeupdateListener = playback.onTimeUpdate.subscribe(this._onTimeupdateHandler.bind(this));
+                var seekedListener = playback.onSeeked.subscribe(this._onSeekedHandler.bind(this));
+                this._listeners.push(timeupdateListener);
+                this._listeners.push(seekedListener);
+            };
+
+            Lyric.prototype._disconnectEventHandler = function() {
+                while(this._listeners.length) {
+                    var listener = this._listeners.shift();
+                    listener.remove();
+                }
+            };
+
+            Lyric.prototype.updateLyric = function(lrcArr) {
+                var player = this._player;
+                var ui = player._UI;
+                ui.updateLyric(lrcArr && lrcArr.length > 0 ? lrcArr : "");
+            };
+
+            Lyric.prototype.showLoadingBanner = function() {
+                this.updateLyric([getLyricObj(this._loadingLyric, true)]);
+            };
+
+            Lyric.prototype.showNotFoundBanner = function() {
+                this.updateLyric([getLyricObj(this._notFoundLyric, true)]);
+            };
+
+            Lyric.prototype.abortLrcInitDeferred = function(type) {
+                if(this._LrcInitDeferred && !this._LrcInitDeferred.isResolved()) {
+                    this._LrcInitDeferred.reject({
+                        type: type || 'abort'
+                    });
+                    this._LrcInitDeferred = null;
+                }
+            };
+
+            Lyric.prototype.isLyricExist = function() {
+                return this._lyric && this._lyric.length > 0;
+            };
+
+            Lyric.prototype.provideCurrentTrackItem = function(trackItem) {
+                var that = this;
+                this.abortLrcInitDeferred();
+                this._disconnectEventHandler();
+                this._lyric = null;
+                this._lastLyricIndex = null;
+                this._firstLyric = null;
+                this._secondLyric = null;
+                var lrc = trackItem._Lrc ? trackItem._Lrc : null;
+                if(!lrc && trackItem && trackItem.lrc) {
+                    lrc = new Lrc(trackItem);
+                    trackItem._Lrc = lrc;
+                }
+                if(lrc) {
+                    this._LrcInitDeferred = makeDeferred();
+                    var promise = this._LrcInitDeferred.promise;
+                    if(!lrc.isLoaded()) {
+                        this.showLoadingBanner();
+                    }
+                    lrc.getLyric().then(function(lyric){
+                        that._LrcInitDeferred.resolve(lyric);
+                    })['catch'](function(e){
+                        that._LrcInitDeferred.reject(e);
+                        if(e instanceof Error) {
+                            console.error(e);
+                        }
+                    });
+                    promise.then(function(lyric){
+                        if(lyric && lyric.length > 0) {
+                            that._connectEventHandler();
+                            that._lyric = lyric;
+                            that._update();
+                        } else {
+                            that.showNotFoundBanner();
+                        }
+                    });
+
+                    return promise;
+                }
+                this.showNotFoundBanner();
+
+                return null;
+            };
+
+            Lyric.prototype.isDestructed = function() {
+                return this._destructed;
+            };
+
+            Lyric.prototype.destruct = function() {
+                if(!this.isDestructed()) {
+                    this.abortLrcInitDeferred('destructed');
+                    this._destructed = true;
+                }
+            };
+
+            return Lyric;
+
+        }();
+
+        var Lrc = function() {
+            function Lrc(trackItem) {
                 this._TrackItem = trackItem;
                 this._lrcType = trackItem.lrcType;
                 this._parsedLyric = null;
+                this._loaded = false;
                 this._destructed = false;
                 this._requestingLrcJob = null;
             }
 
-            Lrc.parser = function(lrcText) {
+            // Reference of APlayer
+            Lrc.parse = function(lrcText) {
+                if(!lrcText) {
+                    return null;
+                }
+                lrcText = lrcText.replace(/([^\]^\n])\[/g, function(match, p1) {
+                    return p1 + '\n[';
+                });
+                var lyric = lrcText.split('\n');
+                var lrc = [];
+                var lyricLen = lyric.length;
+                for (var  i = 0; i < lyricLen; i++) {
+                    var lrcTimes = lyric[i].match(/\[(\d{2}):(\d{2})(\.(\d{2,3}))?]/g);
+                    var lrcText = lyric[i].replace(/.*\[(\d{2}):(\d{2})(\.(\d{2,3}))?]/g, '').replace(/<(\d{2}):(\d{2})(\.(\d{2,3}))?>/g, '').replace(/^\s+|\s+$/g, '');
+                    if (lrcTimes) {
+                        var timeLen = lrcTimes.length;
+                        for (let j = 0; j < timeLen; j++) {
+                            var oneTime = /\[(\d{2}):(\d{2})(\.(\d{2,3}))?]/.exec(lrcTimes[j]);
+                            var min2sec = oneTime[1] * 60;
+                            var sec2sec = parseInt(oneTime[2]);
+                            var msec2sec = oneTime[4] ? parseInt(oneTime[4]) / ((oneTime[4] + '').length === 2 ? 100 : 1000) : 0;
+                            var lrcTime = (min2sec + sec2sec + msec2sec) * 1000;
+                            lrc.push([lrcTime, lrcText]);
+                        }
+                    }
+                }
 
+                let isBanner = true;
+                let maxBannerCount = 3;
+                lrc = lrc.filter((item) => {
+                    if(!item[1]) {
+                        return;
+                    }
+                    if(item[0] !== 0) {
+                        isBanner = false;
+                    }
+                    if(item[0] === 0) {
+                        if(!isBanner) {
+                            return false;
+                        } else {
+                            if(maxBannerCount>0) {
+                                maxBannerCount--;
+                            } else {
+                                return false;
+                            }
+                        }
+                    }
+
+                    return item[1];
+                });
+                lrc.reduce((arr, current) => {
+                    var lastGroup = arr.shift();
+                    if(lastGroup && lastGroup.time !== current[0]) {
+                        arr.push(lastGroup);
+                        lastGroup = null;
+                    }
+                    if(!lastGroup) {
+                        lastGroup = {
+                            time: current[0],
+                            lyric: []
+                        };
+                    }
+                    lastGroup.lyric.push(lastGroup);
+                    arr.push(lastGroup);
+                    return arr;
+                }, []).sort((a, b) => a.time - b.time).reduce((arr, current) => {
+                    if(current && current.lyric.length) {
+                        return arr.concat(current.lyric);
+                    }
+
+                    return arr;
+                }, []);
+
+                return lrc;
             };
 
             Lrc.getLyricFromServer = function(url) {
                 var deferred = makeDeferred();
+                var xhr = new XMLHttpRequest;
+                var ended = false;
+                var aborted = false;
+                xhr.open('GET', url, true);
+                xhr.send();
+                xhr.addEventListener('readystatechange', function() {
+                    if(xhr.readyState === XMLHttpRequest.DONE) {
+                        if(xhr.status === 200) {
+                            var response = xhr.response;
+                            deferred.resolve(response);
+                        } else {
+                            if(!aborted) {
+                                deferred.reject(null);
+                            }
+                        }
+                    }
+                });
+
                 var abort = function() {
-
+                    if(!isResolved()) {
+                        if(xhr && xhr.readyState !== 4) {
+                            xhr.abort();
+                            deferred.reject(null);
+                        }
+                    }
                 };
-                var isEnded = function() {
 
+                var isResolved = function() {
+                    return ended || aborted;
                 };
 
                 return {
                     promise: deferred.promise,
                     abort: abort,
-                    isEnded: isEnded
+                    isResolved: isResolved
                 };
             };
 
-            Lrc.prototype._abortRequestingLrcJob = function() {
-                if(this._requestingLrcJob && !this._requestingLrcJob.isEnded()) {
+            Lrc.prototype.getLyric = function() {
+                var that = this;
+                if(this.isLoaded()) {
+                    return Promise.resolve(this.isReady() ? this._parsedLyric : null);
+                } else {
+                    if(this._TrackItem && this._TrackItem.lrc) {
+                        if(!this._requestingLrcJob || this._requestingLrcJob.isResolved()) {
+                            var url = this._TrackItem.lrc;
+                            this._requestingLrcJob = this.constructor.getLyricFromServer(url);
+                        }
+                        var promise = this._requestingLrcJob.promise;
+                        var deferred = makeDeferred();
+                        promise.then(function(data){
+                            var lyric = that._onLyricRetrieved(data);
+                            deferred.resolve(lyric);
+                        })['catch'](function() {
+                            deferred.reject(null);
+                        });
+
+                        return deferred.promise;
+                    } else {
+                        this._loaded = true;
+                        return Promise.resolve(null);
+                    }
+                }
+            };
+
+            Lrc.prototype._onLyricRetrieved = function(lrc) {
+                this._loaded = true;
+                if(lrc) {
+                    var parsedLrc = this.constructor.parse(lrc);
+                    if(parsedLrc && parsedLrc.length > 0) {
+                        this._parsedLyric = parsedLrc;
+                        return this._parsedLyric;
+                    }
+                }
+
+                return null;
+            };
+
+            Lrc.prototype.abortRequestingLrcJob = function() {
+                if(this._requestingLrcJob && !this._requestingLrcJob.isResolved()) {
                     this._requestingLrcJob.abort();
                 }
                 this._requestingLrcJob = null;
             };
 
-            Lrc.prototype.isReady = function () {
-                return !!this._parsedLyric;
+            Lrc.prototype.isLoaded = function() {
+                return this._loaded;
             };
 
-            Lrc.prototype.isEnabled = function() {
-
+            Lrc.prototype.isReady = function () {
+                return this._parsedLyric && this._parsedLyric.length > 0;
             };
 
             Lrc.prototype.isDestructed = function() {
@@ -2562,6 +2958,7 @@
                 this._Playlist = new Playlist(this, initConfig);
                 this._UI = new UI(this._container, this, initConfig);
                 this._Playback = new Playback(this);
+                this._Lyric = this._enableLyric ? new Lyric(this, initConfig) : null;
                 this._Controller = new Controller(this);
             }
         };
@@ -2706,6 +3103,9 @@
                 this._Playback.destruct();
                 this._UI.destruct();
                 this._Playlist.destruct();
+                if(this._Lyric) {
+                    this._Lyric.destruct();
+                }
 
                 this._destructed = true;
             }

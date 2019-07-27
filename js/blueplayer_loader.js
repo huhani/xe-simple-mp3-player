@@ -432,7 +432,7 @@
             container: $section[0],
             playlist: playlist,
             volume: 100,
-            enableLyric: false,
+            enableLyric: true,
             random: random,
             autoplay: autoplay,
             mode: mode,
@@ -465,7 +465,6 @@
 
         window.tt=player;
     }
-
 
     var MSE = $SimpleMP3Player.MSE;
     var lastMSE = null;
@@ -500,6 +499,7 @@
             if(!stream) {
                 stream = {};
             }
+            var file_srl = description.file_srl;
             var title = tags.title ? tags.title : description.filename;
             var artist = tags.artist ? tags.artist : null;
             var album = tags.album ? tags.album : null;
@@ -507,7 +507,7 @@
             var duration = offsetInfo.duration ? offsetInfo.duration * 1000 : (stream.duration ? stream.duration * 1000 : null);
             var url = description.filePath;
             var type = null;
-            var lrc = null;
+            var lrc = window.request_uri+'index.php?act=getSimpleMP3Lyric&file_srl='+file_srl+"&type=text";
             var lrcType = null;
 
             playlist.push({
@@ -518,6 +518,7 @@
                 duration: duration,
                 url: url,
                 type: 'hls',
+                lrc: lrc,
                 allowRemove: true,
                 description: description
             });
