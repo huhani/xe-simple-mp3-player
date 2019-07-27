@@ -2486,7 +2486,12 @@
             Lyric.prototype._onSeekedHandler = function(position) {
                 this._lastLyricIndex = null;
                 this._evenLine = false;
+                this._clearLyricUpdateTimer();
                 this._update(position, true);
+            };
+
+            Lyric.prototype._onPausedHandler = function() {
+                this._clearLyricUpdateTimer();
             };
 
             Lyric.prototype._getSecondLyric = function() {
@@ -2544,6 +2549,7 @@
                     position = 0;
                 }
 
+                var that = this;
                 var secondLyric = this._getSecondLyric();
                 var secondLyricTimeStamp = null;
                 if(secondLyric && secondLyric.length) {
@@ -2588,10 +2594,15 @@
                     }
 
                     if(lyric.length) {
+                        var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
+                        if(nextLyric && position < nextLyric[0]) {
+                            this._lyricUpdateTimerID = window.setTimeout(function(){
+                                that._update(nextLyric[0]+10);
+                            }, nextLyric[0]-position);
+                        }
                         if(this._isSingleLineLyric()) {
                             var currentLyric = this._lyric[this._lastLyricIndex];
                             var prevLyric = this._lastLyricIndex-1 >=0 ? this._lyric[this._lastLyricIndex-1] : null;
-                            var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
                             this._singleLineUpdate(currentLyric, nextLyric, null, !fromSeekedEvent ? prevLyric : null, position);
                         } else {
                             this.updateLyric(lyric);
@@ -2664,14 +2675,23 @@
                 }
             };
 
+            Lyric.prototype._clearLyricUpdateTimer = function() {
+                if(this._lyricUpdateTimerID !== null) {
+                    window.clearTimeout(this._lyricUpdateTimerID);
+                    this._lyricUpdateTimerID = null;
+                }
+            };
+
             Lyric.prototype._connectEventHandler = function() {
                 var player = this._player;
                 var playback = player._Playback;
                 this._disconnectEventHandler();
                 var timeupdateListener = playback.onTimeUpdate.subscribe(this._onTimeupdateHandler.bind(this));
                 var seekedListener = playback.onSeeked.subscribe(this._onSeekedHandler.bind(this));
+                var pausedListener = playback.onPaused.subscribe(this._onPausedHandler.bind(this));
                 this._listeners.push(timeupdateListener);
                 this._listeners.push(seekedListener);
+                this._listeners.push(pausedListener);
             };
 
             Lyric.prototype._disconnectEventHandler = function() {
@@ -2713,6 +2733,7 @@
                 this.abortLrcInitDeferred();
                 this._clearSingleLineTimer();
                 this._disconnectEventHandler();
+                this._clearLyricUpdateTimer();
                 this._lyric = null;
                 this._lastLyricIndex = null;
                 this._firstLyric = null;
@@ -2763,6 +2784,7 @@
             Lyric.prototype.destruct = function() {
                 if(!this.isDestructed()) {
                     this._clearSingleLineTimer();
+                    this._clearLyricUpdateTimer();
                     this._disconnectEventHandler();
                     this.abortLrcInitDeferred('destructed');
                     this._destructed = true;
