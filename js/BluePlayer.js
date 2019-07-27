@@ -2473,7 +2473,10 @@
                 this._notFoundLyric = messages.notFoundLyric || "";
                 this._firstLyric = null;
                 this._secondLyric = null;
-                this._lyricTimerID = null;
+                this._lyricUpdateTimerID = null;
+                this._singleLineUpdateTimerID = null;
+                this._singleLineMode = false;
+                this._evenLine = false;
             }
 
             Lyric.prototype._onTimeupdateHandler = function(position) {
@@ -2482,7 +2485,8 @@
 
             Lyric.prototype._onSeekedHandler = function(position) {
                 this._lastLyricIndex = null;
-                this._update(position);
+                this._evenLine = false;
+                this._update(position, true);
             };
 
             Lyric.prototype._getSecondLyric = function() {
@@ -2516,6 +2520,7 @@
                 for(var i=0; i<this._lyric.length; i++) {
                     var thisLyric = this._lyric[i];
                     if(lastLyricPos !== thisLyric[0]) {
+                        lastLyricPos = thisLyric[0];
                         lrcOffset++;
                     }
                     if(lrcOffset>offset) {
@@ -2529,7 +2534,7 @@
                 return lyric;
             };
 
-            Lyric.prototype._update = function(position) {
+            Lyric.prototype._update = function(position, fromSeekedEvent) {
                 if(position === void 0) {
                     var player = this._player;
                     var playback = player._Playback;
@@ -2544,12 +2549,22 @@
                 if(secondLyric && secondLyric.length) {
                     secondLyricTimeStamp = secondLyric[0][0];
                 }
-                if(this._lastLyricIndex === null && secondLyricTimeStamp && position < secondLyricTimeStamp) {
+                if(this._lastLyricIndex === null) {
                     var firstLyric = this._getFirstLyric();
-                    var firstLyricTimeStamp = firstLyric[0];
-                    return this.updateLyric(firstLyric.map(function(lyric){
-                        return getLyricObj(lyric[1], firstLyricTimeStamp > position);
-                    }));
+                    var firstLyricTimeStamp = firstLyric[0][0];
+                    if(secondLyricTimeStamp && position < secondLyricTimeStamp) {
+                        if(this._isSingleLineLyric()) {
+                            if(position < firstLyricTimeStamp) {
+                                this._singleLineUpdate(null, firstLyric[0], secondLyric[0], null, position);
+                            } else {
+                                this._singleLineUpdate(firstLyric[0], secondLyric[0], null, null, position);
+                            }
+                        } else {
+                            return this.updateLyric(firstLyric.map(function(lyric){
+                                return getLyricObj(lyric[1], firstLyricTimeStamp > position);
+                            }));
+                        }
+                    }
                 }
                 if(this._lyric && this._lyric.length > 0) {
                     if(this._lastLyricIndex === null) {
@@ -2566,12 +2581,86 @@
                                 lyricTimestamp = timestamp;
                             }
                             lyric.push(getLyricObj(thisLyric[1]));
+                            this._lastLyricIndex = i;
                         } else {
                             break;
                         }
                     }
 
-                    this.updateLyric(lyric);
+                    if(lyric.length) {
+                        if(this._isSingleLineLyric()) {
+                            var currentLyric = this._lyric[this._lastLyricIndex];
+                            var prevLyric = this._lastLyricIndex-1 >=0 ? this._lyric[this._lastLyricIndex-1] : null;
+                            var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
+                            this._singleLineUpdate(currentLyric, nextLyric, null, !fromSeekedEvent ? prevLyric : null, position);
+                        } else {
+                            this.updateLyric(lyric);
+                        }
+                    }
+                }
+            };
+
+            Lyric.prototype._isSingleLineLyric = function() {
+                return this._singleLineMode;
+            };
+
+            Lyric.prototype._singleLineUpdate = function(currentLyric, nextLyric, aboveLyric, prevLyric, currentPosition) {
+                this._clearSingleLineTimer();
+
+                //맨 첫 가사
+                var that = this;
+                var lyric = [];
+                if(!currentLyric && nextLyric) {
+                    lyric.push(getLyricObj(nextLyric[1], true));
+                    if(aboveLyric) {
+                        lyric.push(getLyricObj(aboveLyric[1], true));
+                    }
+                    this._evenLine = !this._evenLine;
+                } else if(currentLyric && (nextLyric || prevLyric)) {
+                    if(prevLyric) {
+                        var isEven = this._evenLine;
+                        if(!isEven) {
+                            lyric.push(getLyricObj(currentLyric[1], false));
+                            lyric.push(getLyricObj(prevLyric[1], true));
+                        } else {
+                            lyric.push(getLyricObj(prevLyric[1], true));
+                            lyric.push(getLyricObj(currentLyric[1], false));
+                        }
+                        if(nextLyric) {
+                            var timeDiff = (nextLyric[0] - currentPosition) / 3;
+                            this._singleLineUpdateTimerID = window.setTimeout(function() {
+                                var lyric = [];
+                                if(!isEven) {
+                                    lyric.push(getLyricObj(currentLyric[1], false));
+                                    lyric.push(getLyricObj(nextLyric[1], true));
+                                } else {
+                                    lyric.push(getLyricObj(nextLyric[1], true));
+                                    lyric.push(getLyricObj(currentLyric[1], false));
+                                }
+                                that.updateLyric(lyric);
+                            }, timeDiff);
+                        }
+                    } else if(nextLyric) {
+                        if(!isEven) {
+                            lyric.push(getLyricObj(currentLyric[1], false));
+                            lyric.push(getLyricObj(nextLyric[1], true));
+                        } else {
+                            lyric.push(getLyricObj(nextLyric[1], true));
+                            lyric.push(getLyricObj(currentLyric[1], false));
+                        }
+                    }
+                } else {
+                    lyric.push(getLyricObj(currentLyric[1], false));
+                }
+
+                this._evenLine = !this._evenLine;
+                this.updateLyric(lyric);
+            };
+
+            Lyric.prototype._clearSingleLineTimer = function() {
+                if(this._singleLineUpdateTimerID !== null) {
+                    window.clearTimeout(this._singleLineUpdateTimerID);
+                    this._singleLineUpdateTimerID = null;
                 }
             };
 
@@ -2622,11 +2711,14 @@
             Lyric.prototype.provideCurrentTrackItem = function(trackItem) {
                 var that = this;
                 this.abortLrcInitDeferred();
+                this._clearSingleLineTimer();
                 this._disconnectEventHandler();
                 this._lyric = null;
                 this._lastLyricIndex = null;
                 this._firstLyric = null;
                 this._secondLyric = null;
+                this._singleLineMode = false;
+                this._evenLine = false;
                 var lrc = trackItem._Lrc ? trackItem._Lrc : null;
                 if(!lrc && trackItem && trackItem.lrc) {
                     lrc = new Lrc(trackItem);
@@ -2650,6 +2742,7 @@
                         if(lyric && lyric.length > 0) {
                             that._connectEventHandler();
                             that._lyric = lyric;
+                            that._singleLineMode = lrc.isSingleLineLyric();
                             that._update();
                         } else {
                             that.showNotFoundBanner();
@@ -2669,6 +2762,8 @@
 
             Lyric.prototype.destruct = function() {
                 if(!this.isDestructed()) {
+                    this._clearSingleLineTimer();
+                    this._disconnectEventHandler();
                     this.abortLrcInitDeferred('destructed');
                     this._destructed = true;
                 }
@@ -2686,6 +2781,7 @@
                 this._loaded = false;
                 this._destructed = false;
                 this._requestingLrcJob = null;
+                this._singleLineLyric = null;
             }
 
             // Reference of APlayer
@@ -2861,6 +2957,27 @@
 
             Lrc.prototype.isDestructed = function() {
                 this._destructed = false;
+            };
+
+            Lrc.prototype.isSingleLineLyric = function() {
+                if(this._singleLineLyric !== null) {
+                    return this._singleLineLyric;
+                } else if(this.isReady()) {
+                    var lastTimeStamp = null;
+                    var isMultipleLine = false;
+                    for(var i=0; i<this._parsedLyric.length; i++) {
+                        var thisLyric = this._parsedLyric[i];
+                        if(lastTimeStamp !== thisLyric[0]) {
+                            lastTimeStamp = thisLyric[0];
+                        } else {
+                            isMultipleLine = true;
+                            break;
+                        }
+                    }
+                    this._singleLineLyric = !isMultipleLine;
+                }
+
+                return this._singleLineLyric;
             };
 
 
