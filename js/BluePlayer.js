@@ -2596,8 +2596,10 @@
                     if(lyric.length) {
                         var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
                         if(nextLyric && position < nextLyric[0]) {
+                            this._clearLyricUpdateTimer();
                             this._lyricUpdateTimerID = window.setTimeout(function(){
                                 that._update(nextLyric[0]+10);
+                                that._lyricUpdateTimerID = null;
                             }, nextLyric[0]-position);
                         }
                         if(this._isSingleLineLyric()) {
