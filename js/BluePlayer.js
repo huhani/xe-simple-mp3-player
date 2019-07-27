@@ -890,6 +890,7 @@
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
                 var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}';
+                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__right {left: '+(trackListWidth-67)+'px; height: 48px;}';
 
                 var $lastCSS = this._$UI.find('style#BluePlayer__'+playerID+"."+className);
                 if($lastCSS.length) {

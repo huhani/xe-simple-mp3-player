@@ -142,20 +142,20 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackItemDescription__left .info .artist span{font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
 #BluePlayer .TrackItemDescription__left .info .title span{font-size: 12px; color: #353535; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
 
-#BluePlayer .TrackItemDescription__right {float:right; display: table; height: 100%;}
+#BluePlayer .TrackItemDescription__right {position:absolute; display: table; height: 100%;}
 
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls {display:table-cell;}
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: none;}
 
-#BluePlayer .TrackItemDescription__right .controls {display:none; vertical-align: middle; width: 65px; text-align:center; }
+#BluePlayer .TrackItemDescription__right .controls {display:none; vertical-align: middle; width: 65px; text-align: right; padding: 0 17px 0 0; box-sizing: border-box; }
 #BluePlayer .TrackItemDescription__right .controls-icon {padding: 2px 6px;}
 #BluePlayer .TrackItemDescription__right .controls-icon:focus {outline-color: #333; outline-width: 1px; outline-style: dotted; }
 #BluePlayer .TrackItemDescription__right .controls-icon .icon {display: inline-block; width:10px; height: 10px;}
 #BluePlayer .TrackItemDescription__right .controls-icon.remove .icon {background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9ImNsb3NlIj4NCgkJPHBvbHlnb24gcG9pbnRzPSIzNTcsMzUuNyAzMjEuMywwIDE3OC41LDE0Mi44IDM1LjcsMCAwLDM1LjcgMTQyLjgsMTc4LjUgMCwzMjEuMyAzNS43LDM1NyAxNzguNSwyMTQuMiAzMjEuMywzNTcgMzU3LDMyMS4zIA0KCQkJMjE0LjIsMTc4LjUgCQkiLz4NCgk8L2c+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
 #BluePlayer .TrackItemDescription__right .controls-icon.more .icon {background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJDYXBhXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgNjAgNjAiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDYwIDYwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8Zz4NCgk8cGF0aCBkPSJNOCwyMmMtNC40MTEsMC04LDMuNTg5LTgsOHMzLjU4OSw4LDgsOHM4LTMuNTg5LDgtOFMxMi40MTEsMjIsOCwyMnoiLz4NCgk8cGF0aCBkPSJNNTIsMjJjLTQuNDExLDAtOCwzLjU4OS04LDhzMy41ODksOCw4LDhzOC0zLjU4OSw4LThTNTYuNDExLDIyLDUyLDIyeiIvPg0KCTxwYXRoIGQ9Ik0zMCwyMmMtNC40MTEsMC04LDMuNTg5LTgsOHMzLjU4OSw4LDgsOHM4LTMuNTg5LDgtOFMzNC40MTEsMjIsMzAsMjJ6Ii8+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
 
-#BluePlayer .TrackItemDescription__right .duration {display: table-cell; vertical-align: middle; padding: 0px 10px 0 0;}
-#BluePlayer .TrackItemDescription__right .duration span {font-size: 11px; color: #A0A0A0;}
+#BluePlayer .TrackItemDescription__right .duration {display: table-cell; vertical-align: middle; padding: 0; width: 65px; text-align: center;}
+#BluePlayer .TrackItemDescription__right .duration span {font-size: 11px; color: #A0A0A0; position: relative; left: 5px;}
 
 #BluePlayer.mobile {max-height: 620px;}
 #BluePlayer.mobile .BluePlayer__Controls__container {display:block; width: 100%; border-right: unset;}

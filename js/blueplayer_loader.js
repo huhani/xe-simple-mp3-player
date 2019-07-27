@@ -329,7 +329,7 @@
                     if(description) {
                         var descriptions = [{description:description}];
                         $SimpleMP3Player.descriptionDecorator(descriptions);
-                        var convertPlaylist = buildPlaylist(descriptions);
+                        var convertPlaylist = buildPlaylist(descriptions, true);
                         var trackItemArr = playlist.addTrackItems(convertPlaylist);
                         deferred.resolve(trackItemArr.length ? trackItemArr[0] : null);
                         that._totalLoadedCount++;
@@ -483,7 +483,7 @@
         }
     }
 
-    function buildPlaylist(descriptions) {
+    function buildPlaylist(descriptions, allowRemove) {
         var playlist = [];
         descriptions.forEach(function(each){
             var description = each.description;
@@ -519,7 +519,7 @@
                 url: url,
                 type: 'hls',
                 lrc: lrc,
-                allowRemove: true,
+                allowRemove: allowRemove || false,
                 description: description
             });
         });
