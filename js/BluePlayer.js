@@ -180,7 +180,7 @@
 
             function isValidMode(mode){
                 return !!(TrackMode[mode]);
-            };
+            }
 
             function UI(container, player, config) {
                 if(!container) {
@@ -256,6 +256,7 @@
                 this._$CurrentTime = null;
                 this._$AlbumCoverContainer = null;
                 this._$LyricContent = null;
+                this._$LyricExtend = null;
 
                 this._TrackListSimpleBar = null;
 
@@ -339,6 +340,7 @@
                     '        <div class="BluePlayer__Controls__container">\n' +
                     '            <div class="BluePlayer__Controls">\n' +
                     '                <div class="BluePlayer__TrackInfo">\n' +
+                    '<div class="TrackInfo__Lyric__extend"></div>' +
                     '                    <div class="TrackInfo__Description__container">\n' +
                     '                        <div class="TrackInfo__Description">\n' +
                     '                            <div class="TrackInfo__AlbumCover">\n' +
@@ -495,6 +497,7 @@
                     this._$CurrentTime = this._$UI.find('.PlaybackTimeline__TimePassed span');
                     this._$AlbumCoverContainer = this._$UI.find('.AlbumCover__image__container');
                     this._$LyricContent = this._$UI.find('.TrackInfo__Lyric__container .Lyric__contents');
+                    this._$LyricExtend = this._$UI.find('.TrackInfo__Lyric__extend');
                     this._$PlaybackTimelineSlider.slider({
                         orientation: "horizontal",
                         range: "min",
@@ -2540,10 +2543,11 @@
             };
 
             Lyric.prototype._update = function(position, fromSeekedEvent) {
+                var player = this._player;
+                var playback = player._Playback;
+                var actuallyPosition = playback.getPosition();
                 if(position === void 0) {
-                    var player = this._player;
-                    var playback = player._Playback;
-                    position = playback.getPosition();
+                    position = actuallyPosition;
                 }
                 if(isNaN(position) || position < 0) {
                     position = 0;
@@ -2595,12 +2599,12 @@
 
                     if(lyric.length) {
                         var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
-                        if(nextLyric && position < nextLyric[0]) {
+                        if(playback.isActuallyPlaying() && nextLyric && position < nextLyric[0]) {
                             this._clearLyricUpdateTimer();
                             this._lyricUpdateTimerID = window.setTimeout(function(){
                                 that._update(nextLyric[0]+10);
                                 that._lyricUpdateTimerID = null;
-                            }, nextLyric[0]-position);
+                            }, nextLyric[0]-actuallyPosition);
                         }
                         if(this._isSingleLineLyric()) {
                             var currentLyric = this._lyric[this._lastLyricIndex];
