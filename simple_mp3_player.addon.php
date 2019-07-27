@@ -618,10 +618,30 @@ if(!class_exists('SimpleMP3Describer', false)) {
         }
 
         public static function isAccessableDocument($document_srl) {
-            $oDocumentModel = getModel('document');
-            $oDocument = $oDocumentModel->getDocument($document_srl);
-            if($oDocument && $oDocument->isExists() && $oDocument->isAccessible()) {
-                return true;
+            if($document_srl) {
+                $oDocumentModel = getModel('document');
+                $oDocument = $oDocumentModel->getDocument($document_srl);
+                if($oDocument->isExists()) {
+                    if($oDocument->isAccessible() || $oDocument->isGranted()) {
+                        return true;
+                    }
+                    $oModuleModel = getModel('module');
+                    $module_info = $oModuleModel->getModuleInfoByDocumentSrl($document_srl);
+                    $member_info = Context::get('logged_info');
+                    if(!$member_info) {
+                        $member_info = new stdClass;
+                        $member_info->is_admin = "N";
+                        $member_info->member_srl = null;
+                    }
+                    $oModuleGrant = $oModuleModel->getGrant($module_info, $member_info);
+                    if($oDocument->isSecret()) {
+                        if($oModuleGrant->manager || $member_info->is_admin === "Y") {
+                            return true;
+                        }
+                    } else if($oModuleGrant->access && $oModuleGrant->view) {
+                        return true;
+                    }
+                }
             }
 
             return false;
