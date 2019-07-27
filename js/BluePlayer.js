@@ -2555,8 +2555,8 @@
                 if(secondLyric && secondLyric.length) {
                     secondLyricTimeStamp = secondLyric[0][0];
                 }
-                if(this._lastLyricIndex === null) {
-                    var firstLyric = this._getFirstLyric();
+                var firstLyric = this._getFirstLyric();
+                if(this._lastLyricIndex === null && firstLyric && firstLyric.length > 0) {
                     var firstLyricTimeStamp = firstLyric[0][0];
                     if(secondLyricTimeStamp && position < secondLyricTimeStamp) {
                         if(this._isSingleLineLyric()) {
