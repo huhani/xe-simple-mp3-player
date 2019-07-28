@@ -869,7 +869,6 @@
                     this._$TrackLisContainer.css('width', trackListWidth);
                     this._$TrackListWrapper.css('max-height', controlSectionHeight-1);
                 }
-
                 if(isTooSmall) {
                     $rightControlSection.hide();
                 } else {
