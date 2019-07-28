@@ -887,8 +887,8 @@
                 }
             };
 
-            UI.prototype._resizeTrackItemWidth = function(isMobile) {
-                var trackListWidth = this._$TrackList.width();
+            UI.prototype._resizeTrackItemWidth = function(isMobile, trackListWidth) {
+                var trackListWidth = this._$TrackLisContainer.width();
                 var strMaxWidth = trackListWidth - 130 + (isMobile ? 25 : 0);
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
@@ -2601,7 +2601,7 @@
                         var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
                         if(playback.isActuallyPlaying() && nextLyric && position < nextLyric[0]) {
                             this._clearLyricUpdateTimer();
-                            var m = this._lyricUpdateTimerID = window.setTimeout(function(){
+                            this._lyricUpdateTimerID = window.setTimeout(function(){
                                 that._lyricUpdateTimerID = null;
                                 that._update(nextLyric[0]+10);
                             }, nextLyric[0]-actuallyPosition);
