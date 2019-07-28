@@ -182,6 +182,28 @@
                 return !!(TrackMode[mode]);
             }
 
+            function getExtendedLyricLyric(lyric, isNotice) {
+                if(isNotice) {
+                    return lyric.map(function(each) {
+                        return '<span class="notice">'+each+'</span>';
+                    }).join('');
+                } else {
+                    var lastPos = null;
+                    return lyric.reduce(function(lyrics, currentLyric, idx) {
+                        if(lastPos === null) {
+                            lastPos = currentLyric[0];
+                        }
+                        if(lastPos !== currentLyric[0]) {
+                            lastPos = currentLyric[0];
+                            lyrics.push('<span class="blank"></span>');
+                        }
+                        lyrics.push('<span class="lrc" data-position="'+currentLyric[0]+'" data-index="'+idx+'">'+currentLyric[1]+'</span>');
+
+                        return lyrics;
+                    }, []).join('');
+                }
+            }
+
             function UI(container, player, config) {
                 if(!container) {
                     throw new Error("Target must be exists;")
@@ -224,8 +246,9 @@
                 this._rightClickPlayLabel = labels.rightClickPlay ? labels.rightClickPlay : "Play";
                 this._rightClickPauseLabel = labels.rightClickPause ? labels.rightClickPause : "Pause";
                 this._rightClickRemoveTrackLabel = labels.rightClickRemoveTrack ? labels.rightClickRemoveTrack : "Remove";
-
                 this._notFoundLyricMessage = messages.notFoundLyric || "";
+
+                this._lyricExpanded = false;
 
                 this._CustomPlaylist= handlers.CustomPlaylist !== void 0 ? handlers.CustomPlaylist : false;
                 this._enableLyric = config.enableLyric !== void 0 ? config.enableLyric : false;
@@ -255,11 +278,14 @@
                 this._$Duration = null;
                 this._$CurrentTime = null;
                 this._$AlbumCoverContainer = null;
+                this._$Lyric = null;
                 this._$LyricContent = null;
                 this._$LyricExtend = null;
-
+                this._$LyricExtendWrapper = null;
+                this._$LyricExtendContent = null;
+                this._$LyricExtendCloseButton = null;
                 this._TrackListSimpleBar = null;
-
+                this._LyricExtendSimpleBar = null;
                 this._focusedTrackItemOnRightClick = null;
 
                 this._onPlaybackTimelineChange = this._handlePlaybackTimelineChange.bind(this);
@@ -274,6 +300,8 @@
                 this._onResizeHandler = this._onResize.bind(this);
                 this._onDocumentClickHandler = this._handleDocumentClick.bind(this);
                 this._onTrackListContextHandler = this._handleTrackListContext.bind(this);
+                this._onLyricClickHandler = this._handleLyricClick.bind(this);
+                this._onExtendedLyricCloseButtonClickHandler = this._handleExtendedLyricCloseButtonClick.bind(this);
 
                 this._init();
             }
@@ -342,7 +370,12 @@
                     '        <div class="BluePlayer__Controls__container">\n' +
                     '            <div class="BluePlayer__Controls">\n' +
                     '                <div class="BluePlayer__TrackInfo">\n' +
-                    '<div class="TrackInfo__Lyric__extend"></div>' +
+                    '<div class="TrackInfo__Lyric__extend">' +
+                    '<div class="closeBtn__section">' +
+                    '<a class="controls-Icon" href="javascript:;"><i class="close"></i></a>' +
+                    '</div>' +
+                    '<div class="LyricExtend__wrapper"><div class="LyricExtend__content"></div></div>' +
+                    '</div>' +
                     '                    <div class="TrackInfo__Description__container">\n' +
                     '                        <div class="TrackInfo__Description">\n' +
                     '                            <div class="TrackInfo__AlbumCover">\n' +
@@ -498,8 +531,12 @@
                     this._$Duration = this._$UI.find('.PlaybackTimeline__Duration span');
                     this._$CurrentTime = this._$UI.find('.PlaybackTimeline__TimePassed span');
                     this._$AlbumCoverContainer = this._$UI.find('.AlbumCover__image__container');
+                    this._$Lyric = this._$UI.find('.TrackInfo__Lyric');
                     this._$LyricContent = this._$UI.find('.TrackInfo__Lyric__container .Lyric__contents');
                     this._$LyricExtend = this._$UI.find('.TrackInfo__Lyric__extend');
+                    this._$LyricExtendWrapper = this._$LyricExtend.find('.LyricExtend__wrapper');
+                    this._$LyricExtendContent = this._$LyricExtend.find('.LyricExtend__content');
+                    this._$LyricExtendCloseButton = this._$LyricExtend.find('.closeBtn__section a');
                     this._$PlaybackTimelineSlider.slider({
                         orientation: "horizontal",
                         range: "min",
@@ -532,16 +569,22 @@
                     this._$RandomButton.on('click', this._onRandomButtonClickHandler);
                     this._$VolumeButton.on('click', this._onVolumeButtonClickHandler);
                     this._$TrackLisContainer.on('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
+                    this._$Lyric.on('click', this._onLyricClickHandler);
+                    this._$LyricExtendCloseButton.on('click', this._onExtendedLyricCloseButtonClickHandler);
+
                     this._$container.html(this._$UI);
                     this._initialized = true;
                     if(!this._CustomPlaylist && this._mode === TrackMode.CUSTOM_LIST) {
                         this._mode = TrackMode.REPEAT_LIST;
                     }
                     if('SimpleBar' in window) {
-                        SimpleBar.removeObserver();
                         this._TrackListSimpleBar = new SimpleBar(this._$TrackListWrapper[0]);
+                        if(this.isEnabledLyric()) {
+                            this._LyricExtendSimpleBar = new SimpleBar(this._$LyricExtendWrapper[0], {
+                                autoHide: false
+                            });
+                        }
                     }
-
                     this._ListClusterize = new window.Clusterize({
                         rows: [],
                         scrollElem: this._TrackListSimpleBar ? this._TrackListSimpleBar.getScrollElement() : this._$TrackListWrapper[0],
@@ -713,6 +756,14 @@
                 playback.setVolume(volume);
             };
 
+            UI.prototype._handleLyricClick = function() {
+                this._showLyricExtend();
+            };
+
+            UI.prototype._handleExtendedLyricCloseButtonClick = function() {
+                this._hideLyricExtend();
+            };
+
             UI.prototype._handlePlaybackTimelineChange = function(evt, ui) {
                 var playback = this._Player._Playback;
                 var position = ui.value;
@@ -752,6 +803,21 @@
                 if(!($target.parents('.TrackList__RightClick').length || $target.is(this._$TrackListRightClickMenu) || isMoreButton)) {
                     this._hideTrackListRightClickMenu();
                 }
+            };
+
+            UI.prototype._showLyricExtend = function() {
+                if(this.isEnabledLyric()) {
+                    this._lyricExpanded = true;
+                    if(!this._$PlayerControls.hasClass('extendLyric')) {
+                        this._$PlayerControls.addClass('extendLyric');
+                    }
+                    this._resizeLyricExtend();
+                }
+            };
+
+            UI.prototype._hideLyricExtend = function() {
+                this._lyricExpanded = false;
+                this._$PlayerControls.removeClass('extendLyric');
             };
 
             UI.prototype._getTrackListContainerOffset = function() {
@@ -866,6 +932,7 @@
                     this._$PlaybackTimelineSlider.css('width', playbackProgressBarWidth);
                     this._$TrackLisContainer.css('width', '100%');
                     this._$TrackListWrapper.css('max-height', '');
+                    this._hideLyricExtend();
                 } else if(!isMobile) {
                     this._$PlaybackTimelineSlider.css('width', 234);
                     if(hasMobileClass) {
@@ -882,6 +949,7 @@
                     $rightControlSection.show();
                 }
 
+                this._resizeLyricExtend();
                 this._resizeTrackItemWidth(isMobile);
                 this._ListClusterize.refresh();
                 if(this._TrackListSimpleBar) {
@@ -908,6 +976,36 @@
 
                 var html = trackListCSS(playerID, className, css);
                 this._$UI.prepend(html);
+            };
+
+            UI.prototype._resizeLyricExtend = function() {
+                var $TrackInfo = this._$UI.find('.BluePlayer__TrackInfo');
+                var controlSectionWidth = this._$UI.find('.BluePlayer__Controls__container').width();
+                var trackInfoHeight = $TrackInfo.height();
+                var $LyricExtendWrapper = this._$LyricExtendWrapper;
+                $LyricExtendWrapper.css({
+                    width: controlSectionWidth,
+                    height: trackInfoHeight-22
+                });
+                var $LyricExtendWrapperScrollContent = $LyricExtendWrapper.find('.simplebar-content');
+                if($LyricExtendWrapperScrollContent.length) {
+                    $LyricExtendWrapperScrollContent.css({
+                        width: controlSectionWidth,
+                        height: trackInfoHeight - 22,
+                        display: 'table-cell',
+                        verticalAlign: 'middle'
+                    });
+                }
+                if(this.isLyricExpanded()) {
+                    var player = this._Player;
+                    var lyric = player._Lyric;
+                    if(lyric) {
+                        var lyricOffsets = lyric.getRecentLyricOffset();
+                        if(lyricOffsets && lyricOffsets.length > 0) {
+                            this.focusExtendedLyricLine(lyricOffsets);
+                        }
+                    }
+                }
             };
 
             UI.prototype._reflectTrackItemToPlayer = function(trackItem) {
@@ -1114,6 +1212,55 @@
                 }
             };
 
+            UI.prototype.updateExtendedLyric = function(lyric, isNotice) {
+                var html = lyric && lyric.length > 0 ? getExtendedLyricLyric(lyric, isNotice) : '';
+                this._$LyricExtendContent.html(html);
+            };
+
+            UI.prototype.focusExtendedLyricLine = function(offsets) {
+                if(!this.isLyricExpanded()) {
+                    return false;
+                }
+                var $ExtendedLyricContent = this._$LyricExtendContent;
+                $ExtendedLyricContent.find('.focus').each(function(){
+                    $(this).removeClass('focus');
+                });
+                if(offsets && offsets.length > 0) {
+                    var $elements = [];
+                    offsets.forEach(function(offset) {
+                        var $target = $ExtendedLyricContent.find('span[data-index="'+offset+'"]');
+                        if($target.length > 0) {
+                            $elements.push($target);
+                            $target.addClass('focus');
+                        }
+                    });
+                    this.scrollExtendedLyricLine($elements);
+                }
+            };
+
+            UI.prototype.scrollExtendedLyricLine = function($elements) {
+                var $ScrollElement = $(this._LyricExtendSimpleBar.getScrollElement());
+                if($elements === void 0) {
+                    $ScrollElement.scrollTop(0);
+                    return;
+                }
+                var $LyricExtendWrapper = this._$LyricExtendWrapper;
+                var LyricExtendWrapperOffset = $LyricExtendWrapper.offset();
+                var LyricExtendWrapperHeight = $LyricExtendWrapper.height();
+                var scrollTopPosition = $ScrollElement.scrollTop();
+                var elementHeight = 0;
+                if($elements && $elements.length > 0) {
+                    $elements.forEach(function(each){
+                        var $each = $(each);
+                        elementHeight += $each.height();
+                    });
+                    var elementOffset = $elements[0].offset();
+                    var scrollPosition = elementOffset.top+scrollTopPosition-LyricExtendWrapperOffset.top;
+                    scrollPosition -= LyricExtendWrapperHeight/2 - elementHeight/2;
+                    $ScrollElement.scrollTop(scrollPosition);
+                }
+            };
+
             UI.prototype.setVolume = function(volume, mute, isForce) {
                 this._ensureNotDestructed();
                 if(this._isVolumeSliding() && !isForce) {
@@ -1166,6 +1313,14 @@
                     return null;
                 }
                 return this._mute;
+            };
+
+            UI.prototype.isLyricExpanded = function() {
+                if(this.isEnabledLyric()) {
+                    return this._lyricExpanded;
+                }
+
+                return false;
             };
 
             UI.prototype.addTrackItems = function(trackItems) {
@@ -1306,6 +1461,8 @@
                     this._$RandomButton.off('click', this._onRandomButtonClickHandler);
                     this._$VolumeButton.off('click', this._onVolumeButtonClickHandler);
                     this._$TrackLisContainer.off('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
+                    this._$Lyric.off('click', this._onLyricClickHandler);
+                    this._$LyricExtendCloseButton.off('click', this._onExtendedLyricCloseButtonClickHandler);
                     this._$PlaybackTimelineSlider.slider("destroy");
                     this._$VolumeSlider.slider("destroy");
                     this._$PlaybackTimelineSlider = null;
@@ -2483,7 +2640,6 @@
         }();
 
         var Lyric = function() {
-
             function getLyricObj(text, wait) {
                 return {
                     text:text,
@@ -2508,6 +2664,7 @@
                 this._singleLineUpdateTimerID = null;
                 this._singleLineMode = false;
                 this._evenLine = false;
+                this._recentLyricOffset = null;
             }
 
             Lyric.prototype._onTimeupdateHandler = function(position) {
@@ -2516,6 +2673,7 @@
 
             Lyric.prototype._onSeekedHandler = function(position) {
                 this._lastLyricIndex = null;
+                this._recentLyricOffset = null;
                 this._evenLine = false;
                 this._clearLyricUpdateTimer();
                 this._update(position, true);
@@ -2609,6 +2767,7 @@
                         this._lastLyricIndex = -1;
                     }
                     var lyric = [];
+                    var lyricIndex = [];
                     var lyricTimestamp = null;
                     for(var i=this._lastLyricIndex+1; i<this._lyric.length; i++) {
                         var thisLyric = this._lyric[i];
@@ -2616,21 +2775,23 @@
                         if(position>timestamp) {
                             if(lyricTimestamp !== timestamp) {
                                 lyric = [];
+                                lyricIndex = [];
                                 lyricTimestamp = timestamp;
                             }
                             lyric.push(getLyricObj(thisLyric[1]));
+                            lyricIndex.push(i);
                             this._lastLyricIndex = i;
                         } else {
                             break;
                         }
                     }
-
                     if(lyric.length) {
+                        this._recentLyricOffset = lyricIndex;
+                        this.focusCurrentLineInExtendedLyric(lyricIndex);
                         var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
                         if(playback.isActuallyPlaying() && nextLyric && position < nextLyric[0]) {
                             this._clearLyricUpdateTimer();
                             this._lyricUpdateTimerID = window.setTimeout(function(){
-                                that._lyricUpdateTimerID = null;
                                 that._update(nextLyric[0]+10);
                             }, nextLyric[0]-actuallyPosition);
                         }
@@ -2741,12 +2902,32 @@
                 ui.updateLyric(lrcArr && lrcArr.length > 0 ? lrcArr : "");
             };
 
+            Lyric.prototype.showNoticeForExtendedLyric = function(noticeArr) {
+                var player = this._player;
+                var ui = player._UI;
+                ui.updateExtendedLyric(noticeArr, true);
+            };
+
+            Lyric.prototype.focusCurrentLineInExtendedLyric = function(offsets) {
+                var player = this._player;
+                var ui = player._UI;
+                ui.focusExtendedLyricLine(offsets);
+            };
+
+            Lyric.prototype.provideLyricToExtendedLyric = function(lyric) {
+                var player = this._player;
+                var ui = player._UI;
+                ui.updateExtendedLyric(lyric);
+            };
+
             Lyric.prototype.showLoadingBanner = function() {
                 this.updateLyric([getLyricObj(this._loadingLyric, true)]);
+                this.showNoticeForExtendedLyric([this._loadingLyric]);
             };
 
             Lyric.prototype.showNotFoundBanner = function() {
                 this.updateLyric([getLyricObj(this._notFoundLyric, true)]);
+                this.showNoticeForExtendedLyric([this._notFoundLyric]);
             };
 
             Lyric.prototype.abortLrcInitDeferred = function(type) {
@@ -2762,6 +2943,10 @@
                 return this._lyric && this._lyric.length > 0;
             };
 
+            Lyric.prototype.getRecentLyricOffset = function() {
+                return this._recentLyricOffset;
+            };
+
             Lyric.prototype.provideCurrentTrackItem = function(trackItem) {
                 var that = this;
                 this.abortLrcInitDeferred();
@@ -2770,6 +2955,7 @@
                 this._clearLyricUpdateTimer();
                 this._lyric = null;
                 this._lastLyricIndex = null;
+                this._recentLyricOffset = null;
                 this._firstLyric = null;
                 this._secondLyric = null;
                 this._singleLineMode = false;
@@ -2797,10 +2983,15 @@
                         if(lyric && lyric.length > 0) {
                             that._connectEventHandler();
                             that._lyric = lyric;
+                            that.provideLyricToExtendedLyric(that._lyric);
                             that._singleLineMode = lrc.isSingleLineLyric();
                             that._update();
                         } else {
                             that.showNotFoundBanner();
+                        }
+                    })['catch'](function(e) {
+                        if(e instanceof Error) {
+                            console.error(e);
                         }
                     });
 
@@ -2821,6 +3012,7 @@
                     this._clearLyricUpdateTimer();
                     this._disconnectEventHandler();
                     this.abortLrcInitDeferred('destructed');
+                    this._recentLyricOffset = null;
                     this._destructed = true;
                 }
             };
