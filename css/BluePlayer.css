@@ -11,7 +11,11 @@ body {margin: 0; padding: 0;}
 #BluePlayer p, #BluePlayer span {margin: 0; padding: 0; font-size: 13px; font-weight: normal; color: #5A5A5A; line-height: 1.4;}
 #BluePlayer a {text-decoration: none;}
 #BluePlayer .BluePlayer__Controls__container {float:left; width: 324px; box-sizing: border-box;}
-#BluePlayer .BluePlayer__Controls {    background-color: #f1f1f1;}
+#BluePlayer .BluePlayer__Controls {background-color: #f1f1f1;}
+
+#BluePlayer .BluePlayer__TrackInfo {position:relative;}
+
+#BluePlayer .BluePlayer__TrackInfo .TrackInfo__Lyric__extend {position:absolute; }
 
 #BluePlayer .BluePlayer__TrackList__container {float:right; width:326px;position:relative;}
 #BluePlayer .BluePlayer__TrackList { max-height: 100%;}
@@ -164,7 +168,7 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer.mobile .BluePlayer__Controls.EnableLyric .PlaybackTimeline {padding: 35px 0 8px;}
 #BluePlayer.mobile .TrackInfo__Lyric__container .Lyric__contents span {margin: 0; font-size: 12px; color: #FFFFFF;}
-#BluePlayer.mobile .TrackInfo__Lyric__container .Lyric__contents span.wait {margin: 0; font-size: 12px; color: #EAEAEA;}
+#BluePlayer.mobile .TrackInfo__Lyric__container .Lyric__contents span.wait {margin: 0; font-size: 12px; color: #B0B0B0;}
 #BluePlayer.mobile .TrackInfo__Lyric__container {background-color: #38404c;}
 
 

@@ -2601,9 +2601,9 @@
                         var nextLyric = this._lastLyricIndex+1 < this._lyric.length ? this._lyric[this._lastLyricIndex+1] : null;
                         if(playback.isActuallyPlaying() && nextLyric && position < nextLyric[0]) {
                             this._clearLyricUpdateTimer();
-                            this._lyricUpdateTimerID = window.setTimeout(function(){
-                                that._update(nextLyric[0]+10);
+                            var m = this._lyricUpdateTimerID = window.setTimeout(function(){
                                 that._lyricUpdateTimerID = null;
+                                that._update(nextLyric[0]+10);
                             }, nextLyric[0]-actuallyPosition);
                         }
                         if(this._isSingleLineLyric()) {
