@@ -131,7 +131,7 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .TrackList {background-color: #FFFFFF; -webkit-user-select: none;  -moz-user-select: none; -ms-user-select: none; user-select: none; line-height: 1.5; outline: none; }
 #BluePlayer .TrackItem {width: 100%; height: 48px; cursor:pointer; transition: all 0.15s ease; overflow: hidden; line-height: 1.2;}
-#BluePlayer .TrackItem:hover {background-color: #EFEFEF;}
+#BluePlayer .TrackItem:hover, #BluePlayer .TrackItem.rightClick {background-color: #EFEFEF;}
 #BluePlayer .TrackItem:active {background-color: #E0E0E0;}
 #BluePlayer .TrackItem.current {background-color: #EAEAEA;}
 #BluePlayer .TrackItem .artist {line-height: 1.2; padding: 0;}
@@ -148,7 +148,7 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .TrackItemDescription__right {position:absolute; display: table; height: 100%;}
 
-#BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls {display:table-cell;}
+#BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls, #BluePlayer .TrackItem.rightClick .TrackItemDescription__right.enableControl .controls {display:table-cell;}
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: none;}
 
 #BluePlayer .TrackItemDescription__right .controls {display:none; vertical-align: middle; width: 65px; text-align: right; padding: 0 17px 0 0; box-sizing: border-box; }

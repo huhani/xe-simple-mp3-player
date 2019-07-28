@@ -260,6 +260,8 @@
 
                 this._TrackListSimpleBar = null;
 
+                this._focusedTrackItemOnRightClick = null;
+
                 this._onPlaybackTimelineChange = this._handlePlaybackTimelineChange.bind(this);
                 this._onVolumeChangeHandler = this._handleVolumeChange.bind(this);
                 this._onPlayToggleButtonClickHandler = this._handlePlayToggleButtonClick.bind(this);
@@ -549,13 +551,7 @@
                         tag: 'div',
                         callbacks: {
                             clusterChanged: function(e){
-                                if(that._currentTrackItem) {
-                                    var trackID = that._currentTrackItem.id;
-                                    var $currentTrackItem = that._$TrackList.find('.TrackItem[data-id="'+trackID+'"]');
-                                    if($currentTrackItem.length && !$currentTrackItem.hasClass('current')) {
-                                        $currentTrackItem.addClass('current');
-                                    }
-                                }
+                                that._onClusterChanged();
                             }
                         }
                     });
@@ -568,6 +564,17 @@
                     this._resizePlayer();
                 }
 
+            };
+
+            UI.prototype._onClusterChanged = function() {
+                if(this._currentTrackItem) {
+                    var trackID = this._currentTrackItem.id;
+                    var $currentTrackItem = this._$TrackList.find('.TrackItem[data-id="'+trackID+'"]');
+                    if($currentTrackItem.length && !$currentTrackItem.hasClass('current')) {
+                        $currentTrackItem.addClass('current');
+                    }
+                }
+                this._focusTrackItemOnRightClick();
             };
 
             UI.prototype._onResize = function() {
@@ -929,14 +936,36 @@
                     });
                     this._$TrackListRightClickMenu.append($template);
                     this._$TrackListRightClickMenu.addClass('show');
+                    this._focusedTrackItemOnRightClick = trackItem;
+                    this._focusTrackItemOnRightClick();
                 } else {
                     this._hideTrackListRightClickMenu();
                 }
             };
 
             UI.prototype._hideTrackListRightClickMenu = function() {
+                this._focusoutTrackItemOnRightClick();
                 this._$TrackListRightClickMenu.html('');
                 this._$TrackListRightClickMenu.removeClass('show');
+            };
+
+            UI.prototype._focusTrackItemOnRightClick = function() {
+                if(this._focusedTrackItemOnRightClick) {
+                    var focusedTrackItemID = this._focusedTrackItemOnRightClick.id;
+                    var $focusedTrackItem = this._$TrackList.find('.TrackItem[data-id="'+focusedTrackItemID+'"]');
+                    if($focusedTrackItem.length && !$focusedTrackItem.hasClass('rightClick')) {
+                        $focusedTrackItem.addClass('rightClick');
+                    }
+                }
+            };
+
+            UI.prototype._focusoutTrackItemOnRightClick = function() {
+                if(this._focusedTrackItemOnRightClick) {
+                    var focusedTrackItemID = this._focusedTrackItemOnRightClick.id;
+                    var $focusedTrackItem = this._$TrackList.find('.TrackItem[data-id="'+focusedTrackItemID+'"]');
+                    $focusedTrackItem.removeClass('rightClick');
+                    this._focusedTrackItemOnRightClick = null;
+                }
             };
 
             UI.prototype._setTitleAndArtist = function(title, artist) {
