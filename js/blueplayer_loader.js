@@ -13,6 +13,7 @@
     var enableRealtimeStreaming = true;
     var TrackRandomForce = false;
     var bufferSize = 12;
+    var AutoStationSearchFilter = true;
 
     function buildBluePlayer($target, descriptions, usingLyric, document_srl, mid) {
         if($SimpleMP3Player && $SimpleMP3Player.config) {
@@ -28,6 +29,7 @@
             enableRealtimeStreaming = config.use_mp3_realtime_streaming;
             TrackRandomForce = config.BluePlayer__track_random_force;
             bufferSize = config.mp3_realtime_buffer_size;
+            AutoStationSearchFilter = config.BluePlayer__autostation_search_filter;
         }
 
         var CustomPlaylistManager = function(mid, document_srl, maxLoadedTrackCount, TrackRandomForce) {
@@ -68,8 +70,17 @@
                 var ended = false;
                 var aborted = false;
                 var promise = new Promise(function(resolve, reject){
+                    var searchQueryString = '';
+                    if(AutoStationSearchFilter) {
+                        var url = new URL(window.location.href);
+                        var search_keyword = url.searchParams.get("search_keyword");
+                        var search_target = url.searchParams.get("search_target");
+                        if(search_keyword && search_target) {
+                            searchQueryString += "&search_target="+search_target+"&search_keyword="+encodeURIComponent(search_keyword);
+                        }
+                    }
                     xhr = new XMLHttpRequest;
-                    xhr.open('GET', window.default_url + 'index.php?mid='+mid+"&document_srl="+document_srl+"&act="+act+(querystring ? ("&"+querystring) : ""), true);
+                    xhr.open('GET', window.default_url + 'index.php?mid='+mid+"&document_srl="+document_srl+searchQueryString+"&act="+act+(querystring ? ("&"+querystring) : ""), true);
                     xhr.send();
                     xhr.addEventListener('readystatechange', function() {
                         if(xhr.status >= 400 && xhr.status < 500) {

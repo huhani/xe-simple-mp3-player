@@ -1,7 +1,8 @@
-<query id="getPrevDocumentCount" action="select">
+<query id="getNextDocumentCountFromExtraVars" action="select">
     <tables>
         <table name="documents" />
         <table name="files" />
+        <table name="document_extra_vars" alias="extra_vars" />
     </tables>
     <columns>
         <column name="count(*)" alias="count" />
@@ -11,15 +12,16 @@
         <condition operation="equal" column="documents.status" var="status" default="PUBLIC" pipe="and" />
         <condition operation="equal" column="documents.category_srl" var="category_srl"  pipe="and" />
         <group pipe="and">
-            <condition operation="like" column="title" var="s_title" />
-            <condition operation="like" column="content" var="s_content" pipe="or" />
-            <condition operation="like" column="user_name" var="s_user_name" pipe="or" />
-            <condition operation="like" column="user_id" var="s_user_id" pipe="or" />
-            <condition operation="like" column="nick_name" var="s_nick_name" pipe="or" />
+            <condition operation="below" column="documents.list_order" var="list_order" filter="number" pipe="and" />
+            <condition operation="below" column="documents.update_order" var="update_order" filter="number" pipe="and" />
         </group>
         <group pipe="and">
-            <condition operation="excess" column="documents.list_order" var="list_order" filter="number" pipe="and" />
-            <condition operation="excess" column="documents.update_order" var="update_order" filter="number" pipe="and" />
+            <condition operation="equal" column="extra_vars.module_srl" default="documents.module_srl" pipe="and" />
+            <condition operation="equal" column="extra_vars.document_srl" default="documents.document_srl" pipe="and" />
+            <condition operation="equal" column="extra_vars.var_idx" var="var_idx" notnull="notnull" pipe="and" />
+            <condition operation="like" column="extra_vars.value" var="var_value" notnull="notnull" pipe="and" />
+        </group>
+        <group pipe="and">
             <condition operation="equal" column="files.upload_target_srl" var="documents.document_srl" filter="number" notnull="notnull" pipe="and" />
             <condition operation="in" column="substr(files.uploaded_filename, -4)" var="file_extension" notnull="notnull" pipe="and" />
             <condition operation="equal" column="files.isvalid" var="isvalid" default="Y" pipe="and" />

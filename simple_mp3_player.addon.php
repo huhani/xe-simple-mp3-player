@@ -25,18 +25,18 @@ if(!class_exists('SimpleMP3Tools', false)) {
                 return null;
             }
 
-            $args = new stdClass;
+            $baseQueryData = self::getListQueryString($search_target, $search_keyword);
+            $queries = $baseQueryData->queries;
+            $args = $baseQueryData->arguments;
             $args->module_srl = $module_info->module_srl;
             $args->status = 'PUBLIC';
             $args->category_srl = $category_srl ? $category_srl : null;
-            $args->search_target = $search_target ? $search_target : null;
-            $args->search_keyword = $search_keyword ? $search_keyword : null;
             $args->file_extension = implode(',', array('.mp3', '.m4a'));
             $args->isvalid = "Y";
             $args->page = $offset;
             $args->list_order = $oDocument->get('list_order');
             $args->sort_index = 'documents.list_order';
-            $output = executeQuery('addons.simple_mp3_player.getRandomDocumentByOffset', $args);
+            $output = executeQuery($queries->documentByOffset, $args);
             if(!$output->toBool()) {
                 return null;
             }
@@ -67,12 +67,12 @@ if(!class_exists('SimpleMP3Tools', false)) {
             $countData->next = null;
             $countData->random = null;
 
-            $args = new stdClass;
+            $baseQueryData = self::getListQueryString($search_target, $search_keyword);
+            $queries = $baseQueryData->queries;
+            $args = $baseQueryData->arguments;
             $args->module_srl = $module_info->module_srl;
             $args->status = 'PUBLIC';
             $args->category_srl = $category_srl ? $category_srl : null;
-            $args->search_target = $search_target ? $search_target : null;
-            $args->search_keyword = $search_keyword ? $search_keyword : null;
             $args->file_extension = implode(',', array('.mp3', '.m4a'));
             $args->isvalid = "Y";
             $args->list_order = $oDocument->get('list_order');
@@ -84,11 +84,11 @@ if(!class_exists('SimpleMP3Tools', false)) {
                 $args->update_order = $oDocument->get('update_order');
                 $args->sort_index = 'documents.update_order';
             }
-            $output = executeQuery('addons.simple_mp3_player.getRandomDocumentCount', $args);
+            $output = executeQuery($queries->documentCount, $args);
             $args->order_type = 'desc';
-            $output1 = executeQuery('addons.simple_mp3_player.getNextDocumentCount', $args);
+            $output1 = executeQuery($queries->nextDocumentCount, $args);
             $args->order_type = 'asc';
-            $output2 = executeQuery('addons.simple_mp3_player.getPrevDocumentCount', $args);
+            $output2 = executeQuery($queries->prevDocumentCount, $args);
             if($output->toBool()) {
                 $countData->random = $output->data->count;
             }
@@ -124,6 +124,65 @@ if(!class_exists('SimpleMP3Tools', false)) {
             }
 
             return null;
+        }
+
+        public static function getListQueryString($search_target = null, $search_keyword = null) {
+            $queryStringPrefix = 'addons.simple_mp3_player.';
+
+            $queryStrs = new stdClass;
+            $queryArgs = new stdClass;
+            $queryStrs->prevDocumentCount = $queryStringPrefix.'getPrevDocumentCount';
+            $queryStrs->nextDocumentCount = $queryStringPrefix.'getNextDocumentCount';
+            $queryStrs->documentCount = $queryStringPrefix.'getRandomDocumentCount';
+            $queryStrs->documentByOffset = $queryStringPrefix.'getRandomDocumentByOffset';
+            if($search_target && $search_keyword) {
+                switch($search_target) {
+                    case 'title' :
+                    case 'content' :
+                        if($search_keyword) $search_keyword = str_replace(' ','%',$search_keyword);
+                    $queryArgs->{"s_".$search_target} = $search_keyword;
+                        break;
+                    case 'title_content' :
+                        if($search_keyword) $search_keyword = str_replace(' ','%',$search_keyword);
+                        $queryArgs->s_title = $search_keyword;
+                        $queryArgs->s_content = $search_keyword;
+                        break;
+                    case 'nick_name' :
+                        if($search_keyword) $search_keyword = str_replace(' ','%',$search_keyword);
+                        $queryArgs->{"s_".$search_target} = $search_keyword;
+                        break;
+                    case 'comment' :
+                        $queryArgs->s_comment = $search_keyword;
+                        $queryStrs->prevDocumentCount = $queryStringPrefix.'getPrevDocumentCountFromComment';
+                        $queryStrs->nextDocumentCount = $queryStringPrefix.'getNextDocumentCountFromComment';
+                        $queryStrs->documentCount = $queryStringPrefix.'getRandomDocumentCountFromComment';
+                        $queryStrs->documentByOffset = $queryStringPrefix.'getRandomDocumentByOffsetFromComment';
+                        break;
+                    case 'tag' :
+                        $queryArgs->s_tags = str_replace(' ','%',$search_keyword);
+                        $queryStrs->prevDocumentCount = $queryStringPrefix.'getPrevDocumentCountFromTag';
+                        $queryStrs->nextDocumentCount = $queryStringPrefix.'getNextDocumentCountFromTag';
+                        $queryStrs->documentCount = $queryStringPrefix.'getRandomDocumentCountFromTag';
+                        $queryStrs->documentByOffset = $queryStringPrefix.'getRandomDocumentByOffsetFromTag';
+                        break;
+                    default :
+                        if(strpos($search_target,'extra_vars')!==false) {
+                            $queryArgs->var_idx = substr($search_target, strlen('extra_vars'));
+                            $queryArgs->var_value = str_replace(' ','%',$search_keyword);
+                            $queryStrs->prevDocumentCount = $queryStringPrefix.'getPrevDocumentCountFromExtraVars';
+                            $queryStrs->nextDocumentCount = $queryStringPrefix.'getNextDocumentCountFromExtraVars';
+                            $queryStrs->documentCount = $queryStringPrefix.'getRandomDocumentCountFromExtraVars';
+                            $queryStrs->documentByOffset = $queryStringPrefix.'getRandomDocumentByOffsetFromExtraVars';
+                        }
+                        break;
+                }
+            }
+
+            $returnObj = new stdClass;
+            $returnObj->queries = $queryStrs;
+            $returnObj->arguments = $queryArgs;
+
+            return $returnObj;
         }
     }
 }
@@ -807,6 +866,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
 
         $config->BluePlayer__use_autostation = !(isset($addon_info->BluePlayer__use_autostation) && $addon_info->BluePlayer__use_autostation === "N");
         $config->BluePlayer__autostation_max_size = isset($addon_info->BluePlayer__autostation_max_size) && $addon_info->BluePlayer__autostation_max_size ? $addon_info->BluePlayer__autostation_max_size : 0;
+        $config->BluePlayer__autostation_search_filter = !(isset($addon_info->BluePlayer__autostation_search_filter) && $addon_info->BluePlayer__autostation_search_filter === "N");
         $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "AutoStation";
         $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
         $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
@@ -876,6 +936,8 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             $category_srl = Context::get('category_srl');
             $search_target = Context::get('search_target');
             $search_keyword = Context::get('search_keyword');
+            header('X-A: '.$search_target);
+            header('X-AB: '.$search_keyword);
             $count = SimpleMP3Tools::getFileCount($mid, $document_srl, $category_srl, $search_target, $search_keyword);
             $result->prev = $count->prev;
             $result->next = $count->next;

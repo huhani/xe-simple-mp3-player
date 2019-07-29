@@ -1,7 +1,8 @@
-<query id="getRandomDocumentByOffset" action="select">
+<query id="getRandomDocumentByOffsetFromComment" action="select">
     <tables>
         <table name="documents" />
         <table name="files" />
+        <table name="comments" />
     </tables>
     <columns>
         <column name="documents.module_srl" alias="module_srl" />
@@ -21,14 +22,7 @@
     <conditions>
         <condition operation="in" column="documents.module_srl" var="module_srl" filter="number" />
         <condition operation="equal" column="documents.status" var="status" default="PUBLIC" pipe="and" />
-        <condition operation="equal" column="documents.category_srl" var="category_srl"  pipe="and" />
-        <group pipe="and">
-            <condition operation="like" column="title" var="s_title" />
-            <condition operation="like" column="content" var="s_content" pipe="or" />
-            <condition operation="like" column="user_name" var="s_user_name" pipe="or" />
-            <condition operation="like" column="user_id" var="s_user_id" pipe="or" />
-            <condition operation="like" column="nick_name" var="s_nick_name" pipe="or" />
-        </group>
+        <condition operation="equal" column="documents.category_srl" var="category_srl" pipe="and" />
         <group pipe="and">
             <condition operation="excess" column="documents.list_order" var="list_order" filter="number" pipe="or" />
             <condition operation="excess" column="documents.update_order" var="update_order" filter="number" pipe="or" />
@@ -36,6 +30,7 @@
             <condition operation="below" column="documents.update_order" var="update_order" filter="number" pipe="or" />
         </group>
         <group pipe="and">
+            <condition operation="like" column="comments.content" var="s_comment" notnull="notnull" pipe="and" />
             <condition operation="equal" column="files.upload_target_srl" var="documents.document_srl" filter="number" notnull="notnull" pipe="and" />
             <condition operation="in" column="substr(files.uploaded_filename, -4)" var="file_extension" notnull="notnull" pipe="and" />
             <condition operation="equal" column="files.isvalid" var="isvalid" default="Y" pipe="and" />
