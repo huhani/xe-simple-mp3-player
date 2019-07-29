@@ -3594,7 +3594,7 @@
                 this._initialized = true;
                 this._Playlist = new Playlist(this, initConfig);
                 this._UI = new UI(this._container, this, initConfig);
-                this._Playback = new Playback(this);
+                this._Playback = new Playback(this, config);
                 this._Lyric = this._enableLyric ? new Lyric(this, initConfig) : null;
                 this._Controller = new Controller(this);
             }
