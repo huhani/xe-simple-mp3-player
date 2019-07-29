@@ -89,15 +89,28 @@ if(!class_exists('SimpleMP3Tools', false)) {
             $output1 = executeQuery($queries->nextDocumentCount, $args);
             $args->order_type = 'asc';
             $output2 = executeQuery($queries->prevDocumentCount, $args);
-            if($output->toBool()) {
-                $countData->random = $output->data->count;
+            if($search_target === 'tag' && $search_keyword) {
+                if($output->toBool()) {
+                    $countData->random = $output->page_navigation->total_count;
+                }
+                if($output1->toBool()) {
+                    $countData->next = $output1->page_navigation->total_count;
+                }
+                if($output2->toBool()) {
+                    $countData->prev = $output2->page_navigation->total_count;
+                }
+            } else {
+                if($output->toBool()) {
+                    $countData->random = $output->data->count;
+                }
+                if($output1->toBool()) {
+                    $countData->next = $output1->data->count;
+                }
+                if($output2->toBool()) {
+                    $countData->prev = $output2->data->count;
+                }
             }
-            if($output1->toBool()) {
-                $countData->next = $output1->data->count;
-            }
-            if($output2->toBool()) {
-                $countData->prev = $output2->data->count;
-            }
+
 
             return $countData;
         }

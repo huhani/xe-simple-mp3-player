@@ -1,8 +1,8 @@
 <query id="getRandomDocumentCountFromTag" action="select">
     <tables>
         <table name="documents" />
-        <table name="files" />
-        <table name="tags" />
+        <table name="files" alias="files" />
+        <table name="tags" alias="tags" />
     </tables>
     <columns>
         <column name="count(*)" alias="count" />
@@ -18,10 +18,20 @@
             <condition operation="below" column="documents.update_order" var="update_order" filter="number" pipe="or" />
         </group>
         <group pipe="and">
-            <condition operation="like" column="tags.tag" var="s_tags" notnull="notnull" pipe="and" />
             <condition operation="equal" column="files.upload_target_srl" var="documents.document_srl" filter="number" notnull="notnull" pipe="and" />
             <condition operation="in" column="substr(files.uploaded_filename, -4)" var="file_extension" notnull="notnull" pipe="and" />
             <condition operation="equal" column="files.isvalid" var="isvalid" default="Y" pipe="and" />
+            <condition operation="equal" column="documents.document_srl" default="tags.document_srl" notnull="notnull" pipe="and" />
+            <condition operation="like" column="tags.tag" var="s_tags" notnull="notnull" pipe="and" />
         </group>
     </conditions>
+    <navigation>
+        <index var="sort_index" default="documents.list_order" order="desc" />
+        <list_count var="list_count" default="20" />
+        <page_count var="page_count" default="10" />
+        <page var="page" default="1" />
+    </navigation>
+    <groups>
+        <group column="files.file_srl" />
+    </groups>
 </query>
