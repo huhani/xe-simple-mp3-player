@@ -165,7 +165,7 @@
 
         <var name="mp3_realtime_buffer_size" type="text">
             <title xml:lang="ko">mp3 실시간 재생 버퍼 크기</title>
-            <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다. &lt;br/&gt;단위: 초, 최소: 1, 최대: 120, 기본값: 12, 권장: 50</description>
+            <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다.&lt;br/&gt;값이 너무 작을 경우 재생이 안 될 수 있습니다. &lt;br/&gt;단위: 초(자연수), 최소: 1, 최대: 120, 기본값: 12, 권장: 50</description>
         </var>
 
         <var name="allow_autoplay" type="select">
