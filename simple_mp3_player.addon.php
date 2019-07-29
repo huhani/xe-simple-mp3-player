@@ -936,8 +936,6 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             $category_srl = Context::get('category_srl');
             $search_target = Context::get('search_target');
             $search_keyword = Context::get('search_keyword');
-            header('X-A: '.$search_target);
-            header('X-AB: '.$search_keyword);
             $count = SimpleMP3Tools::getFileCount($mid, $document_srl, $category_srl, $search_target, $search_keyword);
             $result->prev = $count->prev;
             $result->next = $count->next;
