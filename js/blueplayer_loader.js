@@ -73,8 +73,12 @@
                     var searchQueryString = '';
                     if(AutoStationSearchFilter) {
                         var url = new URL(window.location.href);
+                        var category_srl = url.searchParams.get("category");
                         var search_keyword = url.searchParams.get("search_keyword");
                         var search_target = url.searchParams.get("search_target");
+                        if(category_srl) {
+                            searchQueryString += category_srl ? ("&category_srl="+category_srl) : "";
+                        }
                         if(search_keyword && search_target) {
                             searchQueryString += "&search_target="+search_target+"&search_keyword="+encodeURIComponent(search_keyword);
                         }
