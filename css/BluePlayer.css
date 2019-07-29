@@ -30,6 +30,8 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackInfo__Lyric__extend .simplebar-scrollbar { width: 3px; }
 #BluePlayer .TrackInfo__Lyric__extend .simplebar-scrollbar:before {border-radius: 0; }
 #BluePlayer .TrackInfo__Lyric__extend .LyricExtend__wrapper span {display: block; font-size: 12px; color: #B5B5B5; text-align: center;}
+#BluePlayer .TrackInfo__Lyric__extend .LyricExtend__wrapper .lrc {cursor: pointer;}
+#BluePlayer .TrackInfo__Lyric__extend .LyricExtend__wrapper .lrc:hover {text-decoration: underline;}
 #BluePlayer .TrackInfo__Lyric__extend .LyricExtend__wrapper .focus {color: #FFFFFF;}
 #BluePlayer .TrackInfo__Lyric__extend .LyricExtend__wrapper .blank {height: 13px;}
 #BluePlayer .TrackInfo__Lyric__extend .LyricExtend__content {padding: 25px 0;}

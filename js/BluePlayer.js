@@ -302,6 +302,7 @@
                 this._onTrackListContextHandler = this._handleTrackListContext.bind(this);
                 this._onLyricClickHandler = this._handleLyricClick.bind(this);
                 this._onExtendedLyricCloseButtonClickHandler = this._handleExtendedLyricCloseButtonClick.bind(this);
+                this._onExtendedLyricLineClickHandler = this._handleExtendedLyricLineClick.bind(this);
 
                 this._init();
             }
@@ -571,7 +572,7 @@
                     this._$TrackLisContainer.on('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
                     this._$Lyric.on('click', this._onLyricClickHandler);
                     this._$LyricExtendCloseButton.on('click', this._onExtendedLyricCloseButtonClickHandler);
-
+                    this._$LyricExtendContent.on('click', '.lrc[data-position]', this._onExtendedLyricLineClickHandler);
                     this._$container.html(this._$UI);
                     this._initialized = true;
                     if(!this._CustomPlaylist && this._mode === TrackMode.CUSTOM_LIST) {
@@ -758,6 +759,18 @@
 
             UI.prototype._handleLyricClick = function() {
                 this._showLyricExtend();
+            };
+
+            UI.prototype._handleExtendedLyricLineClick = function(evt) {
+                var $this = $(evt.target || evt.srcElement);
+                var position = parseInt($this.attr('data-position'), 10);
+                if(!isNaN(position) && position !== void 0) {
+                    var player = this._Player;
+                    var playback = player._Playback;
+                    if(playback && playback.isReady()) {
+                        playback.seek(Math.min(playback.getDuration(), position+10));
+                    }
+                }
             };
 
             UI.prototype._handleExtendedLyricCloseButtonClick = function() {
@@ -1465,6 +1478,7 @@
                     this._$TrackLisContainer.off('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
                     this._$Lyric.off('click', this._onLyricClickHandler);
                     this._$LyricExtendCloseButton.off('click', this._onExtendedLyricCloseButtonClickHandler);
+                    this._$LyricExtendContent.off('click', '.lrc[data-position]', this._onExtendedLyricLineClickHandler);
                     this._$PlaybackTimelineSlider.slider("destroy");
                     this._$VolumeSlider.slider("destroy");
                     this._$PlaybackTimelineSlider = null;
