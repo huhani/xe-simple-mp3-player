@@ -932,7 +932,6 @@
                     this._$PlaybackTimelineSlider.css('width', playbackProgressBarWidth);
                     this._$TrackLisContainer.css('width', '100%');
                     this._$TrackListWrapper.css('max-height', '');
-                    this._hideLyricExtend();
                 } else if(!isMobile) {
                     this._$PlaybackTimelineSlider.css('width', 234);
                     if(hasMobileClass) {
@@ -949,7 +948,7 @@
                     $rightControlSection.show();
                 }
 
-                this._resizeLyricExtend();
+                this._resizeLyricExtend(isMobile);
                 this._resizeTrackItemWidth(isMobile);
                 this._ListClusterize.refresh();
                 if(this._TrackListSimpleBar) {
@@ -979,13 +978,16 @@
             };
 
             UI.prototype._resizeLyricExtend = function() {
+                var $UI = this._$UI;
+                var playerWidth = this._$UI.width();
+                var isMobile = playerWidth < 650;
                 var $TrackInfo = this._$UI.find('.BluePlayer__TrackInfo');
                 var controlSectionWidth = this._$UI.find('.BluePlayer__Controls__container').width();
-                var trackInfoHeight = $TrackInfo.height();
+                var trackInfoHeight = isMobile ? this._$UI.height() : $TrackInfo.height()-22;
                 var $LyricExtendWrapper = this._$LyricExtendWrapper;
                 $LyricExtendWrapper.css({
                     width: controlSectionWidth,
-                    height: trackInfoHeight-22
+                    height: trackInfoHeight
                 });
                 var $LyricExtendWrapperScrollContent = $LyricExtendWrapper.find('.simplebar-content');
                 if($LyricExtendWrapperScrollContent.length) {
@@ -2756,10 +2758,24 @@
                                 this._singleLineUpdate(firstLyric[0], secondLyric[0], null, null, position);
                             }
                         } else {
-                            return this.updateLyric(firstLyric.map(function(lyric){
+                            this.updateLyric(firstLyric.map(function(lyric){
                                 return getLyricObj(lyric[1], firstLyricTimeStamp > position);
                             }));
                         }
+                        this._recentLyricOffset = null;
+                        if(position < firstLyricTimeStamp) {
+                            this.focusCurrentLineInExtendedLyric();
+                            this._lastLyricIndex = -1;
+                        } else {
+                            var firstLyricOffsets = [];
+                            firstLyric.forEach(function(each, idx){
+                                firstLyricOffsets.push(idx);
+                            });
+                            this.focusCurrentLineInExtendedLyric(firstLyricOffsets);
+                            this._lastLyricIndex = firstLyricOffsets.length-1;
+                        }
+
+                        return;
                     }
                 }
                 if(this._lyric && this._lyric.length > 0) {
