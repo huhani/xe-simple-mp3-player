@@ -3317,7 +3317,7 @@
                     var lrcText = lyric[i].replace(/.*\[(\d{2}):(\d{2})(\.(\d{2,3}))?]/g, '').replace(/<(\d{2}):(\d{2})(\.(\d{2,3}))?>/g, '').replace(/^\s+|\s+$/g, '');
                     if (lrcTimes) {
                         var timeLen = lrcTimes.length;
-                        for (let j = 0; j < timeLen; j++) {
+                        for (var j = 0; j < timeLen; j++) {
                             var oneTime = /\[(\d{2}):(\d{2})(\.(\d{2,3}))?]/.exec(lrcTimes[j]);
                             var min2sec = oneTime[1] * 60;
                             var sec2sec = parseInt(oneTime[2]);
@@ -3328,8 +3328,8 @@
                     }
                 }
 
-                let isBanner = true;
-                let maxBannerCount = 3;
+                var isBanner = true;
+                var maxBannerCount = 3;
                 lrc = lrc.filter(function(item) {
                     if(!item[1]) {
                         return;
