@@ -243,6 +243,7 @@
                 this._skipBackwardLabel = labels.skipBackward || "Skip to previous track";
                 this._moreLabel = labels.more || "More";
                 this._removeLabel = labels.remove || "Remove";
+                this._closeLabel = labels.close || "Close";
                 this._rightClickPlayLabel = labels.rightClickPlay ? labels.rightClickPlay : "Play";
                 this._rightClickPauseLabel = labels.rightClickPause ? labels.rightClickPause : "Pause";
                 this._rightClickRemoveTrackLabel = labels.rightClickRemoveTrack ? labels.rightClickRemoveTrack : "Remove";
@@ -373,7 +374,7 @@
                     '                <div class="BluePlayer__TrackInfo">\n' +
                     '<div class="TrackInfo__Lyric__extend">' +
                     '<div class="closeBtn__section">' +
-                    '<a class="controls-Icon" href="javascript:;"><i class="close"></i></a>' +
+                    '<a class="controls-Icon" href="javascript:;" title="'+this._closeLabel+'"><i class="close"></i></a>' +
                     '</div>' +
                     '<div class="LyricExtend__wrapper"><div class="LyricExtend__content"></div></div>' +
                     '</div>' +
@@ -973,13 +974,18 @@
                 }
             };
 
-            UI.prototype._resizeTrackItemWidth = function(isMobile, trackListWidth) {
+            UI.prototype._resizeTrackItemWidth = function(isMobile) {
                 var trackListWidth = this._$TrackLisContainer.width();
                 var strMaxWidth = trackListWidth - 130 + (isMobile ? 25 : 0);
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
-                var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}';
-                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__right {left: '+(trackListWidth-67)+'px; height: 48px;}';
+                var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}\n';
+                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__right {left: '+(trackListWidth-67)+'px; height: 48px;}\n';
+                if(this.isEnabledLyric()) {
+                    var $rightControlSection = this._$PlayerControls;
+                    var rightControlWidth = $rightControlSection.width();
+                    css += '#BluePlayer.PlayerID_'+playerID+' .TrackInfo__Lyric .Lyric__contents span {width: '+(rightControlWidth-1)+'px;}\n';
+                }
 
                 var $lastCSS = this._$UI.find('style#BluePlayer__'+playerID+"."+className);
                 if($lastCSS.length) {
@@ -1006,7 +1012,7 @@
                 if($LyricExtendWrapperScrollContent.length) {
                     $LyricExtendWrapperScrollContent.css({
                         width: controlSectionWidth,
-                        height: trackInfoHeight - 22,
+                        height: trackInfoHeight,
                         display: 'table-cell',
                         verticalAlign: 'middle'
                     });
