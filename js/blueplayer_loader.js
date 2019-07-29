@@ -7,6 +7,7 @@
     var useAutoStation = false;
     var mode = 1;
     var random = false;
+    var useLyric = false;
     var limitMaxAutoStationTrack = 0;
     var enableMediaSession = true;
     var enableRealtimeStreaming = true;
@@ -20,6 +21,7 @@
             useAutoStation = config.BluePlayer__use_autostation;
             mode = confMode === 'AutoStation' && useAutoStation ? 3 : confMode === 'RepeatTrack' ? 2 : confMode === 'RepeatList' ? 1 : 0;
             random = config.BluePlayer__track_random;
+            useLyric = config.isMobile ? config.use_m_lyric : config.use_lyric;
             limitMaxAutoStationTrack = config.BluePlayer__autostation_max_size;
             autoplay = config.allow_autoplay;
             enableMediaSession = config.use_mediasession;
@@ -432,7 +434,7 @@
             container: $section[0],
             playlist: playlist,
             volume: 100,
-            enableLyric: true,
+            enableLyric: useLyric,
             random: random,
             autoplay: autoplay,
             mode: mode,
