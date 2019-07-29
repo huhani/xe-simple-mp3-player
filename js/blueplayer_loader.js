@@ -72,7 +72,7 @@
                 var promise = new Promise(function(resolve, reject){
                     var searchQueryString = '';
                     if(AutoStationSearchFilter) {
-                        var url = new URL(window.location.href);
+                        var url = new URL(window.current_url || window.location.href);
                         var category_srl = url.searchParams.get("category");
                         var search_keyword = url.searchParams.get("search_keyword");
                         var search_target = url.searchParams.get("search_target");

@@ -43,7 +43,7 @@
 
         <var name="BluePlayer__autostation_search_filter" type="select">
             <title xml:lang="ko">BluePlayer AutoStation 목록 검색 반영</title>
-            <description xml:lang="ko">BluePlayer AutoStation 기능 사용시 게시글 URL의 category_srl, search_target, search_keyword 값을 참조하여 가져옵니다.</description>
+            <description xml:lang="ko">BluePlayer AutoStation 기능 사용시 게시글 URL의 category, search_target, search_keyword 값을 참조하여 가져옵니다.</description>
             <options value="">
                 <title xml:lang="ko">사용</title>
             </options>
@@ -81,7 +81,7 @@
         </var>
 
         <var name="BluePlayer__track_random_force" type="select">
-            <title xml:lang="ko">BluePlayer 다음 곡 불러오기 랜덤설정</title>
+            <title xml:lang="ko">BluePlayer AutoStation 다음 곡 불러오기 랜덤설정</title>
             <description xml:lang="ko">BluePlayer AutoStation에서 서버로부터 다음 곡을 불러올 시 랜덤재생 설정에 관계없이 무조건 무작위로 가져옵니다.&lt;br/&gt;AutoStation기능을 사용하면서 랜덤재생 기능을 사용하지 않는다면 기존 곡 목록 재생 이후 곡을 서버로부터 랜덤으로 가져옵니다.</description>
             <options value="">
                 <title xml:lang="ko">사용 안 함</title>
