@@ -253,11 +253,9 @@
                 this._lastNextListOffset = this._lastRequestedNextListOffset;
                 this._lastPrevListOffset = this._lastRequestedPrevListOffset;
                 if(this.isRandom() || TrackRandomForce) {
-                    for(var i=0; i<this._listOffsets.length; i++) {
-                        var targetOffset = this._listOffsets[i];
-                        if(this._listOffsets.indexOf(targetOffset) > -1) {
-                            offsets.push(this._listOffsets[i]);
-                        }
+                    while(this._listOffsets.length > 0) {
+                        var offset = Math.floor(this._listOffsets.length * Math.random());
+                        offsets.push(this._listOffsets[offset]);
                         if(offsets.length >= DEFAULT_REQUESTING_LIST_COUNT) {
                             break;
                         }
