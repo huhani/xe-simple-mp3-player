@@ -448,6 +448,9 @@
         }(mid, document_srl, limitMaxAutoStationTrack, TrackRandomForce);
         var $section = $('<div></div>');
         $target.prepend($section);
+        var PlayerManager = $SimpleMP3Player.PlayerManager;
+        var PlayerObserver = $SimpleMP3Player.PlayerObserver;
+        var BluePlayerObserver = PlayerObserver.BluePlayerObserver;
         var playlist = buildPlaylist(descriptions);
         var player = new window.BluePlayer({
             container: $section[0],
@@ -457,7 +460,7 @@
             activeFade: enableFade,
             fadeDuration: fadeDuration,
             random: random,
-            autoplay: autoplay,
+            autoplay: false,
             mode: mode,
             enableMediaSession: enableMediaSession,
             labels: {
@@ -486,6 +489,8 @@
                 hls: handlePlaybackLoading
             }
         });
+
+        PlayerManager.registerPlayer(new BluePlayerObserver(player));
 
         window.tt=player;
     }
