@@ -981,7 +981,9 @@
                 var player = this._player;
                 try{
                     player.pause();
-                } catch {}
+                } catch(e) {
+
+                }
             }
         };
 
