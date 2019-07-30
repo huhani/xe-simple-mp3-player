@@ -304,13 +304,13 @@
                     var offsets = that.getNextSequenceOffsets();
                     that._requestingJob = getFileDescription(that._mid, that._document_srl, offsets);
                     that._requestingJob.promise.then(function(data){
+                        offsets.forEach(function(eachOffset){
+                            var idx = that._listOffsets.indexOf(eachOffset);
+                            if(idx > -1) {
+                                that._listOffsets.splice(idx, 1);
+                            }
+                        });
                         if(data && data.descriptions && data.descriptions.length) {
-                            offsets.forEach(function(eachOffset){
-                                var idx = that._listOffsets.indexOf(eachOffset);
-                                if(idx > -1) {
-                                    that._listOffsets.splice(idx, 1);
-                                }
-                            });
                             that._descriptionQueue = that._descriptionQueue.concat(data.descriptions);
                             deferred.resolve(that._descriptionQueue);
                         } else {
