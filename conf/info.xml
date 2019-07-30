@@ -12,13 +12,13 @@
             <title xml:lang="ko">통합 플레이어 선택</title>
             <description xml:lang="ko">mp3가 첨부된 게시글에서 글 본문 상단에 플레이리스트가 있는 플레이어를 띄웁니다.</description>
             <options value="">
+                <title xml:lang="ko">BluePlayer</title>
+            </options>
+            <options value="APlayer">
                 <title xml:lang="ko">APlayer</title>
             </options>
             <options value="APlayer_fixed">
                 <title xml:lang="ko">APlayer (Fixed)</title>
-            </options>
-            <options value="BluePlayer">
-                <title xml:lang="ko">BluePlayer</title>
             </options>
             <options value="N">
                 <title xml:lang="ko">사용하지 않음</title>
