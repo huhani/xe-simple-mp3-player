@@ -172,6 +172,7 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls, #BluePlayer .TrackItem.rightClick .TrackItemDescription__right.enableControl .controls {display:table-cell;}
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: none;}
+#BluePlayer .TrackItem.rightClick .TrackItemDescription__right.enableControl .duration {display: none;}
 
 #BluePlayer .TrackItemDescription__right .controls {display:none; vertical-align: middle; width: 65px; text-align: right; padding: 0 17px 0 0; box-sizing: border-box; }
 #BluePlayer .TrackItemDescription__right .controls-icon {padding: 2px 6px;}
@@ -199,6 +200,8 @@ body {margin: 0; padding: 0;}
 
 #BluePlayer.mobile .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls {display: none;}
 #BluePlayer.mobile .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: table-cell;}
+#BluePlayer.mobile .TrackItem.rightClick .TrackItemDescription__right.enableControl .duration {display: table-cell;}
+#BluePlayer.mobile .TrackItem.rightClick .TrackItemDescription__right.enableControl .controls {display: none;}
 
 #BluePlayer.mobile .EnableLyric .TrackInfo__Description__container { background-color: #38404c; padding: 20px 10px 5px;}
 #BluePlayer.mobile .TrackInfo__Description__container { background-color: #38404c; padding: 20px 10px;}

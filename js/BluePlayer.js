@@ -645,8 +645,21 @@
                             this._handleMoreButtonClick(trackItem, $target, evt);
                         }
                     } else {
-                        this.setCurrentTrackItem(trackItem);
-                        this.onTrackItemClick.dispatch(trackItem);
+                        var player = this._Player;
+                        var playback = player._Playback;
+                        if(playback && playback.getCurrentTrackItem() === trackItem) {
+                            if(playback.isReady()) {
+                                if(playback.isPlaying()) {
+                                    playback.pause();
+                                    this.setUIPlaying();
+                                } else {
+                                    playback.play();
+                                }
+                            }
+                        } else {
+                            this.setCurrentTrackItem(trackItem);
+                            this.onTrackItemClick.dispatch(trackItem);
+                        }
                     }
                 }
             };
@@ -1002,7 +1015,7 @@
                 var isMobile = playerWidth < 650;
                 var $TrackInfo = this._$UI.find('.BluePlayer__TrackInfo');
                 var controlSectionWidth = this._$UI.find('.BluePlayer__Controls__container').width();
-                var trackInfoHeight = isMobile ? this._$UI.height() : $TrackInfo.height()-22;
+                var trackInfoHeight = isMobile ? this._$PlayerControls.height() : $TrackInfo.height()-22;
                 var $LyricExtendWrapper = this._$LyricExtendWrapper;
                 $LyricExtendWrapper.css({
                     width: controlSectionWidth,
@@ -1518,7 +1531,7 @@
         var Playback = function() {
 
             var WEB_AUDIO_ACTIVE_TIMEOUT_MSECS = 5000;
-            var FADE_TIME = 250;
+            var FADE_TIME = 200;
 
             function checkWebAudioSupportBrowser() {
                 return "AudioContext" in window;
