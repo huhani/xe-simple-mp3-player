@@ -1058,6 +1058,7 @@
             };
 
             UI.prototype._showTrackListRightClickMenu = function(menuObject, trackItem, posX, posY) {
+                this._focusoutTrackItemOnRightClick();
                 var player = this._Player;
                 var $template = this.constructor.getTrackListRightClickTemplate(menuObject, trackItem, player, this._hideTrackListRightClickMenu.bind(this));
                 if($template) {
