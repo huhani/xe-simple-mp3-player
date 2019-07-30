@@ -38,7 +38,6 @@
 		SimplePlayer.prototype._init = function() {
 			var enableRealtimeStreaming = true;
 			var bufferSize = 12;
-			console.log($SimpleMP3Player.config)
 			if($SimpleMP3Player && $SimpleMP3Player.config) {
 				var config = $SimpleMP3Player.config;
 				var enableRealtimeStreaming = config.use_mp3_realtime_streaming;
