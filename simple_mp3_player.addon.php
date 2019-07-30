@@ -89,7 +89,7 @@ if(!class_exists('SimpleMP3Tools', false)) {
             $output1 = executeQuery($queries->nextDocumentCount, $args);
             $args->order_type = 'asc';
             $output2 = executeQuery($queries->prevDocumentCount, $args);
-            if($search_target === 'tag' && $search_keyword) {
+            if(($search_target === 'tag' || $search_target === 'comment') && $search_keyword) {
                 if($output->toBool()) {
                     $countData->random = $output->page_navigation->total_count;
                 }
@@ -883,6 +883,10 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "AutoStation";
         $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
         $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
+
+        $config->BluePlayer_enable_fade = (isset($addon_info->BluePlayer_enable_fade) && $addon_info->BluePlayer_enable_fade === "Y");
+        $config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration) && $addon_info->BluePlayer_fade_duration ? (int)$addon_info->BluePlayer_fade_duration : 200;
+
         $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
         $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
         $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");

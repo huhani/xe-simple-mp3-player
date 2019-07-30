@@ -1634,6 +1634,7 @@
                 this._listeners = [];
 
                 this._activeFade = config.activeFade;
+                this._fadeDuration = typeof config.fadeDuration === 'number' && !isNaN(config.fadeDuration) && config.fadeDuration > 0 ? config.fadeDuration : 200;
                 this._WebAudio = null;
                 this._process = {
                     fadeEndTimer: null,
@@ -1939,7 +1940,7 @@
                         if(this.getWebAudioState() === null) {
                             this.processFade('in', function() {
                                 // fade ended
-                            }, FADE_TIME);
+                            }, this._fadeDuration || FADE_TIME);
                         } else {
                             this.processFade('in');
                         }
@@ -2080,7 +2081,7 @@
                 if(this._WebAudio) {
                     this.processFade('out', function() {
                         that._audio.pause();
-                    }, FADE_TIME);
+                    }, this._fadeDuration || FADE_TIME);
                 } else {
                     if(!this._audio.paused) {
                         this._audio.pause();
@@ -2094,7 +2095,7 @@
                 this._listenToOnce('seeked', function() {
                     that._seekDeferred.resolve();
                 });
-            }
+            };
 
             Playback.prototype.play = function() {
                 if(this._actuallyPlaying){
@@ -3551,6 +3552,7 @@
             this._enableLyric = config.enableLyric || false;
             this._enableMediaSession = config.enableMediaSession || true;
             this._activeFade = config.activeFade || false;
+            this._fadeDuration = config.fadeDuration || 200;
             this._initPlaylist = config.playlist;
             this._labels = config.labels || {};
             this._messages = config.messages || {};
@@ -3597,6 +3599,7 @@
                     customAudioType: this._customAudioType,
                     enableLyric: this._enableLyric,
                     activeFade: this._activeFade,
+                    fadeDuration: this._fadeDuration,
                     playlist: this._initPlaylist,
                     labels: this._labels,
                     random: this._random,

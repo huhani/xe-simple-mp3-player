@@ -14,6 +14,8 @@
     var TrackRandomForce = false;
     var bufferSize = 12;
     var AutoStationSearchFilter = true;
+    var enableFade = false;
+    var fadeDuration = 200;
 
     function buildBluePlayer($target, descriptions, usingLyric, document_srl, mid) {
         if($SimpleMP3Player && $SimpleMP3Player.config) {
@@ -30,6 +32,8 @@
             TrackRandomForce = config.BluePlayer__track_random_force;
             bufferSize = config.mp3_realtime_buffer_size;
             AutoStationSearchFilter = config.BluePlayer__autostation_search_filter;
+            enableFade = config.BluePlayer_enable_fade;
+            fadeDuration = config.BluePlayer_fade_duration;
         }
 
         var CustomPlaylistManager = function(mid, document_srl, maxLoadedTrackCount, TrackRandomForce) {
@@ -450,7 +454,8 @@
             playlist: playlist,
             volume: 100,
             enableLyric: useLyric,
-            activeFade: true,
+            activeFade: enableFade,
+            fadeDuration: fadeDuration,
             random: random,
             autoplay: autoplay,
             mode: mode,
