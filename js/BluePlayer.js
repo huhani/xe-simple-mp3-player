@@ -3698,7 +3698,9 @@
         Player.prototype.pause = function() {
             this._ensureNotDestructed();
             var playback = this._Playback;
+            var ui = this._UI;
             if(playback.isPlaying()) {
+                ui.setUIPlaying();
                 return playback.pause();
             }
         };

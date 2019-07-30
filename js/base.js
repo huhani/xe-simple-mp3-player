@@ -924,7 +924,6 @@
                 this._player.getInitializingPromise().then(function(){
                     var playback = player._Playback;
                     that._isInitialized = true;
-                    console.log(playback);
                     that._onAudioPlayingSubscriber = playback.onPlaying.subscribe(that._onAudioPlayingHandler);
                     that._initializingDeferred.resolve();
                 })['catch'](function(e){
