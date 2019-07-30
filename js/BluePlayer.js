@@ -1662,7 +1662,7 @@
                 this._audio.preload = "metadata";
                 this._audio.setAttribute('controlslist',["nodownload"]);
                 this._registerAudioEvents();
-                this._WebAudio = this._initWebAudio();
+                this._WebAudio = this._activeFade ? this._initWebAudio() : null;
                 if(this._WebAudio) {
                     var mediaElementSource = this._WebAudio.context.createMediaElementSource(this._audio);
                     this._WebAudio.mediaElementSource = mediaElementSource;
