@@ -76,6 +76,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .ui-widget {font-family: Arial,Helvetica,sans-serif; font-size: 1em;}
 #BluePlayer .ui-slider { position: relative; text-align: left; cursor: pointer;}
 #BluePlayer .ui-slider-horizontal {height: 2px;}
+#BluePlayer .ui-widget-header, #BluePlayer .ui-widget-content {border: 0; background: none;}
 #BluePlayer .ui-widget-content {border: unset; color: unset; background-color: #CECECE;}
 #BluePlayer .ui-slider-horizontal .ui-slider-range-min {left: 0;}
 #BluePlayer .ui-slider-horizontal .ui-slider-range {top: 0; height: 100%;}

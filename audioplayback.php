@@ -15,7 +15,11 @@ function determineValidParameter() {
     if(!$arguments || !$hash) {
         return false;
     }
-    $arguments_split =explode(',', $arguments);
+    $arguments_split = explode(',', $arguments);
+    $foundFileParameter = in_array('file', $arguments_split);
+    if(!isEncrypted() && isset($_GET['file']) && !$foundFileParameter) {
+        return false;
+    }
     foreach($arguments_split as $eachArgument) {
         $argType = gettype($eachArgument);
         if(!isset($_GET[$eachArgument]) || !($argType === 'number' || $argType === 'string')) {
