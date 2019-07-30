@@ -986,7 +986,6 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         }
         $result->message = "success";
         echo json_encode($result);
-
         exit();
     }
 
@@ -1019,7 +1018,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
     Context::loadFile(array('./addons/simple_mp3_player/js/transmuxer.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/base.js', 'body', '', null), true);
     if(!isset($addon_info->playlist_player) || !$addon_info->playlist_player) {
-        $addon_info->playlist_player = 'APlayer';
+        $addon_info->playlist_player = 'BluePlayer';
     }
     if($addon_info->playlist_player === 'APlayer') {
         Context::loadFile('./addons/simple_mp3_player/css/APlayer.min.css', true);
