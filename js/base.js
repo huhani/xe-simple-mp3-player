@@ -896,6 +896,104 @@
         return APlayerObserver;
     }();
 
+    var BluePlayerObserver = function() {
+        function BluePlayerObserver(bluePlayer) {
+            var tools = bluePlayer.constructor.Tools;
+            var makeDeferred = tools.makeDeferred;
+            var that = PlayerObserver.call(this, bluePlayer) || this;
+
+            that.makeDeferred = makeDeferred;
+            that._initializingDeferred = makeDeferred();
+            that._initializingPromise = that._initializingDeferred.promise;
+            that._playingDeferred = null;
+            that._isInitialized = false;
+            that._occurredError = false;
+            that._onAudioPlayingHandler = this.onAudioPlaying.bind(this);
+            that._onAudioPlayingSubscriber = null;
+            that._init();
+        }
+
+        __extend(BluePlayerObserver, PlayerObserver);
+
+        BluePlayerObserver.prototype._init = function() {
+            var that = this;
+            var player = this._player;
+            if(player.isInitialized()) {
+                this._initializingDeferred.resolve();
+            } else {
+                this._player.getInitializingPromise().then(function(){
+                    var playback = player._Playback;
+                    that._isInitialized = true;
+                    console.log(playback);
+                    that._onAudioPlayingSubscriber = playback.onPlaying.subscribe(that._onAudioPlayingHandler);
+                    that._initializingDeferred.resolve();
+                })['catch'](function(e){
+                    that._initializingDeferred.reject(e);
+                    that._occurredError = true;
+                    console.error(e);
+                });
+            }
+        };
+
+        BluePlayerObserver.prototype.getAutoplayPriority = function() {
+            return 80;
+        };
+
+        BluePlayerObserver.prototype.isPlaying = function() {
+            if(this._isInitialized) {
+                var player = this._player;
+                var playback = player._Playback;
+
+                return playback.isPlaying();
+            }
+            return false;
+        };
+
+        BluePlayerObserver.prototype.play = function() {
+            var that = this;
+            var onInitialized = function() {
+                var player = that._player;
+                player.play();
+            };
+            if(!this._occurredError) {
+                if(this._isInitialized) {
+                    onInitialized();
+                } else {
+                    this._playingDeferred = this.makeDeferred();
+                    this._initializingPromise.then(function(){
+                        onInitialized();
+                        that._playingDeferred.resolve();
+                    })['catch'](function(e){
+                        that._playingDeferred.reject(e);
+                    });
+                }
+            }
+        };
+
+        BluePlayerObserver.prototype.pause = function() {
+            if(this._playingDeferred && !this._playingDeferred.isResolved()) {
+                this._playingDeferred.reject({
+                    type: 'paused',
+                    error: null
+                });
+                this._playingDeferred = null;
+            }
+            if(this._isInitialized) {
+                var player = this._player;
+                try{
+                    player.pause();
+                } catch {}
+            }
+        };
+
+        BluePlayerObserver.prototype.getType = function() {
+            return "BLUE_PLAYER";
+        };
+
+        return BluePlayerObserver;
+
+    }();
+
     var PlayerManager = function() {
         function PlayerManager() {
             this._listeners = [];
@@ -1111,7 +1209,8 @@
     $SimpleMP3Player.PlayerObserver = {
         HTML5PlayerObserver: HTML5PlayerObserver,
         APlayerObserver: APlayerObserver,
-        SimplePlayerObserver: SimplePlayerObserver
+        SimplePlayerObserver: SimplePlayerObserver,
+        BluePlayerObserver: BluePlayerObserver
     };
     $SimpleMP3Player.descriptionLoadError = [];
     $SimpleMP3Player.descriptions = [];

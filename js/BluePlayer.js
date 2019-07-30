@@ -1894,6 +1894,7 @@
                         }, 20);
                     }
                 }
+                this.onPlaying.dispatch(void 0);
             };
 
             Playback.prototype._handleAudioPlayEvent = function() {
@@ -3563,6 +3564,8 @@
             this._Controller = null;
             this._Playback = null;
             this._Playlist = null;
+            this._initializingDeferred = makeDeferred();
+            this._initializingPromise = this._initializingDeferred.promise;
 
             this._destructed = false;
             this._initTimerID = window.setTimeout(function() {
@@ -3592,28 +3595,37 @@
 
         Player.prototype.init = function() {
             if(!this.isInitialized()) {
-                var initConfig = {
-                    container: this._container,
-                    mode: this._mode,
-                    volume: this._volume,
-                    customAudioType: this._customAudioType,
-                    enableLyric: this._enableLyric,
-                    activeFade: this._activeFade,
-                    fadeDuration: this._fadeDuration,
-                    playlist: this._initPlaylist,
-                    labels: this._labels,
-                    random: this._random,
-                    messages: this._messages,
-                    handlers: this._handlers
-                };
+                try {
+                    var initConfig = {
+                        container: this._container,
+                        mode: this._mode,
+                        volume: this._volume,
+                        customAudioType: this._customAudioType,
+                        enableLyric: this._enableLyric,
+                        activeFade: this._activeFade,
+                        fadeDuration: this._fadeDuration,
+                        playlist: this._initPlaylist,
+                        labels: this._labels,
+                        random: this._random,
+                        messages: this._messages,
+                        handlers: this._handlers
+                    };
 
-                this._initialized = true;
-                this._Playlist = new Playlist(this, initConfig);
-                this._UI = new UI(this._container, this, initConfig);
-                this._Playback = new Playback(this, initConfig);
-                this._Lyric = this._enableLyric ? new Lyric(this, initConfig) : null;
-                this._Controller = new Controller(this);
+                    this._initialized = true;
+                    this._Playlist = new Playlist(this, initConfig);
+                    this._UI = new UI(this._container, this, initConfig);
+                    this._Playback = new Playback(this, initConfig);
+                    this._Lyric = this._enableLyric ? new Lyric(this, initConfig) : null;
+                    this._Controller = new Controller(this);
+                    this._initializingDeferred.resolve(this);
+                } catch(e) {
+                    this._initializingDeferred.reject(e);
+                }
             }
+        };
+
+        Player.prototype.getInitializingPromise = function() {
+            return this._initializingPromise;
         };
 
         Player.prototype._registerMediaSessionHandlers = function() {
