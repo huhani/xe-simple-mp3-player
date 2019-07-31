@@ -12,7 +12,8 @@ body {margin: 0; padding: 0;}
 
 
 #BluePlayer p, #BluePlayer span {margin: 0; padding: 0; font-size: 13px; font-weight: normal; color: #5A5A5A; line-height: 1.4;}
-#BluePlayer a {text-decoration: none; transition: none;}
+#BluePlayer a {text-decoration: none; transition: none;
+    vertical-align: initial;}
 #BluePlayer .BluePlayer__Controls__container {float:left; width: 324px; box-sizing: border-box;}
 #BluePlayer .BluePlayer__Controls {background-color: #f1f1f1;}
 
