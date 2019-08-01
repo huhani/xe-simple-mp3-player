@@ -964,7 +964,9 @@
                     if(hasMobileClass) {
                         $UI.removeClass('mobile');
                     }
-                    var trackListWidth = playerWidth - 324;
+                    var playerRect = this._$UI[0].getBoundingClientRect();
+                    var actuallyPlayerWidth = playerRect.width ? playerRect.width : playerRect.right - playerRect.left;
+                    var trackListWidth = Math.floor(actuallyPlayerWidth - 324);
                     var controlSectionHeight = $UI.find('.BluePlayer__Controls__container').height();
                     this._$TrackLisContainer.css('width', trackListWidth);
                     this._$TrackListWrapper.css('max-height', controlSectionHeight-1);
