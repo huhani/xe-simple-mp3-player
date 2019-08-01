@@ -4,7 +4,7 @@
     <description xml:lang="ko">
         게시글에 mp3파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
     </description>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
     <date>2019-07-01</date>
 
     <extra_vars>
