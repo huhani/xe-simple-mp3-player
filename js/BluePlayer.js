@@ -252,6 +252,7 @@
                 this._lyricExpanded = false;
 
                 this._CustomPlaylist= handlers.CustomPlaylist !== void 0 ? handlers.CustomPlaylist : false;
+                this._showAlbumName = config.showAlbumName || false;
                 this._enableLyric = config.enableLyric !== void 0 ? config.enableLyric : false;
                 this._mute = config.mute !== void 0 ? config.mute : false;
                 this._volume = config.volume !== void 0 ? config.volume : 100;
@@ -322,11 +323,15 @@
                 return minutes+':'+seconds;
             };
 
-            UI.getTrackInfoTagsTemplate = function(title, artist) {
+            UI.getTrackInfoTagsTemplate = function(title, artist, album) {
                 var html = '<div class="Tags__Title"> <span>'+(title ? title : 'unknown')+'</span></div>';
+                if(album) {
+                    html += '<div class="Tags__Album"><span>'+album+'</span></div>';
+                }
                 if(artist) {
                     html += '<div class="Tags__Artist"><span>'+artist+'</span></div>';
                 }
+
 
                 return html;
             };
@@ -467,9 +472,15 @@
                 var id = trackItem.id;
                 var title = trackItem.title;
                 var artist = trackItem.artist;
+                var album = trackItem.album;
+                var showAlbumName = this._showAlbumName;
                 var albumArt = trackItem.albumArt;
                 var duration = trackItem.duration;
                 var controlsTemplate = null;
+                if(!showAlbumName) {
+                    album = null;
+                }
+
                 var html = '<div class="TrackItem" data-id="'+id+'">\n' +
                     '<div class="TrackItemDescription">\n' +
                     '<div class="TrackItemDescription__left">\n' +
@@ -478,6 +489,8 @@
                     (albumArt ? ('<img class="albumCover__img" src="'+albumArt+'" />') : '') +
                     '</div></div><div class="info"><div class="artist">'+
                     (artist ? ('<span>'+artist+'</span>') : '') +
+                    (artist && album ? '<span class="separator"> - </span>' : '') +
+                    (album ? ('<span class="album">'+album+'</span>') : '') +
                     '</div><div class="title"><span>'+title+'</span>' +
                     '</div></div></div>';
 
@@ -995,6 +1008,7 @@
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
                 var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}\n';
+                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info .artist {max-width: '+strMaxWidth+'px;}\n';
                 css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__right {left: '+(trackListWidth-67)+'px; height: 48px;}\n';
                 if(this.isEnabledLyric()) {
                     var $rightControlSection = this._$PlayerControls;
@@ -1045,7 +1059,8 @@
             };
 
             UI.prototype._reflectTrackItemToPlayer = function(trackItem) {
-                this._setTitleAndArtist(trackItem.title, trackItem.artist);
+                var showAlbumName = this._showAlbumName;
+                this._setTitleAndArtist(trackItem.title, trackItem.artist, showAlbumName ? trackItem.album : null);
                 this._setAlbumCover(trackItem.albumArt);
                 if(trackItem.duration) {
                     var duration = trackItem.duration && !isNaN(trackItem.duration) ? trackItem.duration : 0;
@@ -1103,8 +1118,8 @@
                 }
             };
 
-            UI.prototype._setTitleAndArtist = function(title, artist) {
-                var templateHTML = this.constructor.getTrackInfoTagsTemplate(title, artist);
+            UI.prototype._setTitleAndArtist = function(title, artist, album) {
+                var templateHTML = this.constructor.getTrackInfoTagsTemplate(title, artist, album);
                 this._$TrackInfoTags.html(templateHTML);
             };
 
@@ -3324,9 +3339,6 @@
                 if(!lrcText) {
                     return null;
                 }
-                lrcText = lrcText.replace(/([^\]^\n])\[/g, function(match, p1) {
-                    return p1 + '\n[';
-                });
                 var lyric = lrcText.split('\n');
                 var lrc = [];
                 var lyricLen = lyric.length;
@@ -3553,8 +3565,9 @@
             this._volume = config.volume;
             this._mode = config.mode;
             this._customAudioType = config.customAudioType;
+            this._showAlbumName = config.showAlbumName || false;
             this._enableLyric = config.enableLyric || false;
-            this._enableMediaSession = config.enableMediaSession || true;
+            this._enableMediaSession = config.enableMediaSession || false;
             this._activeFade = config.activeFade || false;
             this._fadeDuration = config.fadeDuration || 200;
             this._initPlaylist = config.playlist;
@@ -3604,6 +3617,7 @@
                         mode: this._mode,
                         volume: this._volume,
                         customAudioType: this._customAudioType,
+                        showAlbumName: this._showAlbumName,
                         enableLyric: this._enableLyric,
                         activeFade: this._activeFade,
                         fadeDuration: this._fadeDuration,

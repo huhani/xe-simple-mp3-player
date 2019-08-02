@@ -9,6 +9,7 @@
     var random = false;
     var useLyric = false;
     var limitMaxAutoStationTrack = 0;
+    var showAlbumName = false;
     var enableMediaSession = true;
     var enableRealtimeStreaming = true;
     var TrackRandomForce = false;
@@ -27,6 +28,7 @@
             useLyric = config.isMobile ? config.use_m_lyric : config.use_lyric;
             limitMaxAutoStationTrack = config.BluePlayer__autostation_max_size;
             autoplay = config.allow_autoplay;
+            showAlbumName = config.BluePlayer_show_album_name;
             enableMediaSession = config.use_mediasession;
             enableRealtimeStreaming = config.use_mp3_realtime_streaming;
             TrackRandomForce = config.BluePlayer__track_random_force;
@@ -454,6 +456,7 @@
             container: $section[0],
             playlist: playlist,
             volume: 100,
+            showAlbumName: showAlbumName,
             enableLyric: useLyric,
             activeFade: enableFade,
             fadeDuration: fadeDuration,
