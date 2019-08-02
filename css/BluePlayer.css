@@ -168,7 +168,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackItemDescription__left .info span {display: inline-block; text-align: left; vertical-align: middle;}
 #BluePlayer .TrackItemDescription__left .info .artist span{font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
 #BluePlayer .TrackItemDescription__left .info .title span{font-size: 12px; color: #353535; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
-#BluePlayer .TrackItemDescription__left .info .separator {font-size: 11px; color: #353535; max-width: 200px; padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+#BluePlayer .TrackItemDescription__left .info .separator {font-size: 11px; color: #353535; max-width: 200px; padding: 0 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
 
 #BluePlayer .TrackItemDescription__right {position:absolute; display: table; height: 100%;}
 
