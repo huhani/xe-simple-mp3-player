@@ -12,7 +12,7 @@ body {margin: 0; padding: 0;}
 
 
 #BluePlayer p, #BluePlayer span {margin: 0; padding: 0; font-size: 13px; font-weight: normal; color: #5A5A5A; line-height: 1.4;}
-#BluePlayer a {text-decoration: none; transition: none; vertical-align: initial;}
+#BluePlayer a {text-decoration: none; transition: none; vertical-align: initial; box-shadow: initial;}
 #BluePlayer .BluePlayer__Controls__container {float:left; width: 324px; box-sizing: border-box;}
 #BluePlayer .BluePlayer__Controls {background-color: #f1f1f1;}
 
@@ -143,7 +143,7 @@ body {margin: 0; padding: 0;}
 }
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick.show {display: block;}
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick ul {list-style:none; color: #424242; font-size: 12px; font-weight: bold; padding:0; margin: 0}
-#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 8px 14px; cursor: pointer; white-space: nowrap; line-height: 1.2; }
+#BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li {padding: 8px 14px; cursor: pointer; white-space: nowrap; line-height: 1.2; list-style-type: none;}
 #BluePlayer .BluePlayer__TrackList__container .TrackList__RightClick li:hover {background-color:#EFEFEF;}
 
 
