@@ -131,21 +131,17 @@
         var mp3 = "audio/mpeg";
         var mp4inmp3 = 'audio/mp4; codecs="mp3"';
         var mp4audio = "audio/mp4";
-        var mp46b = 'audio/mp4; codecs="mp4a.6B"';
 
         var ua = typeof window.navigator !== "undefined" ? window.navigator.userAgent : "";
         var safari = !/chrome|opera/i.test(ua) && /safari/i.test(ua);
         var msie =  ua.indexOf("Trident/") >= 0 || ua.indexOf("MSIE ") >= 0;
         var ff = ua.toLowerCase().indexOf("firefox") >= 0;
-        var edge = ua.indexOf("Edge/") >= 0;
         var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
 
         function getCapableCodec() {
             var codec = ff ? mp4inmp3 : mp3;
             if(safari) {
                 codec = mp4audio;
-            } else if(msie || edge) {
-                codec = mp46b;
             }
 
             return codec;
@@ -365,6 +361,7 @@
                 if(this._currentPerformJob && this._currentPerformJob.type === 'append') {
                     leftBuffer += this._currentPerformJob.duration;
                 }
+
                 if(leftBuffer > 0) {
                     return leftBuffer;
                 } else if(currentTimeRange === null) {
@@ -384,6 +381,7 @@
                 }
 
                 return true;
+
             }
 
             return false;
@@ -477,12 +475,6 @@
                 if(this._mimeCodec !== mp3) {
                     var mux = MP3Muxer(buffer);
                     var muxedBuffer = mux[1];
-                    if(this._mimeCodec === mp46b) {
-                        var currentTimeRange = this.getCurrentBufferTimeRange(this._audio.currentTime);
-                        if(currentTimeRange) {
-                            this.setTimestampOffset(currentTimeRange.end);
-                        }
-                    }
                     if(!this._appendInitBuffer) {
                         this._appendInitBuffer = true;
                         muxedBuffer = new Uint8Array(mux[0].length + mux[1].length);
@@ -536,7 +528,7 @@
 
         MSE.prototype.isEOSSignalled = function() {
             return this._eosSignalled;
-        };
+        }
 
         MSE.prototype.seekResetAction = function() {
             if(!this._audio && this.isDestructed()) {
@@ -579,9 +571,10 @@
 
         MSE.prototype.performNextAction = function() {
             this._ensureNotDestructed();
-            if(!this._seeking && !this.isEOSSignalled() && !this.isUpdating()) {
+            if(!this._seeking && !this.isEOSSignalled()) {
                 var that = this;
                 var formerDuration = this.getFormerBufferDuration(this._audio.currentTime);
+                //console.log('formefDuration', formerDuration);
                 if(formerDuration.duration > 6) {
                     this.removeBuffer(formerDuration.start, formerDuration.start+formerDuration.duration-1);
                 }
@@ -589,7 +582,7 @@
                     this._lastSegmentIndex++;
                     if(this._lastSegmentIndex < this._offsets.length) {
                         var idxData = this.getSegmentIndex(this._lastSegmentIndex);
-                        this._request = idxData.url ? getAudioBuffer(idxData.url) : getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
+                        this._request = idxData.url ? getAudioBuffer(idxData.url) :  getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
                         var requestPromise = this._request.promise;
                         requestPromise.then(function(result) {
                             that._onBufferRetreived(result, idxData);
@@ -626,6 +619,7 @@
 
                     case 'timestampOffset':
                         sourceBuffer.timestampOffset = job.offset;
+                        this.performNextAction();
                         break;
 
                     case 'eos':
