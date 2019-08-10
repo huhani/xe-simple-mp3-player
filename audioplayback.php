@@ -29,7 +29,7 @@ function determineValidParameter() {
         $text .= (string)$_GET[$eachArgument];
     }
 
-    return substr(md5($text . SimpleEncrypt::getPassword()), 0, 12) === (string)$hash;
+    return substr(md5($text . SimpleEncrypt::getPassword()), 0, 24) === (string)$hash;
 }
 
 

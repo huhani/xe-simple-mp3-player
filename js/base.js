@@ -1120,6 +1120,7 @@
             removeExtensionInTitle = config.remove_extension_in_title;
         }
         if(descriptions) {
+            var useThumbnail = config.use_thumbnail;
             descriptions.forEach(function(each){
                 var description = each.description;
                 if(description) {
@@ -1132,6 +1133,9 @@
                         };
                     }
                     var tags = description.tags;
+                    if(!tags.albumArt && useThumbnail && description.thumbnail) {
+                        tags.albumArt = description.thumbnail;
+                    }
                     if(!tags.albumArt && defaultCover) {
                         tags.albumArt = convertURL2URI(defaultCover);
                     }

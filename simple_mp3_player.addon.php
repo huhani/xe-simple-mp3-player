@@ -281,22 +281,32 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
             $hash = md5($valueStr.$this->password);
             $url .= "&arguments=".implode(",", $keys);
-            $url .= "&SN=".substr($hash, 0, 12);
+            $url .= "&SN=".substr($hash, 0, 24);
 
             return $url;
         }
 
-        public function getDescriptionsByDocumentSrl($document_srl) {
+        public function getDescriptionsByDocumentSrl($document_srl, $thumbnail_type = 'crop', $thumbnail_width = 420, $thumbnail_height = 420, $segmentDuration = null) {
             if(!$this->isGranted($document_srl)) {
                 return null;
             }
             $descriptions = array();
             $files = $this->getMultipleFilePathname($document_srl);
+            $thumbnail = null;
+            if($thumbnail_type && $thumbnail_width > 0&& $thumbnail_height > 0) {
+                $oDocumentModel = getModel('document');
+                $oDocument = $oDocumentModel->getDocument($document_srl);
+                $documentThumbnail = $oDocument->getThumbnail($thumbnail_width, $thumbnail_height, $thumbnail_type);
+                if($oDocument->thumbnailExists($thumbnail_width, $thumbnail_height, $thumbnail_type) && $documentThumbnail) {
+                    $thumbnail = $documentThumbnail;
+                }
+            }
             if($files) {
                 foreach($files as $file) {
-                    $description = self::getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl, $file->sid, $file->module_srl);
+                    $description = self::getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl, $file->sid, $file->module_srl, $segmentDuration);
                     if($description) {
                         $this->normalizeDescription($description, $document_srl, $file->file_srl);
+                        $description->thumbnail = $thumbnail;
                     }
                     $obj = new stdClass;
                     $obj->file_srl = $file->file_srl;
@@ -394,10 +404,23 @@ if(!class_exists('SimpleMP3Describer', false)) {
             }
         }
 
-        static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null) {
+        static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null, $segmentDuration = null) {
             $description = self::getDescriptionFile($file_srl, $uploaded_filename);
+            if($description && isset($description->offsetInfo) && $description->offsetInfo && is_array($segmentDuration) && count($segmentDuration) > 0) {
+                $offsetInfo = $description->offsetInfo;
+                if(isset($offsetInfo->segmentDuration) && is_array($offsetInfo->segmentDuration) && count($offsetInfo->segmentDuration) === count($segmentDuration)) {
+                    foreach($segmentDuration as $key=>$val) {
+                        if($val !== $offsetInfo->segmentDuration[$key]) {
+                            $description = null;
+                            break;
+                        }
+                    }
+                } else {
+                    $description = null;
+                }
+            }
             if(!$description) {
-                $description = self::getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename);
+                $description = self::getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename, $segmentDuration);
             }
             if($description && $file_srl) {
                 $description->file_srl = $file_srl;
@@ -434,7 +457,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return null;
         }
 
-        static function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null, $file_sid = null, $module_srl = null) {
+        static function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null, $segmentDuration = null) {
             if(!$filepath) {
                 $filepathData = self::getFilePathname($file_srl, $document_srl);
                 if($filepathData) {
@@ -464,7 +487,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $obj->stream = $stream;
             $obj->isValidFile = !!($stream && $stream->format);
             if(($stream && $stream->format === 'mp3') || (!$stream && $extension === 'mp3')) {
-                $offsets = self::getSplitPosition($filepath);
+                $offsets = self::getSplitPosition($filepath, $segmentDuration);
                 $obj->isValidFile = !!(isset($offsets->duration) && $offsets->duration > 2);
                 $obj->offsetInfo = $offsets;
             }
@@ -503,10 +526,11 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return null;
         }
 
-        static function getSplitPosition($pathname) {
+        static function getSplitPosition($pathname, $segmentDuration = null) {
             try {
+                $segmentDuration = is_array($segmentDuration) && count($segmentDuration) > 0 ? $segmentDuration : array(2,3,10);
                 $mp3 = new PHPMP3($pathname);
-                $offsets = $mp3->getSplitPosition(array(2,3,5));
+                $offsets = $mp3->getSplitPosition($segmentDuration);
                 if(count($offsets) < 3) {
                     return null;
                 }
@@ -518,6 +542,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
                 $obj = new stdClass;
                 $obj->duration = $duration;
+                $obj->segmentDuration = $segmentDuration;
                 $obj->offsets = $offsets;
 
                 return $obj;
@@ -865,6 +890,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
     }
 }
 
+
 $act = Context::get('act');
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
     if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getFileCount', 'getFileDescription'))) {
@@ -873,23 +899,27 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
         $config->allow_autoplay = !(isset($addon_info->allow_autoplay) && $addon_info->allow_autoplay === "N");
         $config->link_to_media = (isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y");
-        $config->default_cover = isset($addon_info->default_cover) ? $addon_info->default_cover : null;
+        $config->default_cover = isset($addon_info->default_cover) && $addon_info->default_cover ? $addon_info->default_cover : null;
         $config->allow_browser_cache = (isset($addon_info->allow_browser_cache) && $addon_info->allow_browser_cache === "Y");
         $config->playlist_player_selector = isset($addon_info->playlist_player_selector) ? $addon_info->playlist_player_selector : null;
+        $config->use_thumbnail = !(isset($addon_info->use_thumbnail) && $addon_info->use_thumbnail === "N");
+        $config->thumbnail_type = isset($addon_info->thumbnail_type) && $addon_info->thumbnail_type ? $addon_info->thumbnail_type : 'crop';
+        $config->thumbnail_width = isset($addon_info->thumbnail_width) && $addon_info->thumbnail_width ? $addon_info->thumbnail_width : 420;
+        $config->thumbnail_height = isset($addon_info->thumbnail_height) && $addon_info->thumbnail_height ? $addon_info->thumbnail_height : 420;
 
         $config->BluePlayer__use_autostation = !(isset($addon_info->BluePlayer__use_autostation) && $addon_info->BluePlayer__use_autostation === "N");
         $config->BluePlayer__autostation_max_size = isset($addon_info->BluePlayer__autostation_max_size) && $addon_info->BluePlayer__autostation_max_size ? $addon_info->BluePlayer__autostation_max_size : 0;
         $config->BluePlayer__autostation_search_filter = !(isset($addon_info->BluePlayer__autostation_search_filter) && $addon_info->BluePlayer__autostation_search_filter === "N");
-        $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "AutoStation";
+        $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "RepeatList";
         $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
         $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
         $config->BluePlayer_show_album_name = (isset($addon_info->BluePlayer_show_album_name) && $addon_info->BluePlayer_show_album_name === "Y");
-
         $config->BluePlayer_enable_fade = (isset($addon_info->BluePlayer_enable_fade) && $addon_info->BluePlayer_enable_fade === "Y");
         $config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration) && $addon_info->BluePlayer_fade_duration ? (int)$addon_info->BluePlayer_fade_duration : 200;
 
         $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
         $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
+        $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
         $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
         $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
@@ -904,12 +934,25 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         if(!$config->playlist_player_selector) {
             $config->playlist_player_selector = '.simple_mp3_player';
         }
-
         if(!$config->mp3_realtime_buffer_size || $config->mp3_realtime_buffer_size < 1) {
             $config->mp3_realtime_buffer_size = 12;
         }
         if($config->mp3_realtime_buffer_size > 120) {
             $config->mp3_realtime_buffer_size = 120;
+        }
+        if($config->mp3_realtime_segment_duration) {
+            $splitSegmentDuration = explode(',', $config->mp3_realtime_segment_duration);
+            $newSegmentDuration = array();
+            foreach ($splitSegmentDuration as $each) {
+                $eachSegmentDuration = (int)trim($each);
+                if($eachSegmentDuration>0) {
+                    $newSegmentDuration[] = $eachSegmentDuration;
+                }
+            }
+            $config->mp3_realtime_segment_duration = count($newSegmentDuration) > 0 ? $newSegmentDuration : null;
+        }
+        if(!$config->mp3_realtime_segment_duration) {
+            $config->mp3_realtime_segment_duration = array(2, 3, 10);
         }
 
         $password = null;
@@ -931,7 +974,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             ini_set('max_execution_time', 15);
             $document_srl = Context::get('document_srl');
             $describer = new SimpleMP3Describer($config->allow_browser_cache, $config->use_url_encrypt, $password);
-            $descriptions = $describer->getDescriptionsByDocumentSrl($document_srl);
+            $descriptions = $describer->getDescriptionsByDocumentSrl($document_srl, $config->thumbnail_type, $config->thumbnail_width, $config->thumbnail_height, $config->mp3_realtime_segment_duration);
             unset($config->lyric_cache_expire);
             unset($config->lyric_cache_retry_duration);
             $result->descriptions = $descriptions;
@@ -972,12 +1015,22 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                     $randomData = SimpleMP3Tools::getRandomFile($mid, $document_srl, $offset, $category_srl, $search_target, $search_keyword);
                     if($randomData && $randomData->data) {
                         $data = array_shift($randomData->data);
-                        $description = $describer->getDescription($data->file_srl, $data->uploaded_filename, $data->source_filename, $data->document_srl, $data->sid, $data->module_srl);
+                        $description = $describer->getDescription($data->file_srl, $data->uploaded_filename, $data->source_filename, $data->document_srl, $data->sid, $data->module_srl, $config->mp3_realtime_segment_duration);
                         $describer->normalizeDescription($description, $data->document_srl, $data->file_srl);
                         if($description) {
-                            $description->offset = $offset;
+                            $thumbnail = null;
+                            if($config->thumbnail_type && $config->thumbnail_width > 0&& $config->thumbnail_height > 0) {
+                                $oDocumentModel = getModel('document');
+                                $oDocument = $oDocumentModel->getDocument($data->document_srl);
+                                $documentThumbnail = $oDocument->getThumbnail($config->thumbnail_width, $config->thumbnail_height, $config->thumbnail_type);
+                                if($oDocument->thumbnailExists($config->thumbnail_width, $config->thumbnail_height, $config->thumbnail_type) && $documentThumbnail) {
+                                    $thumbnail = $documentThumbnail;
+                                }
+                            }
+                            $description->offset = (int)$offset;
                             $description->document_srl = $data->document_srl;
                             $description->document_title = $data->title;
+                            $description->thumbnail = $thumbnail;
                             $description->module_srl = $data->module_srl;
                             $result->descriptions[] = $description;
                         }
