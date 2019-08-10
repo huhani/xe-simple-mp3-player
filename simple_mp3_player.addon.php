@@ -920,6 +920,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
         $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
         $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
+        $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) && $addon_info->mp3_realtime_buffer_cache_size ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
         $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
         $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
@@ -1072,7 +1073,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
     Context::loadFile(array('./addons/simple_mp3_player/js/transmuxer.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/base.js', 'body', '', null), true);
     if(!isset($addon_info->playlist_player) || !$addon_info->playlist_player) {
-        $addon_info->playlist_player = 'BluePlayer';
+        $addon_info->playlist_player = 'APlayer';
     }
     if($addon_info->playlist_player === 'APlayer') {
         Context::loadFile('./addons/simple_mp3_player/css/APlayer.min.css', true);
