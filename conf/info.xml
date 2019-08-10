@@ -15,10 +15,10 @@
                 <title xml:lang="ko">통합 플레이어 선택</title>
                 <description xml:lang="ko">mp3가 첨부된 게시글에서 글 본문 상단에 플레이리스트가 있는 플레이어를 띄웁니다.</description>
                 <options value="">
-                    <title xml:lang="ko">BluePlayer</title>
-                </options>
-                <options value="APlayer">
                     <title xml:lang="ko">APlayer</title>
+                </options>
+                <options value="BluePlayer">
+                    <title xml:lang="ko">BluePlayer</title>
                 </options>
                 <options value="APlayer_fixed">
                     <title xml:lang="ko">APlayer (Fixed)</title>
@@ -51,13 +51,13 @@
             <var name="mp3_realtime_segment_duration" type="text">
                 <title xml:lang="ko">MP3 Segment Duration</title>
                 <description xml:lang="ko">MP3 실시간 재생시 불러올 Segment 최대 시간을 입력합니다. &lt;br/&gt;단위: 초(자연수) 여러 개 설정시 ","로 구분.&lt;br/&gt;예) 5,6,10 설정시 첫 번째 SegmentDuration은 5, 두 번째는 6, 그 이후엔 10으로 설정. &lt;br/&gt; 기본값 및 권장: 2,3,10&lt;br/&gt;
-                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 별도로 설정하지 않는걸 권장합니다.</description>
+                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 조작하지 않는걸 권장합니다.</description>
             </var>
 
             <var name="mp3_realtime_buffer_size" type="text">
                 <title xml:lang="ko">MP3 Buffer Size</title>
                 <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다.&lt;br/&gt;단위: 초(자연수), 최소: 1, 최대: 120, 기본값: 12, 권장: 50&lt;br/&gt;
-                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 별도로 설정하지 않는걸 권장합니다.</description>
+                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 조작하지 않는걸 권장합니다.</description>
             </var>
         </group>
 
