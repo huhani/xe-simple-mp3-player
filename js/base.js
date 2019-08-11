@@ -662,6 +662,7 @@
             var position = !isNaN(this._audio.currentTime) && this._audio.currentTime ? this._audio.currentTime : 0;
             var bufferTimeRange = this.getCurrentBufferTimeRange(position);
             if(timeRanges.length === 1 && bufferTimeRange) {
+                this.performNextAction();
                 return;
             }
 

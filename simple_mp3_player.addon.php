@@ -2,7 +2,6 @@
 
 if(!defined("__ZBXE__")) exit();
 
-require_once('./addons/simple_mp3_player/lib/HttpClient.class.php');
 require_once('./addons/simple_mp3_player/lib/phpmp3.php');
 require_once('./addons/simple_mp3_player/lib/getid3/getid3.php');
 require_once('./addons/simple_mp3_player/simple_encrypt.module.php');
@@ -744,156 +743,13 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return false;
         }
 
-        public static function getALSongLyric($file_srl, $expire = 72, $renewDuration = 30) {
-            $oFileModel = getModel('file');
-            $oFile = $oFileModel->getFile($file_srl);
-            if($oFile) {
-                $upload_target_srl = $oFile->upload_target_srl;
-                $isAccessableDocument = self::isAccessableDocument($upload_target_srl);
-                if(!$isAccessableDocument) {
-                    return null;
-                }
-                $description = self::getDescription($file_srl, $oFile->uploaded_filename, $oFile->source_filename, $upload_target_srl);
-                if($description) {
-                    $lyricFromFile = self::getALSongLyricFromFile($file_srl, $oFile->uploaded_filename);
-                    $lyricFileExists = false;
-                    $requireRenew = false;
-                    if($lyricFromFile) {
-                        $lyricFileExists = true;
-                        if($lyricFromFile->lyric) {
-                            if($lyricFromFile->birthtime + $expire*60*60 > time()) {
-                                return $lyricFromFile->lyric;
-                            } else {
-                                $requireRenew = true;
-                            }
-                        } else if($lyricFromFile->lyric === null && $lyricFromFile->birthtime + $renewDuration * 60 > time()) {
-                            return null;
-                        }
-                    }
-
-                    $startOffset = null;
-                    $stream = isset($description->stream) && $description->stream ? $description->stream : null;
-                    $offsetInfo = isset($description->offsetInfo) && $description->offsetInfo ? $description>offsetInfo : null;
-                    if($stream !== null && isset($stream->startOffset)) {
-                        $startOffset = $stream->startOffset;
-                    }
-                    if($startOffset === null && $offsetInfo !== null) {
-                        $offsets = isset($offsetInfo->offsets) && $offsetInfo->offsets ? $offsetInfo->offsets : null;
-                        if($offsets && is_array($offsets) && count($offsets) > 10) {
-                            $startOffset = $offsets[0]->startOffset;
-                        }
-                    }
-                    if($startOffset !== null) {
-                        $md5 = self::getALSongLyricHash($oFile->uploaded_filename, $startOffset);
-                        if($md5) {
-                            $lyric = self::getALSongLyricFromServer($md5);
-                            if(!lyric && $requireRenew) {
-                                $lyric = $lyricFromFile->lyric;
-                            }
-
-                            self::createALSongLyricFile($file_srl, $oFile->uploaded_filename, $lyric);
-
-                            if($lyric) {
-                                return $lyric;
-                            } else if($lyricFileExists && isset($lyricFromFile->lyric)) {
-                                return $lyricFromFile->lyric;
-                            } else {
-                                return null;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        public static function getALSongLyricHash($filepath, $startOffset) {
-            if(file_exists($filepath)) {
-                $filesize = filesize($filepath);
-                if($filesize-$startOffset < 163840) {
-                    return null;
-                }
-
-                $fd = fopen($filepath, "rb");
-                fseek($fd, $startOffset, SEEK_SET);
-                $hash = md5(fread($fd, 163840));
-                fclose($fd);
-
-                return $hash;
-            }
-
-            return null;
-        }
-
-        public static function createALSongLyricFile($file_srl, $uploaded_filename, $lyric = null) {
-            $basepath = self::getDescriptionFilePath($file_srl, $uploaded_filename);
-            $lrcFilename = $basepath.'lyric.json';
-            if($basepath) {
-                if(file_exists($lrcFilename)) {
-                    FileHandler::removeFile($lrcFilename);
-                }
-                $obj = new stdClass;
-                $obj->file_srl = $file_srl;
-                $obj->lyric = $lyric;
-                $obj->birthtime = time();
-                $json = json_encode($obj);
-                FileHandler::writeFile($lrcFilename, $json);
-            }
-        }
-
-        public static function getALSongLyricFromFile($file_srl, $uploaded_filename) {
-            $basepath = self::getDescriptionFilePath($file_srl, $uploaded_filename);
-            $lrcFilename = $basepath.'lyric.json';
-            if($basepath) {
-                if (file_exists($lrcFilename)) {
-                    $lrcJSON = FileHandler::readFile($lrcFilename);
-                    if($lrcJSON) {
-                        try {
-                            return json_decode($lrcJSON);
-                        } catch(Exception $e) {}
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        public static function getALSongLyricFromServer($md5) {
-            $url = '/alsongwebservice/service1.asmx';
-            $xml = '<?xml version="1.0" encoding="UTF-8"?>'.
-                '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:ns2="ALSongWebServer/Service1Soap" xmlns:ns1="ALSongWebServer" xmlns:ns3="ALSongWebServer/Service1Soap12">
-                <SOAP-ENV:Body><ns1:GetLyric8>
-                <ns1:encData></ns1:encData>
-                <ns1:stQuery>
-                <ns1:strChecksum>'.$md5.'</ns1:strChecksum>
-                <ns1:strVersion>3.46</ns1:strVersion>
-                <ns1:strMACAddress></ns1:strMACAddress>
-                <ns1:strIPAddress>169.254.107.9</ns1:strIPAddress>
-                </ns1:stQuery>
-                </ns1:GetLyric8></SOAP-ENV:Body>
-                </SOAP-ENV:Envelope>';
-
-            $client = new HttpClient('lyrics.alsong.co.kr');
-            $client->post($url, $xml);
-            $content = $client->getContent();
-            preg_match('/<strLyric>(.*)?<\/strLyric>/i', $content, $lyricHTML);
-            if($lyricHTML && is_array($lyricHTML) && count($lyricHTML) === 2 && $lyricHTML[1]) {
-                $lrc = $lyricHTML[1];
-                $lrc = str_replace('&lt;br&gt;',"\n",$lrc);
-                return $lrc;
-            }
-
-            return null;
-        }
-
     }
 }
 
 
 $act = Context::get('act');
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getSimpleMP3Lyric', 'getFileCount', 'getFileDescription'))) {
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription'))) {
         $config = new stdClass();
         $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
         $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
@@ -923,10 +779,10 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
         $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
-        $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
-        $config->use_m_lyric = (isset($addon_info->use_m_lyric) && $addon_info->use_m_lyric === "Y");
-        $config->lyric_cache_expire = isset($addon_info->lyric_cache_expire) && $addon_info->lyric_cache_expire ? $addon_info->lyric_cache_expire : 72;
-        $config->lyric_cache_retry_duration = isset($addon_info->lyric_cache_retry_duration) && $addon_info->lyric_cache_retry_duration ? $addon_info->lyric_cache_retry_duration : 30;
+        //기존 코드 호환용
+        $config->use_lyric = false;
+        $config->use_m_lyric = false;
+
         $config->isMobile = Mobile::isFromMobilePhone();
 
         if(!$config->default_cover) {
@@ -980,18 +836,6 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             unset($config->lyric_cache_retry_duration);
             $result->descriptions = $descriptions;
             $result->config = $config;
-        } else if($act === 'getSimpleMP3Lyric') {
-            $type = Context::get('type');
-            $file_srl = Context::get('file_srl');
-            $lyric = $file_srl ? SimpleMP3Describer::getALSongLyric($file_srl, $config->lyric_cache_expire, $config->lyric_cache_retry_duration) : null;
-            if($type === 'text') {
-                if($lyric) {
-                    echo $lyric;
-                }
-                exit();
-            } else {
-                $result->lyric = $lyric;
-            }
         } else if($act === 'getFileCount') {
             $mid = Context::get('mid');
             $document_srl = Context::get('document_srl');

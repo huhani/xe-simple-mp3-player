@@ -4,7 +4,7 @@
     <description xml:lang="ko">
         게시글에 mp3파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
     </description>
-    <version>0.2.5</version>
+    <version>1.0.0</version>
     <date>2019-07-01</date>
 
     <extra_vars>
@@ -266,44 +266,6 @@
             <var name="BluePlayer_fade_duration" type="text">
                 <title xml:lang="ko">[실험] BluePlayer Fade 길이</title>
                 <description xml:lang="ko">Fade 기능을 사용할 경우 적용할 Duration을 입력합니다. &lt;br/&gt;단위: 1/1000초, 기본값: 200</description>
-            </var>
-        </group>
-
-
-        <group>
-            <title xml:lang="ko">기타</title>
-
-            <var name="use_lyric" type="select">
-                <title xml:lang="ko">[실험] 통합 플레이어 가사 사용</title>
-                <description xml:lang="ko">통합 플레이어에서 가사를 사용 가능할 경우 가사를 표시합니다.</description>
-                <options value="">
-                    <title xml:lang="ko">사용 안 함</title>
-                </options>
-                <options value="Y">
-                    <title xml:lang="ko">사용</title>
-                </options>
-            </var>
-
-            <var name="use_m_lyric" type="select">
-                <title xml:lang="ko">[실험] 통합 플레이어 모바일 가사 사용</title>
-                <description xml:lang="ko">모바일 통합 플레이어에서 가사를 사용 가능할 경우 가사를 표시합니다.</description>
-                <options value="">
-                    <title xml:lang="ko">사용 안 함</title>
-                </options>
-                <options value="Y">
-                    <title xml:lang="ko">사용</title>
-                </options>
-            </var>
-
-            <var name="lyric_cache_expire" type="text">
-                <title xml:lang="ko">[실험] 가사 캐시 기간</title>
-                <description xml:lang="ko">서버로 부터 가져온 가사를 지정한 시간동안 보관합니다. 권장 및 기본값: 72시간. 단위: 시간</description>
-            </var>
-
-
-            <var name="lyric_cache_retry_duration" type="text">
-                <title xml:lang="ko">[실험] 불러오기 실패한 가사 다시 불러올 기간</title>
-                <description xml:lang="ko">서버로 부터 가져온 가사를 지정한 시간동안 보관합니다. 권장 및 기본값: 30분. 단위: 분</description>
             </var>
         </group>
 

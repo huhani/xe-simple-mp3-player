@@ -46,7 +46,7 @@
 
 			this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
 			if(enableRealtimeStreaming && $SimpleMP3Player.MSE.isSupported()) {
-				this._MSE = new $SimpleMP3Player.MSE(this._audio, this._description.filePath, this._description.offsetInfo, this.description.file_srl, bufferSize);
+				this._MSE = new $SimpleMP3Player.MSE(this._audio, this._description.filePath, this._description.offsetInfo, this._description.file_srl, bufferSize);
 				this._MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
 			} else {
 				this._audio.src = this._description.filePath;
