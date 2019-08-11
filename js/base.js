@@ -150,7 +150,6 @@
                     end: end,
                     data: data
                 });
-                console.log(data);
                 this._cacheSize += data.byteLength;
             }
             if(this.getCacheUsage() > this._maxCacheSize) {
@@ -203,7 +202,6 @@
                 this._store = [];
             }
             this.updateCacheUsage();
-            console.log('clear');
         };
 
         MemoryCacheManager.prototype.isDestructed = function() {
