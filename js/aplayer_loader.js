@@ -84,7 +84,8 @@
                         _MSE.destruct();
                     }
                     if(enableRealtimeStreaming && MSE.isSupported() && audio && audio.description && audio.description.offsetInfo) {
-                        _MSE = new MSE(audioElement, audio.url, audio.description.offsetInfo, bufferSize);
+                        _MSE = new MSE(audioElement, audio.url, audio.description.offsetInfo, audio.description.file_srl, bufferSize);
+                        _MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
                     } else {
                         audioElement.src = audio.url;
                     }

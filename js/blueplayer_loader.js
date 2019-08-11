@@ -505,7 +505,8 @@
                 lastMSE.destruct();
             }
             if(enableRealtimeStreaming && MSE && MSE.isSupported() && description && description.offsetInfo) {
-                lastMSE = new MSE(audioElement, trackItem.url, description.offsetInfo, bufferSize);
+                lastMSE = new MSE(audioElement, trackItem.url, description.offsetInfo, description.file_srl, bufferSize);
+                lastMSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
             } else {
                 audioElement.src = trackItem.url;
                 audioElement.load()

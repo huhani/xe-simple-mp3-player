@@ -124,8 +124,108 @@
         return url;
     }
 
+    var MemoryCacheManager = function() {
+        function MemoryCacheManager(maxCacheSize) {
+            if(maxCacheSize === void 0) {
+                maxCacheSize = 150000000;
+            }
+            this._destructed = false;
+            this._maxCacheSize = maxCacheSize;
+            this._cacheSize = 0;
+            this._store = []; // data, start, end, file_srl
+        }
+
+        MemoryCacheManager.prototype.getCache = function(file_srl, start, end) {
+            var buffer = this._store.find(function(eachCache){
+                return eachCache.file_srl === file_srl && eachCache.start === start && eachCache.end === end;
+            });
+            return buffer ? buffer.data : null;
+        };
+
+        MemoryCacheManager.prototype.setCache = function(data, file_srl, start, end) {
+            if(!this.getCache(file_srl, start, end)) {
+                this._store.push({
+                    file_srl: file_srl,
+                    start: start,
+                    end: end,
+                    data: data
+                });
+                console.log(data);
+                this._cacheSize += data.byteLength;
+            }
+            if(this.getCacheUsage() > this._maxCacheSize) {
+                this.clear(file_srl);
+            }
+        };
+
+        MemoryCacheManager.prototype.getCacheUsage = function() {
+            return this._cacheSize;
+        };
+
+        MemoryCacheManager.prototype.updateCacheUsage = function() {
+            this._cacheSize = this._store.reduce(function(total, eachCache){
+                var size = eachCache && eachCache.data ? eachCache.data.byteLength : 0;
+                return total+size;
+            }, 0);
+
+            return this._cacheSize;
+        };
+
+        MemoryCacheManager.prototype.setMaximumCacheSize = function(maxCacheSize) {
+            if(maxCacheSize === void 0) {
+                maxCacheSize = 150000000;
+            }
+            this._maxCacheSize = maxCacheSize;
+            if(this.getCacheUsage() > this._maxCacheSize) {
+                this.clear();
+            }
+        };
+
+        MemoryCacheManager.prototype.clear = function(file_srl) {
+            var isReset = !file_srl;
+            if(file_srl) {
+                var filteredCacheUsage = 0;
+                this._store = this._store.filter(function(eachCache) {
+                    if(eachCache.file_srl === file_srl) {
+                        if(eachCache && eachCache.data) {
+                            filteredCacheUsage += eachCache.data.byteLength;
+                        }
+                        return true;
+                    }
+                    return false;
+                });
+                if(filteredCacheUsage > this._maxCacheSize) {
+                    isReset = true;
+                }
+            }
+            if(isReset) {
+                this._cacheSize = 0;
+                this._store = [];
+            }
+            this.updateCacheUsage();
+            console.log('clear');
+        };
+
+        MemoryCacheManager.prototype.isDestructed = function() {
+            return this._destructed;
+        };
+
+        MemoryCacheManager.prototype.destruct = function() {
+            if(!this.isDestructed()) {
+                this._destructed = true;
+                this._store = [];
+                this._cacheSize = 0;
+            }
+        };
+
+        return MemoryCacheManager;
+
+    }();
+
+
     var MSE = function() {
 
+        var MSE_ID = 0;
         var MAX_BUFFER_SIZE = 12;
 
         var mp3 = "audio/mpeg";
@@ -261,8 +361,10 @@
             };
         }
 
-        function MSE(audioNode, mp3URL, playlist, bufferSize) {
+        function MSE(audioNode, mp3URL, playlist, file_srl, bufferSize) {
+            this._id = MSE_ID++;
             this._audio = audioNode;
+            this._file_srl = file_srl;
             this._playlist = playlist;
             this._duration = playlist.duration;
             this._offsets = normalizeOffsetList(this._playlist.offsets);
@@ -282,6 +384,7 @@
             this._onSourceBufferUpdateEndHandler = this._onSourceBufferUpdateEnd.bind(this);
             this._onSourceBufferErrorHandler = this._onSourceBufferError.bind(this);
             this._currentPerformJob = null;
+            this._CacheManager = null;
             this._bufferSize = bufferSize && typeof bufferSize === 'number' ? bufferSize : MAX_BUFFER_SIZE;
             this._MediaSource.addEventListener("sourceopen", this._onMediaSourceInitHandler, false);
             this._MediaSource.addEventListener("error", this._onMediaSourceErrorHandler, false);
@@ -530,6 +633,12 @@
             return this._eosSignalled;
         }
 
+        MSE.prototype.provideCacheManager = function(cacheManager) {
+            if(cacheManager) {
+                this._CacheManager = cacheManager;
+            }
+        };
+
         MSE.prototype.seekResetAction = function() {
             if(!this._audio && this.isDestructed()) {
                 return;
@@ -582,9 +691,32 @@
                     this._lastSegmentIndex++;
                     if(this._lastSegmentIndex < this._offsets.length) {
                         var idxData = this.getSegmentIndex(this._lastSegmentIndex);
-                        this._request = idxData.url ? getAudioBuffer(idxData.url) :  getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
+                        var cachedData = this.getCache(idxData.startOffset, idxData.endOffset);
+                        var cacheAborted = false;
+                        if(cachedData) {
+                            this._request = {
+                                promise: Promise.resolve({
+                                    aborted: cacheAborted,
+                                    code: 200,
+                                    data: cachedData,
+                                    retryCount: 0,
+                                    cache: true
+                                }),
+                                isSettled: function(){
+                                    return true;
+                                },
+                                abort: function() {
+                                    return cacheAborted = true;
+                                }
+                            };
+                        } else {
+                            this._request = idxData.url ? getAudioBuffer(idxData.url) :  getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
+                        }
                         var requestPromise = this._request.promise;
                         requestPromise.then(function(result) {
+                            if(result && (result.code === 200 || result.code === 206)) {
+                                that.setCache(result.data, idxData.startOffset, idxData.endOffset);
+                            }
                             that._onBufferRetreived(result, idxData);
                         })['catch'](function(e){
                             console.error(e, idxData);
@@ -597,6 +729,20 @@
             }
 
             this.performNextQueueAction();
+        };
+
+        MSE.prototype.getCache = function(start, end) {
+            if(this._CacheManager) {
+                return this._CacheManager.getCache(this._file_srl, start, end);
+            }
+
+            return null;
+        };
+
+        MSE.prototype.setCache = function(data, start, end) {
+            if(this._CacheManager) {
+                return this._CacheManager.setCache(data, this._file_srl, start, end);
+            }
         };
 
         MSE.prototype.performNextQueueAction = function() {
@@ -727,6 +873,7 @@
                 this._audio.load();
                 this._revokeURL();
                 this._audio = null;
+                this._CacheManager = null;
             }
         };
 
@@ -1190,6 +1337,7 @@
                 $SimpleMP3Player.isDescriptionLoaded = true;
                 if(data && data.message === 'success' && data.descriptions) {
                     var config = data.config;
+                    var maxMemoryCacheSize = config.mp3_realtime_buffer_cache_size;
                     $SimpleMP3Player.config = config;
                     $SimpleMP3Player.descriptions = data.descriptions;
                     descriptionDecorator(data.descriptions);
@@ -1199,6 +1347,9 @@
                     onMP3DescriptionLoad.dispatch(filterEmptyDescription);
                     if(config && config.allow_autoplay && $SimpleMP3Player.PlayerManager) {
                         $SimpleMP3Player.PlayerManager.performAutoplay();
+                    }
+                    if($SimpleMP3Player.MemoryCacheManager) {
+                        $SimpleMP3Player.MemoryCacheManager.setMaximumCacheSize(maxMemoryCacheSize);
                     }
                 }
             })['catch'](function(e){
@@ -1222,6 +1373,7 @@
     $SimpleMP3Player.isDescriptionLoaded = false;
     $SimpleMP3Player.onMP3DescriptionLoad = onMP3DescriptionLoad;
     $SimpleMP3Player.getMP3Description = getMP3Description;
+    $SimpleMP3Player.MemoryCacheManager = new MemoryCacheManager;
     $SimpleMP3Player.descriptionDecorator = descriptionDecorator;
     $SimpleMP3Player.EventDispatcher = EventDispatcher;
     $SimpleMP3Player.MP3Muxer = MP3Muxer;

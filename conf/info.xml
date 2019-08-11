@@ -4,7 +4,7 @@
     <description xml:lang="ko">
         게시글에 mp3파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
     </description>
-    <version>0.2.4</version>
+    <version>0.2.5</version>
     <date>2019-07-01</date>
 
     <extra_vars>
@@ -17,11 +17,11 @@
                 <options value="">
                     <title xml:lang="ko">APlayer</title>
                 </options>
-                <options value="BluePlayer">
-                    <title xml:lang="ko">BluePlayer</title>
-                </options>
                 <options value="APlayer_fixed">
                     <title xml:lang="ko">APlayer (Fixed)</title>
+                </options>
+                <options value="BluePlayer">
+                    <title xml:lang="ko">BluePlayer</title>
                 </options>
                 <options value="N">
                     <title xml:lang="ko">사용하지 않음</title>
@@ -58,6 +58,11 @@
                 <title xml:lang="ko">MP3 Buffer Size</title>
                 <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다.&lt;br/&gt;단위: 초(자연수), 최소: 1, 최대: 120, 기본값: 12, 권장: 50&lt;br/&gt;
                     이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 조작하지 않는걸 권장합니다.</description>
+            </var>
+
+            <var name="mp3_realtime_buffer_cache_size" type="text">
+                <title xml:lang="ko">MP3 Buffer Cache Size</title>
+                <description xml:lang="ko">클라이언트 브라우저에서 mp3 실시간 재생시 서버로부터 불러온 버퍼를 임시로 RAM에 저장할 용량을 입력합니다. &lt;br/&gt;단위: B(바이트), 기본값 및 권장: 150000000(약 143MB)</description>
             </var>
         </group>
 
@@ -201,9 +206,6 @@
                 <title xml:lang="ko">BluePlayer 재생 모드</title>
                 <description xml:lang="ko">BluePlayer 재생 모드를 설정합니다. AutoStation 설정은 해당 기능이 사용중일 경우에만 적용 가능합니다.</description>
                 <options value="">
-                    <title xml:lang="ko">AutoStation</title>
-                </options>
-                <options value="RepeatList">
                     <title xml:lang="ko">목록 반복</title>
                 </options>
                 <options value="RepeatTrack">
@@ -211,6 +213,9 @@
                 </options>
                 <options value="None">
                     <title xml:lang="ko">목록 재생</title>
+                </options>
+                <options value="AutoStation">
+                    <title xml:lang="ko">AutoStation</title>
                 </options>
             </var>
 
