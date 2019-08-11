@@ -359,6 +359,25 @@
             };
         }
 
+        function getCachedAudioBuffer(data) {
+            var requestAborted = false;
+            return {
+                promise: Promise.resolve({
+                    aborted: requestAborted,
+                    code: 200,
+                    data: data,
+                    retryCount: 0,
+                    cache: true
+                }),
+                isSettled: function(){
+                    return true;
+                },
+                abort: function() {
+                    return requestAborted = true;
+                }
+            }
+        }
+
         function MSE(audioNode, mp3URL, playlist, file_srl, bufferSize) {
             this._id = MSE_ID++;
             this._audio = audioNode;
@@ -639,9 +658,10 @@
             if(!this._audio && this.isDestructed()) {
                 return;
             }
+            var timeRanges = getSourceBufferedRanges(this._sourceBuffer);
             var position = !isNaN(this._audio.currentTime) && this._audio.currentTime ? this._audio.currentTime : 0;
             var bufferTimeRange = this.getCurrentBufferTimeRange(position);
-            if(bufferTimeRange) {
+            if(timeRanges.length === 1 && bufferTimeRange) {
                 return;
             }
 
@@ -653,7 +673,7 @@
             }
             this._eosSignalled = false;
             if(this._sourceBuffer) {
-                getSourceBufferedRanges(this._sourceBuffer).forEach(function(eachRange){
+                timeRanges.forEach(function(eachRange){
                     that.removeBuffer(eachRange.start, eachRange.end);
                 });
             }
@@ -693,23 +713,8 @@
                     if(this._lastSegmentIndex < this._offsets.length) {
                         var idxData = this.getSegmentIndex(this._lastSegmentIndex);
                         var cachedData = this.getCache(idxData.startOffset, idxData.endOffset);
-                        var cacheAborted = false;
                         if(cachedData) {
-                            this._request = {
-                                promise: Promise.resolve({
-                                    aborted: cacheAborted,
-                                    code: 200,
-                                    data: cachedData,
-                                    retryCount: 0,
-                                    cache: true
-                                }),
-                                isSettled: function(){
-                                    return true;
-                                },
-                                abort: function() {
-                                    return cacheAborted = true;
-                                }
-                            };
+                            this._request = getCachedAudioBuffer(cachedData);
                         } else {
                             this._request = idxData.url ? getAudioBuffer(idxData.url) :  getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
                         }
@@ -1307,28 +1312,6 @@
         }
     }
 
-    function getALSongLyric(file_srl) {
-        return new Promise(function(resolve, reject) {
-            var xhr = new XMLHttpRequest;
-            var url = window.request_uri+'index.php?act=getSimpleMP3Lyric&file_srl='+file_srl;
-            xhr.open('GET', url, true);
-            xhr.send();
-            xhr.addEventListener('load', function(){
-                var data = xhr.response;
-                if (xhr.status != 200) {
-                    reject(xhr.status);
-                } else {
-                    try {
-                        var result = JSON.parse(data);
-                        resolve(result);
-                    } catch(e){
-                        reject(e);
-                    }
-                }
-            }, false);
-        });
-    }
-
 
     document.addEventListener("DOMContentLoaded", function(event) {
         var document_srl_regex = /document_(\d+)/.exec(jQuery('.xe_content[class*=document_]').attr('class') || '');
@@ -1379,6 +1362,5 @@
     $SimpleMP3Player.EventDispatcher = EventDispatcher;
     $SimpleMP3Player.MP3Muxer = MP3Muxer;
     $SimpleMP3Player.MSE = MSE;
-    $SimpleMP3Player.getALSongLyric = getALSongLyric;
 
 })(window.$SimpleMP3Player || (window.$SimpleMP3Player = {}));

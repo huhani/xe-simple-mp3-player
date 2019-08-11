@@ -920,7 +920,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
         $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
         $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
-        $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) && $addon_info->mp3_realtime_buffer_cache_size ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
+        $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
         $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
         $config->use_lyric = (isset($addon_info->use_lyric) && $addon_info->use_lyric === "Y");
