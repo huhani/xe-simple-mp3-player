@@ -639,6 +639,11 @@
             if(!this._audio && this.isDestructed()) {
                 return;
             }
+            var position = !isNaN(this._audio.currentTime) && this._audio.currentTime ? this._audio.currentTime : 0;
+            var bufferTimeRange = this.getCurrentBufferTimeRange(position);
+            if(bufferTimeRange) {
+                return;
+            }
 
             var that = this;
             this.abort();
