@@ -462,7 +462,6 @@
                 if(this._currentPerformJob && this._currentPerformJob.type === 'append') {
                     leftBuffer += this._currentPerformJob.duration;
                 }
-
                 if(leftBuffer > 0) {
                     return leftBuffer;
                 } else if(currentTimeRange === null) {
@@ -480,7 +479,6 @@
                 if(leftBuffer !== null) {
                     return leftBuffer < this._bufferSize;
                 }
-
                 return true;
 
             }
@@ -678,7 +676,7 @@
 
         MSE.prototype.performNextAction = function() {
             this._ensureNotDestructed();
-            if(!this._seeking && !this.isEOSSignalled()) {
+            if(this._sourceBuffer && !this._seeking && !this.isEOSSignalled()) {
                 var that = this;
                 var formerDuration = this.getFormerBufferDuration(this._audio.currentTime);
                 //console.log('formefDuration', formerDuration);
