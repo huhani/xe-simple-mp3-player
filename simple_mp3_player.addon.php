@@ -1004,8 +1004,8 @@ if(!$config->playlist_player_selector) {
 if(!$config->mp3_realtime_buffer_size || $config->mp3_realtime_buffer_size < 1) {
     $config->mp3_realtime_buffer_size = 12;
 }
-if($config->mp3_realtime_buffer_size > 120) {
-    $config->mp3_realtime_buffer_size = 120;
+if($config->mp3_realtime_buffer_size > 180) {
+    $config->mp3_realtime_buffer_size = 180;
 }
 if($config->mp3_realtime_segment_duration) {
     $splitSegmentDuration = explode(',', $config->mp3_realtime_segment_duration);

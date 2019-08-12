@@ -443,8 +443,8 @@
             this._audio.addEventListener('timeupdate', this._onAudioTimeUpdateHandler, false);
             this._audio.src = this.getURL();
             this._audio.load();
-            if(this._bufferSize > 120) {
-                this._bufferSize = 120;
+            if(this._bufferSize > 180) {
+                this._bufferSize = 180;
             }
             if(this._bufferSize < 1) {
                 this._bufferSize = MAX_BUFFER_SIZE;
