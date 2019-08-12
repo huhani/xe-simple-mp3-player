@@ -604,13 +604,14 @@
 
         var config = $SimpleMP3Player.config;
         var enableDocumentThumbnailToUpdate = config.BluePlayer_enable_thumbnail_button;
+        var isSupportedToSetThumbnail = config.is_supported_to_set_thumbnail;
         if(description.document_srl) {
             if(description.document_srl !== $SimpleMP3Player.document_srl) {
                 menu.push({
                     name: "게시글 열기",
                     handler: getDocumentOpenHandler(description.document_srl)
                 });
-            } else if(enableDocumentThumbnailToUpdate && description.editable && description.tags && description.tags.albumArt) {
+            } else if(isSupportedToSetThumbnail && enableDocumentThumbnailToUpdate && description.editable && description.tags && description.tags.albumArt) {
                 menu.push({
                     name: "게시글 섬네일 변경",
                     handler: updateDocumentThumbnail(description.document_srl, description.file_srl)

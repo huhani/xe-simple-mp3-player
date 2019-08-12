@@ -198,6 +198,10 @@ if(!class_exists('SimpleMP3Tools', false)) {
         }
 
         public static function setDocumentThumbnail($document_srl = null, $file_srl = null, $addon_config) {
+            if(!self::isSupportedToSetThumbnail()) {
+                return null;
+            }
+
             $isGranted = SimpleMP3Describer::isAccessibleDocument($document_srl);
             if(!$document_srl || !$isGranted) {
                 return null;
@@ -373,6 +377,11 @@ if(!class_exists('SimpleMP3Tools', false)) {
             $oDB->commit();
             $thumbnail_path = sprintf('files/thumbnails/%s', getNumberingPath($document_srl, 3));
             Filehandler::removeFilesInDir($thumbnail_path);
+        }
+
+        public static function isSupportedToSetThumbnail() {
+            $oFileController = getController('file');
+            return method_exists($oFileController, 'procFileSetCoverImage');
         }
 
         public static function isNotXSSRequest() {
@@ -979,9 +988,10 @@ $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment
 $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
 $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
-$config->document_thumbnail = !(isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "N");
+$config->document_thumbnail = (isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "Y");
+$config->is_supported_to_set_thumbnail = SimpleMP3Tools::isSupportedToSetThumbnail();
 
-//기존 코드 호환용
+//이전 코드 호환용
 $config->use_lyric = false;
 $config->use_m_lyric = false;
 $config->isMobile = Mobile::isFromMobilePhone();

@@ -2,7 +2,7 @@
 <addon version="0.2">
     <title xml:lang="ko">심플 mp3 플레이어</title>
     <description xml:lang="ko">
-        게시글에 mp3파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
+        게시글에 mp3, mp4, ogg, flac파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
     </description>
     <version>1.0.0</version>
     <date>2019-07-01</date>
@@ -50,14 +50,14 @@
 
             <var name="mp3_realtime_segment_duration" type="text">
                 <title xml:lang="ko">MP3 Segment Duration</title>
-                <description xml:lang="ko">MP3 실시간 재생시 불러올 Segment 최대 시간을 입력합니다. &lt;br/&gt;단위: 초(자연수) 여러 개 설정시 ","로 구분.&lt;br/&gt;예) 5,6,10 설정시 첫 번째 SegmentDuration은 5, 두 번째는 6, 그 이후엔 10으로 설정. &lt;br/&gt; 기본값 및 권장: 2,3,10&lt;br/&gt;
-                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 조작하지 않는걸 권장합니다.</description>
+                <description xml:lang="ko">MP3 실시간 재생시 불러올 Segment 최대 시간을 입력합니다. 단위: 초(자연수) 여러 개 설정시 ","로 구분.&lt;br/&gt;예) 5,6,10 설정시 첫 번째 SegmentDuration은 5, 두 번째는 6, 그 이후엔 10으로 설정. &lt;br/&gt; 기본값 및 권장: 2,3,10 만약 서버 네트워크가 느리다면 2,3,5로 설정하세요.
+                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다.</description>
             </var>
 
             <var name="mp3_realtime_buffer_size" type="text">
                 <title xml:lang="ko">MP3 Buffer Size</title>
-                <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다.&lt;br/&gt;단위: 초(자연수), 최소: 1, 최대: 120, 기본값: 12, 권장: 50&lt;br/&gt;
-                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다. 되도록이면 조작하지 않는걸 권장합니다.</description>
+                <description xml:lang="ko">mp3 실시간 재생시 설정할 버퍼 크기를 입력합니다. 버퍼가 클수록 안정적으로 재생이 가능하나 재생 초기 네트워크 자원을 많이 소모합니다.&lt;br/&gt;단위: 초(자연수), 최소: 1, 최대: 120, 기본값: 12, 권장: 50
+                    이 설정 항목은 잘못 설정시 네트워크 자원을 과사용하거나 재생이 되지 않을 수 있습니다.</description>
             </var>
 
             <var name="mp3_realtime_buffer_cache_size" type="text">
@@ -254,7 +254,9 @@
 
             <var name="BluePlayer_enable_thumbnail_button" type="select">
                 <title xml:lang="ko">게시글 섬네일 설정 버튼 추가</title>
-                <description xml:lang="ko">BluePlayer 곡 목록에서 오른쪽 우클릭시 선택한 곡의 앨범 커버를 게시글 섬네일로 설정 할 수 있도록 버튼을 추가합니다. &lt;br/&gt; 버튼은 게시글 수정 권한이 있는 유저에게만 표시됩니다.</description>
+                <description xml:lang="ko">BluePlayer 곡 목록에서 오른쪽 우클릭시 선택한 곡의 앨범 커버를 게시글 섬네일로 설정 할 수 있도록 버튼을 추가합니다. &lt;br/&gt; 버튼은 게시글 수정 권한이 있는 유저에게만 표시됩니다.
+                    이 기능과 'HTML5 플레이어 전체 설정 - 섬네일 사용' 기능을 같이 사용할 경우 앨범 커버가 없는 곡도 다른 앨범 커버로 대체될 수 있으니 주의하세요.
+                    XE 버전이 낮아 섬네일 지정이 불가능한 경우 이 기능은 작동하지 않습니다.</description>
                 <options value="">
                     <title xml:lang="ko">사용</title>
                 </options>
@@ -285,12 +287,13 @@
 
             <var name="document_thumbnail" type="select">
                 <title xml:lang="ko">게시글 섬네일 자동 적용</title>
-                <description xml:lang="ko">게시글에 섬네일로 사용할 수 있는 파일이 없는 경우 오디오 파일의 앨범 커버를 섬네일로 사용합니다. 섬네일로 사용될 앨범 커버 이미지는 게시글 파일 항목에 자동 삽입됩니다.</description>
+                <description xml:lang="ko">게시글 등록, 수정시 게시글에 섬네일로 사용할 수 있는 파일이 없는 경우 오디오 파일의 앨범 커버를 섬네일로 사용합니다. 섬네일로 사용될 앨범 커버 이미지는 게시글 파일 항목에 자동 삽입됩니다.
+                    이 기능과 'HTML5 플레이어 전체 설정 - 섬네일 사용' 기능을 같이 사용할 경우 앨범 커버가 없는 곡도 다른 앨범 커버로 대체될 수 있으니 주의하세요.&lt;br/&gt; XE 버전이 낮아 섬네일 지정이 불가능한 경우 이 기능은 작동하지 않습니다.</description>
                 <options value="">
-                    <title xml:lang="ko">사용</title>
-                </options>
-                <options value="N">
                     <title xml:lang="ko">사용 안 함</title>
+                </options>
+                <options value="Y">
+                    <title xml:lang="ko">사용</title>
                 </options>
             </var>
         </group>
