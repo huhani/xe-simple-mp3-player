@@ -196,6 +196,195 @@ if(!class_exists('SimpleMP3Tools', false)) {
 
             return $returnObj;
         }
+
+        public static function setDocumentThumbnail($document_srl = null, $file_srl = null, $addon_config) {
+            $isGranted = SimpleMP3Describer::isAccessibleDocument($document_srl);
+            if(!$document_srl || !$isGranted) {
+                return null;
+            }
+            $oDocumentModel = getModel('document');
+            $oDocument = $oDocumentModel->getDocument($document_srl);
+            if(!$oDocument->isExists()) {
+                return null;
+            }
+            $module_srl = $oDocument->get('module_srl');
+            $target_file_srl = $file_srl;
+            $useFirstAlbumArt = false;
+            $firstDescriptionAlbumArt = null;
+
+            $simpleMP3Describer = new SimpleMP3Describer;
+            $descriptions = $simpleMP3Describer->getDescriptionsByDocumentSrl($document_srl, $addon_config->thumbnail_type, $addon_config->thumbnail_width, $addon_config->thumbnail_height, $addon_config->mp3_realtime_segment_duration);
+             if(!$module_srl || !$descriptions || count($descriptions) < 1) {
+                 return null;
+             }
+            if($file_srl) {
+                if(!$oDocument->isGranted()) {
+                    return false;
+                }
+            } else if(!self::isDocumentThumbnailExist($oDocument)) {
+                $useFirstAlbumArt = true;
+            }
+
+            $target_file_srl = (int)$target_file_srl;
+            $targetDescription = null;
+            foreach($descriptions as $eachDescription) {
+                $description = isset($eachDescription->description) && $eachDescription->description ? $eachDescription->description : null;
+                $file_srl = $description && isset($description->file_srl) && $description->file_srl ? $description->file_srl : null;
+                $tags = $description && isset($description->tags) && $description->tags ? $description->tags : null;
+                $albumArt = $tags && isset($tags->albumArt) && $tags->albumArt ? $tags->albumArt : null;
+                if($albumArt) {
+                    if($useFirstAlbumArt && !$firstDescriptionAlbumArt) {
+                        $firstDescriptionAlbumArt = $description;
+                    }
+                    if($target_file_srl && $file_srl) {
+                        if($target_file_srl === $description->file_srl) {
+                            $targetDescription = $description;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if($useFirstAlbumArt && $firstDescriptionAlbumArt) {
+                $targetDescription = $firstDescriptionAlbumArt;
+            }
+            if($targetDescription) {
+                $targetAlbumArt = $targetDescription->tags && $targetDescription->tags->albumArt ? $targetDescription->tags->albumArt : null;
+                if($targetAlbumArt) {
+                    $file_srl = $targetDescription->file_srl;
+                    $targetAlbumArtInfo = pathinfo($targetAlbumArt);
+                    $extension = $targetAlbumArtInfo && isset($targetAlbumArtInfo['extension']) ? $targetAlbumArtInfo['extension'] : null;
+                    $basename = $targetAlbumArtInfo && isset($targetAlbumArtInfo['basename']) ? $targetAlbumArtInfo['basename'] : null;
+                    $dirname = $targetAlbumArtInfo && isset($targetAlbumArtInfo['dirname']) ? $targetAlbumArtInfo['dirname'] : null;
+                    if($file_srl && $extension && $basename && $dirname) {
+                        $mime = mime_content_type($targetAlbumArt);
+                        $filesize = filesize($targetAlbumArt);
+                        if($filesize) {
+                            $copypath = $dirname.'/'.'Cover.tmp';
+                            $isCopied = copy($targetAlbumArt, $copypath);
+                            if(!$isCopied) {
+                                return null;
+                            }
+                            self::removeDocumentThumbnailFromAddons($oDocument);
+                            $fileInformationArray = array(
+                                'name' => 'Cover##'.$file_srl.'.'.$extension,
+                                'type' => $mime,
+                                'tmp_name' => $copypath,
+                                'error' => 0,
+                                'size' => $filesize
+                            );
+                            $oFileController = getController('file');
+                            $oUploadedFile = $oFileController->insertFile($fileInformationArray, $module_srl, $document_srl, 0, true);
+                            if($oUploadedFile->toBool()) {
+                                $args = new stdClass;
+                                $args->upload_target_srl = $document_srl;
+                                $args->isvalid = 'Y';
+                                executeQuery('addons.simple_mp3_player.updateFileValid', $args);
+                                $oDocumentController = getController('document');
+                                $oDocumentController->updateUploaedCount(array($document_srl));
+                                self::updateDocumentThumbnail($document_srl, $oUploadedFile->get('file_srl'));
+                            }
+                            if(file_exists($copypath)) {
+                                FileHandler::removeFile($copypath);
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static function isDocumentThumbnailExist($oDocument) {
+            $source_file = null;
+            if($oDocument->hasUploadedFiles()) {
+                $file_list = $oDocument->getUploadedFiles();
+                $first_image = null;
+                foreach($file_list as $file) {
+                    if($file->direct_download !== 'Y') {
+                        continue;
+                    }
+                    if($file->cover_image === 'Y' && file_exists($file->uploaded_filename)) {
+                        $source_file = $file->uploaded_filename;
+                        break;
+                    }
+                    if($first_image) {
+                        continue;
+                    }
+                    if(preg_match("/\.(jpe?g|png|gif|bmp)$/i", $file->source_filename)) {
+                        if(file_exists($file->uploaded_filename)) {
+                            $first_image = $file->uploaded_filename;
+                        }
+                    }
+                }
+                if(!$source_file && $first_image) {
+                    $source_file = $first_image;
+                }
+            }
+
+            return !!$source_file;
+        }
+
+        public static function removeDocumentThumbnailFromAddons($oDocument) {
+            if($oDocument->hasUploadedFiles()) {
+                $oFileController = getController('file');
+                $oFileList = $oDocument->getUploadedFiles();
+                foreach($oFileList as $oFile){
+                    $each_source_filename = $oFile->source_filename;
+                    preg_match('/^Cover##([0-9]+)\.(?:jpe?g|png|gif|bmp)+$/', $each_source_filename, $matches);
+                    if(is_array($matches) && count($matches) > 0) {
+                        $file_srl = (int)$matches[1];
+                        if($file_srl) {
+                            $oFileController->deleteFile($oFile->file_srl);
+                        }
+                    }
+                }
+            }
+        }
+
+        public static function updateDocumentThumbnail($document_srl, $file_srl) {
+            $oFileModel = getModel('file');
+            $file_info = $oFileModel->getFile($file_srl);
+
+            $args =  new stdClass();
+            $args->file_srl = $file_srl;
+            $args->upload_target_srl = $document_srl;
+
+            $oDB = &DB::getInstance();
+            $oDB->begin();
+
+            $args->cover_image = 'N';
+            $output = executeQuery('file.updateClearCoverImage', $args);
+            if(!$output->toBool()) {
+                $oDB->rollback();
+                return $output;
+            }
+            if($file_info->cover_image != 'Y') {
+                $args->cover_image = 'Y';
+                $output = executeQuery('file.updateCoverImage', $args);
+                if(!$output->toBool()) {
+                    $oDB->rollback();
+                    return $output;
+                }
+
+            }
+            $oDB->commit();
+            $thumbnail_path = sprintf('files/thumbnails/%s', getNumberingPath($document_srl, 3));
+            Filehandler::removeFilesInDir($thumbnail_path);
+        }
+
+        public static function isNotXSSRequest() {
+            $headers = array();
+            foreach ($_SERVER as $key => $value) {
+                if (strpos($key, 'HTTP_') === 0) {
+                    $headers[str_replace(' ', '', ucwords(str_replace('_', ' ', strtolower(substr($key, 5)))))] = $value;
+                }
+            }
+
+            return (isset($headers['XAddonsXssProtector']) && $headers['XAddonsXssProtector'] === 'OK');
+        }
     }
 }
 
@@ -286,15 +475,15 @@ if(!class_exists('SimpleMP3Describer', false)) {
         }
 
         public function getDescriptionsByDocumentSrl($document_srl, $thumbnail_type = 'crop', $thumbnail_width = 420, $thumbnail_height = 420, $segmentDuration = null) {
-            if(!$this->isGranted($document_srl)) {
+            $oDocumentModel = getModel('document');
+            $oDocument = $oDocumentModel->getDocument($document_srl);
+            if(!($oDocument->isExists() && $oDocument->isAccessible())) {
                 return null;
             }
             $descriptions = array();
             $files = $this->getMultipleFilePathname($document_srl);
             $thumbnail = null;
             if($thumbnail_type && $thumbnail_width > 0&& $thumbnail_height > 0) {
-                $oDocumentModel = getModel('document');
-                $oDocument = $oDocumentModel->getDocument($document_srl);
                 $documentThumbnail = $oDocument->getThumbnail($thumbnail_width, $thumbnail_height, $thumbnail_type);
                 if($oDocument->thumbnailExists($thumbnail_width, $thumbnail_height, $thumbnail_type) && $documentThumbnail) {
                     $thumbnail = $documentThumbnail;
@@ -306,6 +495,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     if($description) {
                         $this->normalizeDescription($description, $document_srl, $file->file_srl);
                         $description->thumbnail = $thumbnail;
+                        $description->editable = $oDocument->isGranted();
                     }
                     $obj = new stdClass;
                     $obj->file_srl = $file->file_srl;
@@ -421,11 +611,17 @@ if(!class_exists('SimpleMP3Describer', false)) {
             if(!$description) {
                 $description = self::getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename, $segmentDuration);
             }
-            if($description && $file_srl) {
-                $description->file_srl = $file_srl;
-                if ($file_sid && $module_srl) {
-                    $oFileModel = getModel('file');
-                    $description->download_url = $oFileModel->getDownloadUrl($file_srl, $file_sid, $module_srl);
+            if($description) {
+                if($file_srl) {
+                    $description->file_srl = $file_srl;
+                    if ($file_sid && $module_srl) {
+                        $oFileModel = getModel('file');
+                        $description->download_url = $oFileModel->getDownloadUrl($file_srl, $file_sid, $module_srl);
+                    }
+                }
+                $document_srl = (int)$document_srl;
+                if($document_srl) {
+                    $description->document_srl = $document_srl;
                 }
             }
 
@@ -713,7 +909,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             }
         }
 
-        public static function isAccessableDocument($document_srl) {
+        public static function isAccessibleDocument($document_srl) {
             if($document_srl) {
                 $oDocumentModel = getModel('document');
                 $oDocument = $oDocumentModel->getDocument($document_srl);
@@ -747,85 +943,96 @@ if(!class_exists('SimpleMP3Describer', false)) {
 }
 
 
+
+
+
+// !!! 애드온 설정 시작.
+
 $act = Context::get('act');
+$config = new stdClass();
+$config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
+$config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
+$config->allow_autoplay = !(isset($addon_info->allow_autoplay) && $addon_info->allow_autoplay === "N");
+$config->link_to_media = (isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y");
+$config->default_cover = isset($addon_info->default_cover) && $addon_info->default_cover ? $addon_info->default_cover : null;
+$config->allow_browser_cache = (isset($addon_info->allow_browser_cache) && $addon_info->allow_browser_cache === "Y");
+$config->playlist_player_selector = isset($addon_info->playlist_player_selector) ? $addon_info->playlist_player_selector : null;
+$config->use_thumbnail = !(isset($addon_info->use_thumbnail) && $addon_info->use_thumbnail === "N");
+$config->thumbnail_type = isset($addon_info->thumbnail_type) && $addon_info->thumbnail_type ? $addon_info->thumbnail_type : 'crop';
+$config->thumbnail_width = isset($addon_info->thumbnail_width) && $addon_info->thumbnail_width ? $addon_info->thumbnail_width : 420;
+$config->thumbnail_height = isset($addon_info->thumbnail_height) && $addon_info->thumbnail_height ? $addon_info->thumbnail_height : 420;
+
+$config->BluePlayer__use_autostation = !(isset($addon_info->BluePlayer__use_autostation) && $addon_info->BluePlayer__use_autostation === "N");
+$config->BluePlayer__autostation_max_size = isset($addon_info->BluePlayer__autostation_max_size) && $addon_info->BluePlayer__autostation_max_size ? $addon_info->BluePlayer__autostation_max_size : 0;
+$config->BluePlayer__autostation_search_filter = !(isset($addon_info->BluePlayer__autostation_search_filter) && $addon_info->BluePlayer__autostation_search_filter === "N");
+$config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "RepeatList";
+$config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
+$config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
+$config->BluePlayer_show_album_name = (isset($addon_info->BluePlayer_show_album_name) && $addon_info->BluePlayer_show_album_name === "Y");
+$config->BluePlayer_enable_thumbnail_button = !(isset($addon_info->BluePlayer_enable_thumbnail_button) && $addon_info->BluePlayer_enable_thumbnail_button === "N");
+$config->BluePlayer_enable_fade = (isset($addon_info->BluePlayer_enable_fade) && $addon_info->BluePlayer_enable_fade === "Y");
+$config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration) && $addon_info->BluePlayer_fade_duration ? (int)$addon_info->BluePlayer_fade_duration : 200;
+
+$config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
+$config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
+$config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
+$config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
+$config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
+
+$config->document_thumbnail = !(isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "N");
+
+//기존 코드 호환용
+$config->use_lyric = false;
+$config->use_m_lyric = false;
+$config->isMobile = Mobile::isFromMobilePhone();
+if(!$config->default_cover) {
+    $config->default_cover = './addons/simple_mp3_player/img/no_cover.png';
+}
+if(!$config->playlist_player_selector) {
+    $config->playlist_player_selector = '.simple_mp3_player';
+}
+if(!$config->mp3_realtime_buffer_size || $config->mp3_realtime_buffer_size < 1) {
+    $config->mp3_realtime_buffer_size = 12;
+}
+if($config->mp3_realtime_buffer_size > 120) {
+    $config->mp3_realtime_buffer_size = 120;
+}
+if($config->mp3_realtime_segment_duration) {
+    $splitSegmentDuration = explode(',', $config->mp3_realtime_segment_duration);
+    $newSegmentDuration = array();
+    foreach ($splitSegmentDuration as $each) {
+        $eachSegmentDuration = (int)trim($each);
+        if($eachSegmentDuration>0) {
+            $newSegmentDuration[] = $eachSegmentDuration;
+        }
+    }
+    $config->mp3_realtime_segment_duration = count($newSegmentDuration) > 0 ? $newSegmentDuration : null;
+}
+if(!$config->mp3_realtime_segment_duration) {
+    $config->mp3_realtime_segment_duration = array(2, 3, 10);
+}
+$password = null;
+if(SimpleEncrypt::getPassword()) {
+    $password = SimpleEncrypt::getPassword();
+} else if(!SimpleEncrypt::buildNewPassword()) {
+    $config->use_url_encrypt = false;
+} else {
+    $password = SimpleEncrypt::getPassword();
+}
+if(!$password) {
+    $config->use_url_encrypt = false;
+    $config->allow_browser_cache = true;
+}
+
+// !!! 애드온 설정 끝.
+
+
+
+
+
+
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription'))) {
-        $config = new stdClass();
-        $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
-        $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
-        $config->allow_autoplay = !(isset($addon_info->allow_autoplay) && $addon_info->allow_autoplay === "N");
-        $config->link_to_media = (isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y");
-        $config->default_cover = isset($addon_info->default_cover) && $addon_info->default_cover ? $addon_info->default_cover : null;
-        $config->allow_browser_cache = (isset($addon_info->allow_browser_cache) && $addon_info->allow_browser_cache === "Y");
-        $config->playlist_player_selector = isset($addon_info->playlist_player_selector) ? $addon_info->playlist_player_selector : null;
-        $config->use_thumbnail = !(isset($addon_info->use_thumbnail) && $addon_info->use_thumbnail === "N");
-        $config->thumbnail_type = isset($addon_info->thumbnail_type) && $addon_info->thumbnail_type ? $addon_info->thumbnail_type : 'crop';
-        $config->thumbnail_width = isset($addon_info->thumbnail_width) && $addon_info->thumbnail_width ? $addon_info->thumbnail_width : 420;
-        $config->thumbnail_height = isset($addon_info->thumbnail_height) && $addon_info->thumbnail_height ? $addon_info->thumbnail_height : 420;
-
-        $config->BluePlayer__use_autostation = !(isset($addon_info->BluePlayer__use_autostation) && $addon_info->BluePlayer__use_autostation === "N");
-        $config->BluePlayer__autostation_max_size = isset($addon_info->BluePlayer__autostation_max_size) && $addon_info->BluePlayer__autostation_max_size ? $addon_info->BluePlayer__autostation_max_size : 0;
-        $config->BluePlayer__autostation_search_filter = !(isset($addon_info->BluePlayer__autostation_search_filter) && $addon_info->BluePlayer__autostation_search_filter === "N");
-        $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && $addon_info->BluePlayer__track_mode ? $addon_info->BluePlayer__track_mode : "RepeatList";
-        $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
-        $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
-        $config->BluePlayer_show_album_name = (isset($addon_info->BluePlayer_show_album_name) && $addon_info->BluePlayer_show_album_name === "Y");
-        $config->BluePlayer_enable_fade = (isset($addon_info->BluePlayer_enable_fade) && $addon_info->BluePlayer_enable_fade === "Y");
-        $config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration) && $addon_info->BluePlayer_fade_duration ? (int)$addon_info->BluePlayer_fade_duration : 200;
-
-        $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
-        $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
-        $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
-        $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
-        $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
-
-        //기존 코드 호환용
-        $config->use_lyric = false;
-        $config->use_m_lyric = false;
-
-        $config->isMobile = Mobile::isFromMobilePhone();
-
-        if(!$config->default_cover) {
-            $config->default_cover = './addons/simple_mp3_player/img/no_cover.png';
-        }
-        if(!$config->playlist_player_selector) {
-            $config->playlist_player_selector = '.simple_mp3_player';
-        }
-        if(!$config->mp3_realtime_buffer_size || $config->mp3_realtime_buffer_size < 1) {
-            $config->mp3_realtime_buffer_size = 12;
-        }
-        if($config->mp3_realtime_buffer_size > 120) {
-            $config->mp3_realtime_buffer_size = 120;
-        }
-        if($config->mp3_realtime_segment_duration) {
-            $splitSegmentDuration = explode(',', $config->mp3_realtime_segment_duration);
-            $newSegmentDuration = array();
-            foreach ($splitSegmentDuration as $each) {
-                $eachSegmentDuration = (int)trim($each);
-                if($eachSegmentDuration>0) {
-                    $newSegmentDuration[] = $eachSegmentDuration;
-                }
-            }
-            $config->mp3_realtime_segment_duration = count($newSegmentDuration) > 0 ? $newSegmentDuration : null;
-        }
-        if(!$config->mp3_realtime_segment_duration) {
-            $config->mp3_realtime_segment_duration = array(2, 3, 10);
-        }
-
-        $password = null;
-        if(SimpleEncrypt::getPassword()) {
-            $password = SimpleEncrypt::getPassword();
-        } else if(!SimpleEncrypt::buildNewPassword()) {
-            $config->use_url_encrypt = false;
-        } else {
-            $password = SimpleEncrypt::getPassword();
-        }
-
-        if(!$password) {
-            $config->use_url_encrypt = false;
-            $config->allow_browser_cache = true;
-        }
-
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription', 'updateSimpleMP3Thumbnail'))) {
         $result = new stdClass();
         if($act === 'getSimpleMP3Descriptions') {
             ini_set('max_execution_time', 15);
@@ -864,9 +1071,9 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                         $describer->normalizeDescription($description, $data->document_srl, $data->file_srl);
                         if($description) {
                             $thumbnail = null;
-                            if($config->thumbnail_type && $config->thumbnail_width > 0&& $config->thumbnail_height > 0) {
-                                $oDocumentModel = getModel('document');
-                                $oDocument = $oDocumentModel->getDocument($data->document_srl);
+                            $oDocumentModel = getModel('document');
+                            $oDocument = $oDocumentModel->getDocument($data->document_srl);
+                            if($config->thumbnail_type && $config->thumbnail_width > 0 && $config->thumbnail_height > 0) {
                                 $documentThumbnail = $oDocument->getThumbnail($config->thumbnail_width, $config->thumbnail_height, $config->thumbnail_type);
                                 if($oDocument->thumbnailExists($config->thumbnail_width, $config->thumbnail_height, $config->thumbnail_type) && $documentThumbnail) {
                                     $thumbnail = $documentThumbnail;
@@ -877,10 +1084,18 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                             $description->document_title = $data->title;
                             $description->thumbnail = $thumbnail;
                             $description->module_srl = $data->module_srl;
+                            $description->editable = $oDocument->isGranted();
                             $result->descriptions[] = $description;
                         }
                     }
                 }
+            }
+        } else if($act === 'updateSimpleMP3Thumbnail') {
+            $document_srl = Context::get('document_srl');
+            $file_srl = Context::get('file_srl');
+            if($document_srl && $file_srl && SimpleMP3Tools::isNotXSSRequest()) {
+                $output = SimpleMP3Tools::setDocumentThumbnail($document_srl, $file_srl, $config);
+                $result->result = $output;
             }
         }
         $result->message = "success";
@@ -888,6 +1103,13 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         exit();
     }
 
+} else if($act === 'procBoardInsertDocument' && $called_position === 'after_module_proc') {
+    if($config->document_thumbnail) {
+        $document_srl = Context::get('document_srl');
+        if($document_srl) {
+            SimpleMP3Tools::setDocumentThumbnail($document_srl, null, $config);
+        }
+    }
 } else if(in_array($act, array('procFileDelete', 'procBoardDeleteDocument', 'procBoardDeleteComment'))) {
     if($called_position === 'before_module_proc') {
         $target_srl = Context::get('document_srl');
@@ -917,7 +1139,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
     Context::loadFile(array('./addons/simple_mp3_player/js/transmuxer.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/base.js', 'body', '', null), true);
     if(!isset($addon_info->playlist_player) || !$addon_info->playlist_player) {
-        $addon_info->playlist_player = 'APlayer';
+        $addon_info->playlist_player = 'BluePlayer';
     }
     if($addon_info->playlist_player === 'APlayer') {
         Context::loadFile('./addons/simple_mp3_player/css/APlayer.min.css', true);
@@ -942,3 +1164,6 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         Context::loadFile(array('./addons/simple_mp3_player/js/mp3link_to_player.js', 'body', '', null), true);
     }
 }
+
+unset($config);
+

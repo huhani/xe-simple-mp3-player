@@ -57,12 +57,27 @@
 
 		SimplePlayer.prototype._updateMediaSessionMetadata = function() {
 			if(_MediaSession && this._description.tags !== void 0) {
+				var config = $SimpleMP3Player.config;
+				var defaultCover = config.default_cover;
+				var useThumbnail = config.use_thumbnail;
+				if(defaultCover) {
+					defaultCover = $SimpleMP3Player.convertURL2URI(defaultCover);
+				}
 				var tags = this._description.tags;
+				var albumArt = tags.albumArt;
+				if(!albumArt) {
+					if(useThumbnail && description.thumbnail) {
+						albumArt = description.thumbnail;
+					} else if(defaultCover) {
+						albumArt = defaultCover;
+					}
+				}
+
 				_MediaSession.metadata = new window.MediaMetadata({
 					title: tags.title ? tags.title : void 0,
 					artist: tags.artist ? tags.artist : void 0,
 					album: tags.album ? tags.album : void 0,
-					artwork: tags.albumArt ? [{src : tags.albumArt}] : void 0
+					artwork: albumArt ? [{src : albumArt}] : void 0
 				});
 			}
 		};

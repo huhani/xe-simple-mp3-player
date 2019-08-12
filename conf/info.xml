@@ -15,13 +15,13 @@
                 <title xml:lang="ko">통합 플레이어 선택</title>
                 <description xml:lang="ko">mp3가 첨부된 게시글에서 글 본문 상단에 플레이리스트가 있는 플레이어를 띄웁니다.</description>
                 <options value="">
+                    <title xml:lang="ko">BluePlayer</title>
+                </options>
+                <options value="APlayer">
                     <title xml:lang="ko">APlayer</title>
                 </options>
                 <options value="APlayer_fixed">
                     <title xml:lang="ko">APlayer (Fixed)</title>
-                </options>
-                <options value="BluePlayer">
-                    <title xml:lang="ko">BluePlayer</title>
                 </options>
                 <options value="N">
                     <title xml:lang="ko">사용하지 않음</title>
@@ -252,6 +252,17 @@
                 </options>
             </var>
 
+            <var name="BluePlayer_enable_thumbnail_button" type="select">
+                <title xml:lang="ko">게시글 섬네일 설정 버튼 추가</title>
+                <description xml:lang="ko">BluePlayer 곡 목록에서 오른쪽 우클릭시 선택한 곡의 앨범 커버를 게시글 섬네일로 설정 할 수 있도록 버튼을 추가합니다. &lt;br/&gt; 버튼은 게시글 수정 권한이 있는 유저에게만 표시됩니다.</description>
+                <options value="">
+                    <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
+                </options>
+            </var>
+
             <var name="BluePlayer_enable_fade" type="select">
                 <title xml:lang="ko">[실험] BluePlayer Fade 사용</title>
                 <description xml:lang="ko">웹 브라우저에서 WebAudio를 사용 가능한 경우 재생/일시정지때 Fade In/Out을 사용합니다.</description>
@@ -266,6 +277,21 @@
             <var name="BluePlayer_fade_duration" type="text">
                 <title xml:lang="ko">[실험] BluePlayer Fade 길이</title>
                 <description xml:lang="ko">Fade 기능을 사용할 경우 적용할 Duration을 입력합니다. &lt;br/&gt;단위: 1/1000초, 기본값: 200</description>
+            </var>
+        </group>
+
+        <group>
+            <title xml:lang="ko">기타 설정</title>
+
+            <var name="document_thumbnail" type="select">
+                <title xml:lang="ko">게시글 섬네일 자동 적용</title>
+                <description xml:lang="ko">게시글에 섬네일로 사용할 수 있는 파일이 없는 경우 오디오 파일의 앨범 커버를 섬네일로 사용합니다. 섬네일로 사용될 앨범 커버 이미지는 게시글 파일 항목에 자동 삽입됩니다.</description>
+                <options value="">
+                    <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
+                </options>
             </var>
         </group>
 

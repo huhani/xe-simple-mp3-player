@@ -516,6 +516,13 @@
 
     function buildPlaylist(descriptions, allowRemove) {
         var playlist = [];
+        var config = $SimpleMP3Player.config;
+        var defaultCover = config.default_cover;
+        var useThumbnail = config.use_thumbnail;
+        if(defaultCover) {
+            defaultCover = $SimpleMP3Player.convertURL2URI(defaultCover);
+        }
+
         descriptions.forEach(function(each){
             var description = each.description;
             var offsetInfo = description.offsetInfo;
@@ -540,6 +547,13 @@
             var type = null;
             var lrc = window.request_uri+'index.php?act=getSimpleMP3Lyric&file_srl='+file_srl+"&type=text";
             var lrcType = null;
+            if(!albumArt) {
+                if(useThumbnail && description.thumbnail) {
+                    albumArt = description.thumbnail;
+                } else if(defaultCover) {
+                    albumArt = defaultCover;
+                }
+            }
 
             playlist.push({
                 title:title,
@@ -587,14 +601,49 @@
                 handler: getDownloadLinkHandler(trackItem)
             });
         }
+
+        var config = $SimpleMP3Player.config;
+        var enableDocumentThumbnailToUpdate = config.BluePlayer_enable_thumbnail_button;
         if(description.document_srl) {
-            menu.push({
-                name: "게시글 열기",
-                handler: getDocumentOpenHandler(description.document_srl)
-            });
+            if(description.document_srl !== $SimpleMP3Player.document_srl) {
+                menu.push({
+                    name: "게시글 열기",
+                    handler: getDocumentOpenHandler(description.document_srl)
+                });
+            } else if(enableDocumentThumbnailToUpdate && description.editable && description.tags && description.tags.albumArt) {
+                menu.push({
+                    name: "게시글 섬네일 변경",
+                    handler: updateDocumentThumbnail(description.document_srl, description.file_srl)
+                });
+            }
         }
 
+
         return menu;
+    }
+
+    function updateDocumentThumbnail(document_srl, file_srl) {
+        return function() {
+            if(document_srl && file_srl) {
+                var url = window.default_url + 'index.php?mid='+window.current_mid+'&act=updateSimpleMP3Thumbnail'+'&document_srl='+document_srl+'&file_srl='+file_srl
+                var xhr = new XMLHttpRequest;
+                xhr.open('GET', url, true);
+                xhr.setRequestHeader("X-ADDONS-XSS-PROTECTOR", "OK");
+                xhr.send();
+                xhr.addEventListener('load', function(){
+                    if(xhr.status === 200) {
+                        var data = JSON.parse(xhr.response);
+                        if(data.result) {
+                            alert('게시글의 섬네일을 선택한 곡의 앨범 커버로 변경하였습니다.');
+                        } else {
+                            alert('게시글 섬네일을 변경하는 도중 오류가 발생했습니다.');
+                        }
+                    } else {
+                        console.error(xhr);
+                    }
+                }, false);
+            }
+        };
     }
 
     function getDownloadLinkHandler(trackItem) {
@@ -615,10 +664,6 @@
                 window.open(window.default_url+'index.php?document_srl='+document_srl);
             }
         };
-    }
-
-    function boot() {
-
     }
 
     $(document).ready(function(){

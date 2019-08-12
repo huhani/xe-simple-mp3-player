@@ -18,7 +18,12 @@
         if(!descriptions) {
             return [];
         }
-
+        var config = $SimpleMP3Player.config;
+        var defaultCover = config.default_cover;
+        var useThumbnail = config.use_thumbnail;
+        if(defaultCover) {
+            defaultCover = $SimpleMP3Player.convertURL2URI(defaultCover);
+        }
         return descriptions.map(function(eachDescription){
             var description = eachDescription.description;
             if(!description) {
@@ -31,6 +36,13 @@
             var artist = tags.artist ? tags.artist : void 0;
             var albumArt = tags.albumArt ? convertURL2URI(tags.albumArt) : void 0;
             var mp3URL = convertURL2URI(description.filePath);
+            if(!albumArt) {
+                if(useThumbnail && description.thumbnail) {
+                    albumArt = description.thumbnail;
+                } else if(defaultCover) {
+                    albumArt = defaultCover;
+                }
+            }
 
             return {
                 name: title,

@@ -1287,12 +1287,6 @@
                         };
                     }
                     var tags = description.tags;
-                    if(!tags.albumArt && useThumbnail && description.thumbnail) {
-                        tags.albumArt = description.thumbnail;
-                    }
-                    if(!tags.albumArt && defaultCover) {
-                        tags.albumArt = convertURL2URI(defaultCover);
-                    }
                     if(tags.title) {
                         tags.title = ampToAmp(tags.title);
                     }
@@ -1318,6 +1312,7 @@
         var document_srl_regex = /document_(\d+)/.exec(jQuery('.xe_content[class*=document_]').attr('class') || '');
         document_srl = document_srl_regex ? document_srl_regex[1] : null;
         if(document_srl) {
+            $SimpleMP3Player.document_srl = parseInt(document_srl, 10);
             getMP3Descriptions(document_srl).then(function(data) {
                 $SimpleMP3Player.isDescriptionLoaded = true;
                 if(data && data.message === 'success' && data.descriptions) {
@@ -1344,6 +1339,7 @@
         }
     });
 
+    $SimpleMP3Player.document_srl = document_srl;
     $SimpleMP3Player.config = {};
     $SimpleMP3Player.convertURL2URI = convertURL2URI;
     $SimpleMP3Player.PlayerManager = new PlayerManager;
