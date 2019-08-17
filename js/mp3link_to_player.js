@@ -26,7 +26,6 @@
 			this._description = description;
 			this._MSE = null;
 			this._useMediaSession = useMediaSession !== void 0 ? useMediaSession : true;
-			this._listeners = [];
 			this._destruct = false;
 			this._audio.preload = "metadata";
 			this._audio.controls = true;
@@ -170,10 +169,10 @@
 			}
 		};
 		var subscriber = null;
-		if($SimpleMP3Player.descriptions && $SimpleMP3Player.descriptions.length > 0) {
-			onDescriptionLoad($SimpleMP3Player.descriptions);
+		if($SimpleMP3Player.audioDescriptions && $SimpleMP3Player.audioDescriptions.length > 0) {
+			onDescriptionLoad($SimpleMP3Player.audioDescriptions);
 		} else {
-			subscriber = $SimpleMP3Player.onMP3DescriptionLoad.subscribe(onDescriptionLoad);
+			subscriber = $SimpleMP3Player.onAudioDescriptionLoad.subscribe(onDescriptionLoad);
 		}
 	});
 

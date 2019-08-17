@@ -185,10 +185,10 @@
 
     $(document).ready(function(){
         var subscriber = null;
-        if($SimpleMP3Player.descriptions && $SimpleMP3Player.descriptions.length > 0) {
-            onDescriptionLoad($SimpleMP3Player.descriptions);
+        if($SimpleMP3Player.audioDescriptions && $SimpleMP3Player.audioDescriptions.length > 0) {
+            onDescriptionLoad($SimpleMP3Player.audioDescriptions);
         } else {
-            subscriber = $SimpleMP3Player.onMP3DescriptionLoad.subscribe(onDescriptionLoad);
+            subscriber = $SimpleMP3Player.onAudioDescriptionLoad.subscribe(onDescriptionLoad);
         }
     });
 

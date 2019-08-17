@@ -1149,6 +1149,27 @@
 
     }();
 
+    var SimpleVideoPlayerObserver = function() {
+        function SimpleVideoPlayerObserver(player) {
+            var playerNode = player.getVideoNode();
+            var that = PlayerObserver.call(this, playerNode) || this;
+            that._autoplayFlag = false;
+            that._onLoadedDataHandler = that._onLoadedData.bind(that);
+            that._onVideoPlayingHandler = that.onAudioPlaying.bind(that);
+            playerNode.addEventListener('loadeddata', that._onLoadedDataHandler, false);
+            playerNode.addEventListener('playing', that._onVideoPlayingHandler, false);
+        }
+
+        __extend(SimpleVideoPlayerObserver, HTML5PlayerObserver);
+
+        SimpleVideoPlayerObserver.prototype.getAutoplayPriority = function() {
+            return 80;
+        };
+
+        return SimpleVideoPlayerObserver;
+
+    }();
+
     var PlayerManager = function() {
         function PlayerManager() {
             this._listeners = [];
@@ -1251,7 +1272,9 @@
     }
 
     var document_srl = null;
-    var onMP3DescriptionLoad = new EventDispatcher;
+
+    var onAudioDescriptionLoad = new EventDispatcher;
+    var onVideoDescriptionLoad = new EventDispatcher;
 
     function ampToAmp(str) {
         if(str) {
@@ -1266,8 +1289,42 @@
     }
 
     function descriptionDecorator(descriptions) {
+
+        function base64DecodeUnicode(str) {
+            var decodedData;
+            try {
+                decodedData = str ? atob(str) : str;
+            } catch(e){
+                console.error(e);
+                return null;
+            }
+
+            return decodedData ? window.decodeURIComponent(Array.prototype.map.call(decodedData, function(char){
+                return '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2);
+            }).join('')) : null;
+        }
+
+        var decodeFrameData = function(frame) {
+            if(frame) {
+                try {
+                    if(frame.ownerID) {
+                        frame.ownerID = window.atob(frame.ownerID);
+                    }
+                    if(frame.data) {
+                        frame.data = window.atob(frame.data);
+                    }
+                    if(frame.description) {
+                        frame.description = window.atob(frame.description);
+                    }
+                } catch(e){
+
+                }
+            }
+        };
+
         var defaultCover = null;
         var removeExtensionInTitle = false;
+
         if($SimpleMP3Player.config) {
             var config = $SimpleMP3Player.config;
             defaultCover = config.default_cover;
@@ -1275,6 +1332,8 @@
         }
         if(descriptions) {
             var useThumbnail = config.use_thumbnail;
+            var utf8Tag = ['title', 'artist', 'album' ,'albumartist', 'contentgroup', 'genre', 'publisher', 'conductor', 'composer', 'copyright', 'comment', 'www', 'unsyncedlyrics'];
+            var exceptedTagKeys = ['priv', 'comm', 'uniquefileid', 'albumArt'];
             descriptions.forEach(function(each){
                 var description = each.description;
                 if(description) {
@@ -1299,9 +1358,51 @@
                     if(description.download_url) {
                         description.download_url = window.default_url + "index.php" + ampToAmp(description.download_url);
                     }
+                    if(tags.priv && tags.priv.length > 0) {
+                        tags.priv.forEach(decodeFrameData);
+                    }
+                    if(tags.uniquefileid) {
+                        decodeFrameData(tags.uniquefileid);
+                    }
+                    if(tags.comm) {
+                        tags.comm.forEach(decodeFrameData);
+                    }
                     if(removeExtensionInTitle) {
                         description.filename = removeExtension(description.filename);
                     }
+                    var stream = description.stream;
+                    if(stream) {
+                        var audio = stream.audio;
+                        var video = stream.video;
+                        if(audio && audio.length) {
+                            audio.forEach(function(each){
+                                if(each) {
+                                    Object.keys(each).forEach(function(key){
+                                        var valueType = typeof each[key];
+                                        if(!(valueType === 'boolean' || valueType === 'number') && each[key] !== null) {
+                                            each[key] = window.atob(each[key]);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        if(video) {
+                            Object.keys(video).forEach(function(key){
+                                var valueType = typeof video[key];
+                                if(!(valueType === 'boolean' || valueType === 'number') && video[key] !== null) {
+                                    video[key] = window.atob(video[key]);
+                                }
+                            });
+                        }
+                    }
+                    Object.keys(tags).forEach(function(eachKey){
+                        if(exceptedTagKeys.indexOf(eachKey) === -1) {
+                            var keyType = typeof tags[eachKey];
+                            if(!(keyType === 'boolean' || keyType === 'number') && tags[eachKey] !== null) {
+                                tags[eachKey] = utf8Tag.indexOf(eachKey) > -1 ? base64DecodeUnicode(tags[eachKey]) : window.atob(tags[eachKey]);
+                            }
+                        }
+                    });
                 }
             });
         }
@@ -1324,7 +1425,22 @@
                     var filterEmptyDescription = data.descriptions ? data.descriptions.filter(function(each) {
                         return !!(each && each.description);
                     }) : null;
-                    onMP3DescriptionLoad.dispatch(filterEmptyDescription);
+                    var audioDescriptions = [];
+                    var videoDescriptions = [];
+                    filterEmptyDescription.forEach(function(each){
+                        var description = each.description;
+                        if(description) {
+                            var stream = description.stream;
+                            if(stream && stream.duration) {
+                                var target = stream.isVideo ? videoDescriptions : audioDescriptions;
+                                target.push(each);
+                            }
+                        }
+                    });
+                    $SimpleMP3Player.audioDescriptions = audioDescriptions;
+                    $SimpleMP3Player.videoDescriptions = videoDescriptions;
+                    onAudioDescriptionLoad.dispatch(audioDescriptions);
+                    onVideoDescriptionLoad.dispatch(videoDescriptions);
                     if(config && config.allow_autoplay && $SimpleMP3Player.PlayerManager) {
                         $SimpleMP3Player.PlayerManager.performAutoplay();
                     }
@@ -1347,12 +1463,16 @@
         HTML5PlayerObserver: HTML5PlayerObserver,
         APlayerObserver: APlayerObserver,
         SimplePlayerObserver: SimplePlayerObserver,
-        BluePlayerObserver: BluePlayerObserver
+        BluePlayerObserver: BluePlayerObserver,
+        SimpleVideoPlayerObserver: SimpleVideoPlayerObserver
     };
     $SimpleMP3Player.descriptionLoadError = [];
     $SimpleMP3Player.descriptions = [];
+    $SimpleMP3Player.audioDescriptions = null;
+    $SimpleMP3Player.videoDescriptions = null;
     $SimpleMP3Player.isDescriptionLoaded = false;
-    $SimpleMP3Player.onMP3DescriptionLoad = onMP3DescriptionLoad;
+    $SimpleMP3Player.onAudioDescriptionLoad = onAudioDescriptionLoad;
+    $SimpleMP3Player.onVideoDescriptionLoad = onVideoDescriptionLoad;
     $SimpleMP3Player.getMP3Description = getMP3Description;
     $SimpleMP3Player.MemoryCacheManager = new MemoryCacheManager;
     $SimpleMP3Player.descriptionDecorator = descriptionDecorator;

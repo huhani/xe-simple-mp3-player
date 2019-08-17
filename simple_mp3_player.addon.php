@@ -429,6 +429,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     return 'audio/ogg';
                 } else if($extension === 'flac') {
                     return 'audio/flac';
+                } else if($extension === 'webm') {
+                    return 'video/webm';
+                } else if($extension === 'mp4') {
+                    return 'video/mp4';
                 }
             }
 
@@ -676,7 +680,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $sourceFileParts = pathinfo($source_filename);
             $extension = $fileParts && isset($fileParts['extension']) ? $fileParts['extension'] :
                 ($source_filename && $sourceFileParts && isset($sourceFileParts['extension']) ? $sourceFileParts['extension'] : null);
-            if(!in_array($extension, array('mp3', 'm4a', 'flac', 'ogg'))) {
+            if(!in_array($extension, array('mp3', 'm4a', 'flac', 'ogg', 'mp4', 'webm'))) {
                 return null;
             }
 
@@ -689,8 +693,8 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $obj->offsetInfo = null;
             $obj->tags = $tags;
             $obj->stream = $stream;
-            $obj->isValidFile = !!($stream && $stream->format);
-            if(($stream && $stream->format === 'mp3') || (!$stream && $extension === 'mp3')) {
+            $obj->isValidFile = !!($stream && $stream->fileformat);
+            if(($stream && $stream->fileformat === 'mp3') || (!$stream && $extension === 'mp3')) {
                 $offsets = self::getSplitPosition($filepath, $segmentDuration);
                 $obj->isValidFile = !!(isset($offsets->duration) && $offsets->duration > 2);
                 $obj->offsetInfo = $offsets;
@@ -794,6 +798,65 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return null;
         }
 
+        static function getStreamInfo($analyzedID3) {
+            $stream = new stdClass;
+            $stream->isAudio = false;
+            $stream->isVideo = false;
+            $stream->filesize = null;
+            $stream->fileformat = null;
+            $stream->duration = null;
+            $stream->bitrate = null;
+            $stream->video = null;
+            $stream->audio = null;
+            $stream->mime = null;
+            if($analyzedID3 && gettype($analyzedID3) === 'array') {
+                $streamKeys = array('filesize' => 'filesize',
+                    'fileformat' => 'fileformat',
+                    'avdataoffset' => 'startoffset',
+                    'avdataend' => 'endoffset',
+                    'playtime_seconds' => 'duration',
+                    'bitrate' => 'bitrate',
+                    'mime_type' => 'mime',
+                    'encoding' => 'encoding',
+                );
+                foreach($streamKeys as $key=>$value) {
+                    if(isset($analyzedID3[$key]) && $analyzedID3[$key] && $value) {
+                        $stream->{$value} = $analyzedID3[$key];
+                    }
+                }
+                $audio = isset($analyzedID3['audio']) && is_array($analyzedID3['audio']) && $analyzedID3['audio'] ? $analyzedID3['audio'] : null;
+                $video = isset($analyzedID3['video']) && is_array($analyzedID3['video']) && $analyzedID3['video'] ? $analyzedID3['video'] : null;
+                if($audio && count($audio) > 0) {
+                    $stream->isAudio = true;
+                    $audioStreams = isset($audio['streams']) && is_array($audio['streams']) && count($audio['streams']) > 0 ? $audio['streams'] : null;
+                    if($audioStreams) {
+                        $stream->audio = array();
+                        foreach($audioStreams as $eachAudioStream) {
+                            $obj = new stdClass;
+                            foreach($eachAudioStream as $key=>$value) {
+                                if(gettype($value) === 'number' || $value === null) {
+                                    $obj->{$key} = $value;
+                                } else {
+                                    $obj->{$key} = !is_bool($value) ? base64_encode($value) : $value;
+                                }
+                            }
+                            $stream->audio[] = $obj;
+                        }
+                    }
+                }
+                if($video) {
+                    $videoObj = new stdClass;
+                    $stream->isVideo = true;
+                    $stream->video = $videoObj;
+                    foreach($video as $key=>$value) {
+                        $videoObj->{$key} = base64_encode($value);
+                    }
+                }
+            }
+
+            return $stream;
+        }
+
         static function getMP3Sepc($mp3Pathname) {
             try {
                 $getID3 = new getID3;
@@ -806,16 +869,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $tags->title = null;
                 $tags->album = null;
                 $tags->albumArt = null;
-                $stream = new stdClass();
-                $stream->duration = isset($ThisFileInfo['playtime_seconds']) ? $ThisFileInfo['playtime_seconds'] : null;
-                $stream->format = null;
-                $stream->bitrate = null;
-                $stream->bitrateMode = null;
-                $stream->channels = null;
-                $stream->channelMode = null;
-                $stream->sampleRate = null;
-                $stream->startOffset = isset($ThisFileInfo['avdataoffset']) ? $ThisFileInfo['avdataoffset'] : null;
-                $stream->endOffset = isset($ThisFileInfo['avdataend']) ? $ThisFileInfo['avdataend'] : null;
+                $stream = self::getStreamInfo($ThisFileInfo);
                 $simpleData = new stdClass();
                 $simpleData->format = $ThisFileInfo['fileformat'];
                 $simpleData->tags = $tags;
@@ -830,40 +884,78 @@ if(!class_exists('SimpleMP3Describer', false)) {
                         $tagTraget = $quicktime ? $quicktime : null;
                     }
                     if($tagTraget) {
-                        if(isset($tagTraget['title']) && count($tagTraget['title']) && $tagTraget['title'][0]) {
-                            $tags->title = removeHackTag($tagTraget['title'][0]);
+                        $targetTags = array('title' => 'title',
+                            'artist' => 'artist',
+                            'album' => 'album',
+                            'band' => 'albumartist',
+                            'album_artist' => 'albumartist',
+                            'content_group_description' => 'contentgroup',
+                            'genre' => 'genre',
+                            'part_of_a_set' => 'discnumber',
+                            'totaltracks' => 'totaltracks',
+                            'track_number' => 'tracknumber',
+                            'creation_date' => 'year',
+                            'year' => 'year',
+                            'length' => 'length',
+                            'publisher' => 'publisher',
+                            'composer' => 'composer',
+                            'conductor' => 'conductor',
+                            'copyright_message' => 'copyright',
+                            'copyright' => 'copyright',
+                            'comment' => 'comment',
+                            'unsynchronised_lyric' => 'unsyncedlyrics',
+                            'url_user' => 'www',
+                            'encoding_tool' => 'encoding_tool',
+                            'encoder_settings' => 'encodersettings',
+                            'encoded_by' => 'encoded_by'
+                        );
+
+                        foreach($targetTags as $key=>$value) {
+                            if(isset($tagTraget[$key]) && count($tagTraget[$key]) && $tagTraget[$key][0]) {
+                                $eachValue = removeHackTag($tagTraget[$key][0]);
+                                $tags->{$value} = gettype($eachValue) === 'number' || is_bool($eachValue) || $eachValue === null  ? $eachValue : base64_encode($eachValue);
+                            }
                         }
-                        if(isset($tagTraget['artist']) && count($tagTraget['artist']) && $tagTraget['artist'][0]) {
-                            $tags->artist = removeHackTag($tagTraget['artist'][0]);
-                        }
-                        if(isset($tagTraget['album']) && count($tagTraget['album']) && $tagTraget['album'][0]) {
-                            $tags->album = removeHackTag($tagTraget['album'][0]);
+                        $id3v2 = isset($ThisFileInfo['id3v2']) && $ThisFileInfo['id3v2'] ? $ThisFileInfo['id3v2'] : null;
+                        if($id3v2) {
+                            if(isset($id3v2['UFID']) && $id3v2['UFID']) {
+                                $ufid = is_array($id3v2['UFID']) ? $id3v2['UFID'] : array($id3v2['UFID']);
+                                if(count($ufid) > 0 && $ufid[0] && isset($ufid[0]['data']) && isset($ufid[0]['ownerid'])) {
+                                    $ufidObj = new stdClass;
+                                    $ufidObj->data = base64_encode($ufid[0]['data']);
+                                    $ufidObj->ownerID = base64_encode($ufid[0]['ownerid']);
+                                    $tags->uniquefileid = $ufidObj;
+                                }
+                            }
+                            if(isset($id3v2['PRIV']) && $id3v2['PRIV']) {
+                                $priv = is_array($id3v2['PRIV']) ? $id3v2['PRIV'] : array($id3v2['PRIV']);
+                                $tags->priv = array();
+                                foreach($priv as $eachPriv) {
+                                    if($eachPriv && isset($eachPriv['data']) && isset($eachPriv['ownerid'])) {
+                                        $privObj = new stdClass;
+                                        $privObj->data = base64_encode($eachPriv['data']);
+                                        $privObj->ownerID = base64_encode($eachPriv['ownerid']);
+                                        $tags->priv[] = $privObj;
+                                    }
+                                }
+                            }
+                            if(isset($id3v2['COMM']) && $id3v2['COMM']) {
+                                $comm = is_array($id3v2['COMM']) ? $id3v2['COMM'] : array($id3v2['COMM']);
+                                $tags->comm = array();
+                                foreach($comm as $eachComm) {
+                                    if($eachComm && isset($eachComm['description']) && isset($eachComm['data'])) {
+                                        $commObj = new stdClass;
+                                        $commObj->data = $eachComm['data'] ? base64_encode($eachComm['data']) : null;
+                                        $commObj->description = $eachComm['description'] ? base64_encode($eachComm['description']) : null;
+                                        $tags->comm[] = $commObj;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 if(isset($ThisFileInfo['comments']) && isset($ThisFileInfo['comments']['picture']) && count($ThisFileInfo['comments']['picture'])) {
                     $tags->albumArt = $ThisFileInfo['comments']['picture'][0];
-                }
-                if(isset($ThisFileInfo['audio'])) {
-                    $audioData = $ThisFileInfo['audio'];
-                    if(isset($audioData['dataformat']) && $audioData['dataformat']) {
-                        $stream->format = $audioData['dataformat'];
-                    }
-                    if(isset($audioData['bitrate_mode']) && $audioData['bitrate_mode']) {
-                        $stream->bitrateMode = $audioData['bitrate_mode'];
-                    }
-                    if(isset($audioData['sample_rate']) && $audioData['sample_rate']) {
-                        $stream->sampleRate = $audioData['sample_rate'];
-                    }
-                    if(isset($audioData['bitrate']) && $audioData['bitrate']) {
-                        $stream->bitrate = $audioData['bitrate'];
-                    }
-                    if(isset($audioData['channels']) && $audioData['channels']) {
-                        $stream->channels = $audioData['channels'];
-                    }
-                    if(isset($audioData['channelmode']) && $audioData['channelmode']) {
-                        $stream->channelMode = $audioData['channelmode'];
-                    }
                 }
 
                 return $simpleData;
@@ -983,10 +1075,22 @@ $config->BluePlayer_enable_fade = (isset($addon_info->BluePlayer_enable_fade) &&
 $config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration) && $addon_info->BluePlayer_fade_duration ? (int)$addon_info->BluePlayer_fade_duration : 200;
 
 $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
-$config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 12;
+$config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 50;
 $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
 $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
 $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
+
+$config->enable_video = (isset($addon_info->enable_video) && $addon_info->enable_video === "Y");
+$config->enable_webm = (isset($addon_info->enable_webm) && $addon_info->enable_webm === "Y");
+$config->video_autoplay = !(isset($addon_info->video_autoplay) && $addon_info->video_autoplay === "N");
+$config->video_autoplay_without_audio = !(isset($addon_info->video_autoplay_without_audio) && $addon_info->video_autoplay_without_audio === "N");
+$config->video_loop = (isset($addon_info->video_loop) && $addon_info->video_loop === "Y");
+$config->video_loop_without_audio = !(isset($addon_info->video_loop_without_audio) && $addon_info->video_loop_without_audio === "N");
+$config->video_gif_without_audio = !(isset($addon_info->video_gif_without_audio) && $addon_info->video_gif_without_audio === "N");
+$config->video_preload = isset($addon_info->video_preload) && $addon_info->video_preload ? $addon_info->video_preload : 'metadata';
+$config->video_resize = !(isset($addon_info->video_resize) && $addon_info->video_resize === "N");
+$config->video_auto_attach = (isset($addon_info->video_auto_attach) && $addon_info->video_auto_attach === "Y");
+
 
 $config->document_thumbnail = (isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "Y");
 $config->is_supported_to_set_thumbnail = SimpleMP3Tools::isSupportedToSetThumbnail();
@@ -1172,6 +1276,9 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
     }
     if(isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y") {
         Context::loadFile(array('./addons/simple_mp3_player/js/mp3link_to_player.js', 'body', '', null), true);
+    }
+    if(isset($addon_info->enable_video) && $addon_info->enable_video === "Y") {
+        Context::loadFile(array('./addons/simple_mp3_player/js/video_loader.js', 'body', '', null), true);
     }
 }
 
