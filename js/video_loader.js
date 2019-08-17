@@ -145,7 +145,7 @@
         SimpleVideoPlayer.prototype._onVideoPlaying = function() {
             if(!this._gifMode && this._enableMediaSession) {
                 this._registerMediaSessionHandlers();
-                this._updateMediaSessionMetadata();
+                //this._updateMediaSessionMetadata();
             }
         };
 
@@ -288,6 +288,10 @@
             var width = video && video.resolution_x ? video.resolution_x : null;
             var height = video && video.resolution_y ? video.resolution_y : null;
             var hasAudio =  stream ? stream.isAudio : false;
+            var fileformat = stream ? stream.fileformat : null;
+            if(!enableWebM && fileformat === 'webm') {
+                return null;
+            }
             if(!albumArt && useThumbnail && description.thumbnail) {
                 albumArt = description.thumbnail;
             }
@@ -305,7 +309,7 @@
                     autoplay: hasAudio ? false : autoplay,
                     preload: preload,
                     gifMode: isGIFMode,
-                    enableMediaSession: enableMediaSession,
+                    enableMediaSession: hasAudio && enableMediaSession,
                     title: title,
                     artist: artist,
                     album: album,
