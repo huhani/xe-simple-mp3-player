@@ -608,6 +608,9 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
         static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null, $segmentDuration = null) {
             $description = self::getDescriptionFile($file_srl, $uploaded_filename);
+            if($description && (!isset($description->version) || $description->version !== self::getDescriptionVersion())) {
+                $description = null;
+            }
             if($description && isset($description->offsetInfo) && $description->offsetInfo && is_array($segmentDuration) && count($segmentDuration) > 0) {
                 $offsetInfo = $description->offsetInfo;
                 if(isset($offsetInfo->segmentDuration) && is_array($offsetInfo->segmentDuration) && count($offsetInfo->segmentDuration) === count($segmentDuration)) {
@@ -665,6 +668,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return null;
         }
 
+        static function getDescriptionVersion() {
+            return '0.0.1';
+        }
+
         static function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null, $segmentDuration = null) {
             if(!$filepath) {
                 $filepathData = self::getFilePathname($file_srl, $document_srl);
@@ -694,6 +701,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $obj->tags = $tags;
             $obj->stream = $stream;
             $obj->isValidFile = !!($stream && $stream->fileformat);
+            $obj->version = self::getDescriptionVersion();
             if(($stream && $stream->fileformat === 'mp3') || (!$stream && $extension === 'mp3')) {
                 $offsets = self::getSplitPosition($filepath, $segmentDuration);
                 $obj->isValidFile = !!(isset($offsets->duration) && $offsets->duration > 2);
