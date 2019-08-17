@@ -284,7 +284,7 @@
         </group>
 
         <group>
-            <title xml:lang="ko">동영상 설정</title>
+            <title xml:lang="ko">기타 설정 : 동영상 설정</title>
             <var name="enable_video" type="select">
                 <title xml:lang="ko">동영상 사용</title>
                 <description xml:lang="ko">첨부된 mp4 비디오 파일을 게시글 본문에 자동삽입합니다.</description>
@@ -317,7 +317,8 @@
             </var>
             <var name="video_autoplay_without_audio" type="select">
                 <title xml:lang="ko">무음 동영상 자동재생</title>
-                <description xml:lang="ko">오디오가 없는 동영상을 모두 자동재생합니다. 만약 '동영상 자동재생' 설정이 활성화 되어 있는 경우 이 설정이 비활성화 되어도 재생이 됩니다.</description>
+                <description xml:lang="ko">오디오가 없는 동영상을 모두 자동재생합니다. 만약 '동영상 자동재생' 설정이 활성화 되어 있는 경우 이 설정이 비활성화 되어도 재생이 됩니다.
+                    소리가 없는 동영상의 경우 설정에 적용되는 video 태그의 MediaSession기능이 자동으로 비활성화 됩니다.</description>
                 <options value="">
                     <title xml:lang="ko">사용</title>
                 </options>
@@ -349,7 +350,6 @@
             <var name="video_gif_without_audio" type="select">
                 <title xml:lang="ko">무음 동영상 GIF 모드</title>
                 <description xml:lang="ko">오디오가 없는 동영상을 gif 처럼 표시합니다. 설정시 해당되는 video 태그의 preload 값이 auto로 설정되고 자동재생 및 반복이 적용됩니다.
-                    설정에 적용되는 video 태그는 MediaSession기능이 비활성화 됩니다.
                     이 설정은 '무음 동영상 자동재생', '무음 동영상 반복재생', '동영상 Preload 기능 사용' 설정보다 우선순위가 높습니다.</description>
                 <options value="">
                     <title xml:lang="ko">사용</title>
