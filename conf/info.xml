@@ -287,7 +287,7 @@
             <title xml:lang="ko">기타 설정 : 동영상 설정</title>
             <var name="enable_video" type="select">
                 <title xml:lang="ko">동영상 사용</title>
-                <description xml:lang="ko">첨부된 mp4 비디오 파일을 게시글 본문에 자동삽입합니다.</description>
+                <description xml:lang="ko">첨부된 mp4 비디오 파일에 대한 추가 기능을 활성화합니다.</description>
                 <options value="">
                     <title xml:lang="ko">사용 안 함</title>
                 </options>
