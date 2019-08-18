@@ -358,6 +358,16 @@
                     <title xml:lang="ko">사용 안 함</title>
                 </options>
             </var>
+            <var name="video_gif_mode_if_click" type="select">
+                <title xml:lang="ko">GIF 모드 동영상 클릭시 컨트롤 버튼 보여주기</title>
+                <description xml:lang="ko">'무음 동영상 GIF 모드' 기능을 사용하고 오디오가 없는 동영상을 gif 처럼 표시할 때, 해당 동영상 클릭시 control 버튼을 보여줍니다.</description>
+                <options value="">
+                    <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
+                </options>
+            </var>
             <var name="video_preload" type="select">
                 <title xml:lang="ko">동영상 Preload 기능 사용</title>
                 <description xml:lang="ko">동영상 재생 이전 불러올 데이터를 선택합니다.</description>

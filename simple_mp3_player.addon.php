@@ -1095,6 +1095,7 @@ $config->video_autoplay_without_audio = !(isset($addon_info->video_autoplay_with
 $config->video_loop = (isset($addon_info->video_loop) && $addon_info->video_loop === "Y");
 $config->video_loop_without_audio = !(isset($addon_info->video_loop_without_audio) && $addon_info->video_loop_without_audio === "N");
 $config->video_gif_without_audio = !(isset($addon_info->video_gif_without_audio) && $addon_info->video_gif_without_audio === "N");
+$config->video_gif_mode_if_click = !(isset($addon_info->video_gif_mode_if_click) && $addon_info->video_gif_mode_if_click === "N");
 $config->video_preload = isset($addon_info->video_preload) && $addon_info->video_preload ? $addon_info->video_preload : 'metadata';
 $config->video_resize = !(isset($addon_info->video_resize) && $addon_info->video_resize === "N");
 $config->video_auto_attach = (isset($addon_info->video_auto_attach) && $addon_info->video_auto_attach === "Y");

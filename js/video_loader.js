@@ -101,6 +101,7 @@
             this._gifMode = config.gifMode;
             this._onVideoPlayingHandler = this._onVideoPlaying.bind(this);
             this._onVideoEndedHandler = this._onVideoEnded.bind(this);
+            this._onVideoClickHandler = this._onVideoClick.bind(this);
             this._autoplay = config.autoplay;
             this._preload = config.preload;
             this._enableMediaSession = config.enableMediaSession;
@@ -112,6 +113,7 @@
             this._width = config.width;
             this._height = config.height;
             this._hasAudio = config.hasAudio;
+            this._ifClickToShowControls = config.ifClickToShowControls;
 
             this._init();
         }
@@ -119,6 +121,7 @@
         SimpleVideoPlayer.prototype._init = function() {
             this._video.addEventListener('playing', this._onVideoPlayingHandler, false);
             this._video.addEventListener('ended', this._onVideoEndedHandler, false);
+            this._video.addEventListener('click', this._onVideoClickHandler, false);
             this._video.preload = this._gifMode ? 'auto' : this._preload;
             this._video.controls = true;
             this._video.setAttribute('controlslist',["nodownload"]);
@@ -153,6 +156,12 @@
             if(this._loop && !isNaN(this._video.duration) && this._video.duration) {
                 this.seek(0);
                 this.play();
+            }
+        };
+
+        SimpleVideoPlayer.prototype._onVideoClick = function() {
+            if(this._ifClickToShowControls && this._video && !this._video.hasAttribute('controls')) {
+                this._video.setAttribute('controls' ,'');
             }
         };
 
@@ -234,6 +243,7 @@
             if(!this._destruct) {
                 this._video.removeEventListener('playing', this._onVideoPlayingHandler, false);
                 this._video.removeEventListener('ended', this._onVideoEndedHandler, false);
+                this._video.removeEventListener('click', this._onVideoClickHandler, false);
                 this._destruct = true;
             }
         };
@@ -260,6 +270,7 @@
         var videoLoop = config.video_loop;
         var videoLoopWithoutAudio = config.video_loop_without_audio;
         var enableVideoGIFMode = config.video_gif_without_audio;
+        var videoGifModeIfClick = config.video_gif_mode_if_click;
         var videoPreload = config.video_preload;
         var videoResize = config.video_resize;
         var videoAutoAttach = config.video_auto_attach;
@@ -317,6 +328,7 @@
                     width: width,
                     height: height,
                     hasAudio: hasAudio,
+                    ifClickToShowControls: videoGifModeIfClick,
                     src: src
                 });
 
