@@ -2,7 +2,7 @@
 <addon version="0.2">
     <title xml:lang="ko">심플 mp3 플레이어</title>
     <description xml:lang="ko">
-        게시글에 mp3, mp4, ogg, flac파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
+        게시글에 mp3, mp4, ogg, flac, mp4, webm파일이 첨부되어 있을 경우 본문에 플레이어를 삽입합니다.
     </description>
     <version>1.1.1</version>
     <date>2019-07-01</date>
