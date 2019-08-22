@@ -220,6 +220,15 @@
 
     }();
 
+    var always = function(promise) {
+        return new Promise(function(resolve) {
+            promise.then(function(data){
+                resolve(data);
+            })['catch'](function(e){
+                resolve(e);
+            });
+        });
+    };
 
     var MSE = function() {
 
@@ -280,6 +289,140 @@
             })
         }
 
+        var RequestToFetch = function() {
+
+            var REQUESTER_ID = 0;
+
+            function buildResponse(code, data, retryCount, aborted) {
+                return {
+                    code: code || -1,
+                    data: data || null,
+                    retryCount: retryCount || 0,
+                    aborted: aborted
+                }
+            }
+
+            function RequestToFetch(url, start, end) {
+                if(!this.constructor.isSupported()) {
+                    throw new Error('Fetch API does not supported in browser');
+                }
+
+                var that = this;
+                this._id = REQUESTER_ID++;
+                this._url = url;
+                this._rangeStart = start;
+                this._rangeEnd = end;
+                this._AbortController = null;
+                this._resolveHandler  = null;
+                this._rejectHandler = null;
+                this._settled = false;
+                this._aborted = false;
+                this._response = null;
+                this._promise = new window.Promise(function(resolve, reject){
+                    that._resolveHandler = resolve;
+                    that._rejectHandler = reject;
+                });
+                this._retryTimerID = null;
+                this._retryCount = 0;
+                this._fetch = null;
+                this._run();
+            }
+
+            RequestToFetch.isSupported = function() {
+                return 'AbortController' in window && 'fetch' in window && 'Headers' in window;
+            };
+
+            RequestToFetch.prototype._run = function() {
+                if(!this.isSettled()) {
+                    var that = this;
+                    this._clearRetryTimerID();
+                    this._AbortController = new window.AbortController;
+                    var headers = void 0;
+                    if(this._rangeStart !== void 0 && this._rangeEnd !== void 0) {
+                        headers = new window.Headers;
+                        headers.append('Range', 'bytes='+this._rangeStart+'-'+this._rangeEnd);
+                    }
+                    this._fetch = window.fetch(this._url, {
+                        method: 'GET',
+                        signal: this._AbortController.signal,
+                        credentials: 'omit',
+                        headers: headers
+                    }).then(function(response){
+                        if(that.isAborted()) {
+                            return;
+                        }
+                        if(response.ok) {
+                            response.arrayBuffer().then(function(data){
+                                that._resolve(buildResponse(response.status, data, that._retryCount, that.isAborted()));
+                            })['catch'](function(e){
+
+                            });
+                        } else {
+                            if(response.status && response.status >=400 && response.status <= 500) {
+                                that._reject(buildResponse(response.status, null, that._retryCount, that.isAborted()));
+                            } else {
+                                that._retryTimerID = window.setTimeout(that._run.bind(that), 1000);
+                            }
+                        }
+                        that._response = response;
+                    })['catch'](function(err){
+                        if(!that._aborted) {
+                            if(that._retryTimerID === null) {
+                                that._retryTimerID = window.setTimeout(that._run.bind(that), 1000);
+                            }
+                        }
+                    });
+                }
+            };
+
+            RequestToFetch.prototype._resolve = function(data) {
+                if(!this._settled) {
+                    this._resolveHandler(data);
+                    this._settled = true;
+                }
+            };
+
+            RequestToFetch.prototype._reject = function(err) {
+                if(!this._settled) {
+                    this._rejectHandler(err);
+                    this._settled = true;
+                }
+            };
+
+            RequestToFetch.prototype._clearRetryTimerID = function() {
+                if(this._retryTimerID !== null) {
+                    window.clearTimeout(this._retryTimerID);
+                    this._retryTimerID = null;
+                }
+            };
+
+            RequestToFetch.prototype.abort = function() {
+                if(!this._settled) {
+                    this._aborted = true;
+                    this._clearRetryTimerID();
+                    if(this._AbortController) {
+                        this._AbortController.abort();
+                    }
+                    this._reject(buildResponse(void 0, void 0, void 0, true));
+                }
+            };
+
+            RequestToFetch.prototype.isSettled = function() {
+                return this._settled || this._aborted;
+            };
+
+            RequestToFetch.prototype.isAborted = function() {
+                return this._aborted;
+            };
+
+            RequestToFetch.prototype.getPromise = function() {
+                return this._promise;
+            };
+
+            return RequestToFetch;
+
+        }();
+
         function getAudioBuffer(url, start, end) {
             url = convertURL2URI(url);
 
@@ -289,6 +432,15 @@
                     code: code || -1,
                     data: data || null,
                     retryCount: retryCount
+                };
+            }
+
+            if(RequestToFetch.isSupported()) {
+                var requestFetch = new RequestToFetch(url, start, end);
+                return {
+                    promise: always(requestFetch.getPromise.call(requestFetch)),
+                    abort: requestFetch.abort.bind(requestFetch),
+                    isSettled: requestFetch.isSettled.bind(requestFetch)
                 };
             }
 
@@ -577,10 +729,10 @@
         };
 
         MSE.prototype._onBufferRetreived = function(result, offsetData) {
-            this._request = null;
             if(result.aborted) {
                 return;
             }
+            this._request = null;
             if(result.code >= 400 && result.code < 500) {
                 return this.destruct();
             }
@@ -705,7 +857,6 @@
             if(this._sourceBuffer && !this._seeking && !this.isEOSSignalled()) {
                 var that = this;
                 var formerDuration = this.getFormerBufferDuration(this._audio.currentTime);
-                //console.log('formefDuration', formerDuration);
                 if(formerDuration.duration > 6) {
                     this.removeBuffer(formerDuration.start, formerDuration.start+formerDuration.duration-1);
                 }
@@ -719,6 +870,7 @@
                         } else {
                             this._request = idxData.url ? getAudioBuffer(idxData.url) :  getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
                         }
+
                         var requestPromise = this._request.promise;
                         requestPromise.then(function(result) {
                             if(result && (result.code === 200 || result.code === 206)) {
