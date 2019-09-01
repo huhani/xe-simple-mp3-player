@@ -265,6 +265,7 @@
                 this._$UI = null;
                 this._$PlayerControls = null;
                 this._$PlaybackTimelineSlider = null;
+                this._$PlaybackTimelineBuffered = null;
                 this._$VolumeSlider = null;
                 this._$TrackLisContainer = null;
                 this._$TrackListWrapper = null;
@@ -561,6 +562,9 @@
                         start: sliderStartHandler,
                         stop: sliderStopHandler
                     });
+
+                    this._$PlaybackTimelineBuffered = $('<div class="PlaybackTimelineSlider__leftBuffer"></div>');
+                    this._$PlaybackTimelineSlider.prepend(this._$PlaybackTimelineBuffered);
                     this._$PlaybackTimelineSlider.prepend('<div class="PlaybackTimelineSlider__extend"></div>');
 
                     this._$VolumeSlider.slider({
@@ -1269,6 +1273,12 @@
                 this._$LyricExtendContent.html(html);
             };
 
+            UI.prototype.updateBufferedSlider = function(position, duration) {
+                if(this._$PlaybackTimelineBuffered) {
+                    this._$PlaybackTimelineBuffered.css('width', position && position >= duration ? '100%' : (!position || !duration ? 0 : (position/duration * 100)+'%'));
+                }
+            };
+
             UI.prototype.focusExtendedLyricLine = function(offsets) {
                 if(!this.isLyricExpanded()) {
                     return false;
@@ -1495,7 +1505,7 @@
             UI.prototype.destruct = function() {
                 if(!this.isDestructed()) {
                     if(this._TrackListSimpleBar) {
-                        this._TrackListSimpleBar.removeObserver();
+                        this._TrackListSimpleBar.unMount();
                         this._TrackListSimpleBar = null;
                     }
                     if(this._ListClusterize) {
@@ -1550,6 +1560,27 @@
 
             var WEB_AUDIO_ACTIVE_TIMEOUT_MSECS = 5000;
             var FADE_TIME = 200;
+            var TO_PROGRESS_OBSERVER_TIMER_MSEC = 100;
+
+            function TimeRange(start, end) {
+                this.start = start;
+                this.end = end;
+                this.duration = end - start;
+            }
+
+            TimeRange.build = function(audio, timescale) {
+                if(timescale === void 0) {
+                    timescale = 1000;
+                }
+                var timeRanges = [];
+                if(audio) {
+                    for(var i=0; i<audio.buffered.length; i++) {
+                        timeRanges.push(new TimeRange(audio.buffered.start(i) * timescale, audio.buffered.end(i) * timescale));
+                    }
+                }
+
+                return timeRanges;
+            };
 
             function checkWebAudioSupportBrowser() {
                 return "AudioContext" in window;
@@ -1628,8 +1659,15 @@
                 this.onVolumeChange = new EventDispatcher;
                 this.onDurationChange = new EventDispatcher;
                 this.onActuallyPlaying = new EventDispatcher;
+                this.onCurrentBufferedChange = new EventDispatcher;
+                this.onStalled = new EventDispatcher;
                 this.onSeeking = new EventDispatcher;
                 this.onSeeked = new EventDispatcher;
+
+                this._onProgressTimerID = null;
+                this._lastPlayingPosition = null;
+                this._stalled = true;
+                this._currentTimeRange = null;
 
                 this._actuallyPlayingDeferred = null;
                 this._actuallyPlayingTimerID = null;
@@ -1646,8 +1684,6 @@
                 this._signalledPlay = false;
                 this._playDeferred = null;
 
-
-
                 this._subscribers = [];
                 this._listeners = [];
 
@@ -1659,7 +1695,6 @@
                     direction: null,
                     value: null
                 };
-
                 this._currentTrackItem = null;
                 this._onAudioTimeupdate = this._handleAudioTimeUpdateEvent.bind(this);
                 this._onAudioPlaying = this._handleAudioPlayingEvent.bind(this);
@@ -1673,8 +1708,60 @@
                 this._onAudioLoadedMetadata = this._handleAudioLoadedMetadataEvent.bind(this);
                 this._onAudioLoadedData = this._handleAudioLoadedDataEvent.bind(this);
 
+                this._onCurrentBufferedChangeHandler = this._handleCurrentBufferedChange.bind(this);
+                this._onCurrentBufferedChangeSubscriber = this.onCurrentBufferedChange.subscribe(this._onCurrentBufferedChangeHandler);
+
                 this._init();
             }
+
+            Playback.prototype._onProgress = function() {
+                if(this.isReady()) {
+                    var stallOccured = false;
+                    var position = this.getPosition();
+                    var currentTimeRange = this.getCurrentlyBufferedTimeRange();
+                    if(this._lastPlayingPosition !== null && position) {
+                        if(!this._stalled && this._lastPlayingPosition === position) {
+                            stallOccured = true;
+                        } else if(this._stalled && this._lastPlayingPosition !== position) {
+                            this._stalled = false;
+                        }
+                    }
+                    this._lastPlayingPosition = position;
+
+                    if(stallOccured) {
+                        this._stalled = true;
+                        this._actuallyPlaying = false;
+                        this._actuallyPlayingLastTimeStamp = null;
+                        this.onStalled.dispatch(void 0);
+                    }
+                    if((!currentTimeRange && this._currentTimeRange) ||
+                        (currentTimeRange && (!this._currentTimeRange || this._currentTimeRange.start !== currentTimeRange.start || this._currentTimeRange.end !== currentTimeRange.end))
+                    ) {
+                        this._currentTimeRange = currentTimeRange;
+                        this.onCurrentBufferedChange.dispatch(currentTimeRange);
+                    }
+                    if(currentTimeRange && currentTimeRange.end >= this.getDuration()) {
+                        this._clearProgressTimer();
+                    }
+                }
+
+            };
+
+            Playback.prototype._registerProgressTimer = function() {
+                this._clearProgressTimer();
+                this._onProgressTimerID = window.setInterval(this._onProgress.bind(this), TO_PROGRESS_OBSERVER_TIMER_MSEC);
+                this._onProgress();
+            };
+
+            Playback.prototype._clearProgressTimer = function() {
+                if(this._onProgressTimerID !== null) {
+                    window.clearInterval(this._onProgressTimerID);
+                    this._onProgressTimerID = null;
+                }
+                this._currentTimeRange = null;
+                this._lastPlayingPosition = null;
+                this._stalled = false;
+            };
 
             Playback.prototype._init = function() {
                 this._audio.preload = "metadata";
@@ -1845,6 +1932,15 @@
                 return false;
             };
 
+            Playback.prototype._handleCurrentBufferedChange = function(timeRange) {
+                if(!this.isDestructed()) {
+                    var duration = this.getDuration();
+                    var player = this._Player;
+                    var ui = player._UI;
+                    ui.updateBufferedSlider(timeRange ? timeRange.end : 0, duration);
+                }
+            };
+
             Playback.prototype._handleAudioTimeUpdateEvent = function() {
                 if(this.isReady()) {
                     var position = this._getElementPosition();
@@ -1888,6 +1984,7 @@
 
             Playback.prototype._handleAudioSeekedEvent = function() {
                 this.onSeeked.dispatch(this.getPosition());
+                this._registerProgressTimer();
             };
 
             Playback.prototype._handleAudioEndedEvent = function() {
@@ -1932,6 +2029,7 @@
                 if(this._seekPosition && this.isReady()) {
                     this._handleElementSeek(this._seekPosition);
                 }
+                this._registerProgressTimer();
                 this._handleElementPlay();
             };
 
@@ -1952,6 +2050,7 @@
                 ) {
                     this._clearActuallyPlayingTimer();
                     this._actuallyPlaying = true;
+                    this.onActuallyPlaying.dispatch(void 0);
                     if(!this._actuallyPlayingDeferred.isResolved()) {
                         this._actuallyPlayingDeferred.resolve();
                     }
@@ -2235,9 +2334,26 @@
                 this._load(trackItem);
             };
 
+            Playback.prototype.getBufferedTimeRanges = function() {
+                return TimeRange.build(this._audio);
+            };
+
+            Playback.prototype.getCurrentlyBufferedTimeRange = function() {
+                var position = this.getPosition();
+                return this.getBufferedTimeRanges().find(function(timeRange){
+                    return position >= timeRange.start &&  position < timeRange.end;
+                }) || null;
+            };
+
             Playback.prototype.destruct = function() {
                 if(!this.isDestructed()) {
+                    this._clearProgressTimer();
                     this._removeListeners();
+                    if(this._audio && this._audio.hasAttribute('src')) {
+                        this._audio.removeAttribute('src');
+                        this._audio.load();
+                    }
+
                     this._destructed = true;
                 }
             };
@@ -3533,7 +3649,6 @@
 
 
         function Player(config) {
-
             if(config === void 0) {
                 config = {};
             }
@@ -3557,6 +3672,8 @@
             }
 
             var that = this;
+
+            this.onDestructed = new EventDispatcher;
 
             this._id = PLAYER_ID++;
             this._container = config.container;
@@ -3791,6 +3908,7 @@
                     this._Lyric.destruct();
                 }
 
+                this.onDestructed.dispatch();
                 this._destructed = true;
             }
 

@@ -549,6 +549,7 @@
             this._onAudioTimeUpdateHandler = this._onAudioTimeUpdate.bind(this);
             this._onMediaSourceInitHandler = this._onMediaSourceInit.bind(this);
             this._onMediaSourceEndedHandler = this._onMediaSourceEnded.bind(this);
+            this._onMediaSourceCloseHandler = this._onMediaSourceClose.bind(this);
             this._onMediaSourceErrorHandler = this._onMediaSourceError.bind(this);
             this._onSourceBufferUpdateEndHandler = this._onSourceBufferUpdateEnd.bind(this);
             this._onSourceBufferErrorHandler = this._onSourceBufferError.bind(this);
@@ -556,6 +557,7 @@
             this._CacheManager = null;
             this._bufferSize = bufferSize && typeof bufferSize === 'number' ? bufferSize : MAX_BUFFER_SIZE;
             this._MediaSource.addEventListener("sourceopen", this._onMediaSourceInitHandler, false);
+            this._MediaSource.addEventListener("sourceclose", this._onMediaSourceCloseHandler, false);
             this._MediaSource.addEventListener("error", this._onMediaSourceErrorHandler, false);
             this._jobQueue = [];
             this._seeking = false;
@@ -590,16 +592,18 @@
         };
 
         MSE.prototype._init = function() {
-            this._ensureNotDestructed();
-            this._audio.addEventListener('seeking', this._onAudioSeekingHandler, false);
-            this._audio.addEventListener('timeupdate', this._onAudioTimeUpdateHandler, false);
-            this._audio.src = this.getURL();
-            this._audio.load();
-            if(this._bufferSize > 180) {
-                this._bufferSize = 180;
-            }
-            if(this._bufferSize < 1) {
-                this._bufferSize = MAX_BUFFER_SIZE;
+            if(!this.isDestructed()) {
+                this._ensureNotDestructed();
+                this._audio.addEventListener('seeking', this._onAudioSeekingHandler, false);
+                this._audio.addEventListener('timeupdate', this._onAudioTimeUpdateHandler, false);
+                this._audio.src = this.getURL();
+                this._audio.load();
+                if(this._bufferSize > 180) {
+                    this._bufferSize = 180;
+                }
+                if(this._bufferSize < 1) {
+                    this._bufferSize = MAX_BUFFER_SIZE;
+                }
             }
         };
 
@@ -729,7 +733,7 @@
         };
 
         MSE.prototype._onBufferRetreived = function(result, offsetData) {
-            if(result.aborted) {
+            if(result.aborted || this.isClosed()) {
                 return;
             }
             this._request = null;
@@ -761,18 +765,31 @@
         };
 
         MSE.prototype._onMediaSourceInit = function(evt) {
-            this._initialized = true;
-            this._MediaSource.duration = this._duration || Infinity;
-            this._MediaSource.removeEventListener("sourceopen", this._onMediaSourceInitHandler, false);
-            this._MediaSource.removeEventListener("sourceended", this._onMediaSourceInitHandler, false);
-            this._sourceBuffer = this._addSourceBuffer(this._mimeCodec);
-            this._sourceBuffer.addEventListener('updateend', this._onSourceBufferUpdateEndHandler, false);
-            this._sourceBuffer.addEventListener('error', this._onSourceBufferErrorHandler, false);
-            this.performNextAction();
+            if(!this.isClosed()) {
+                this._initialized = true;
+                this._MediaSource.duration = this._duration || Infinity;
+                this._MediaSource.removeEventListener("sourceopen", this._onMediaSourceInitHandler, false);
+                this._MediaSource.removeEventListener("sourceended", this._onMediaSourceInitHandler, false);
+                this._sourceBuffer = this._addSourceBuffer(this._mimeCodec);
+                this._sourceBuffer.addEventListener('updateend', this._onSourceBufferUpdateEndHandler, false);
+                this._sourceBuffer.addEventListener('error', this._onSourceBufferErrorHandler, false);
+                this.performNextAction();
+            }
+
         };
 
         MSE.prototype._onMediaSourceEnded = function(evt) {
 
+        };
+
+        MSE.prototype.isClosed = function() {
+            return !this._audio.hasAttribute('src') || this.isDestructed();
+        };
+
+        MSE.prototype._onMediaSourceClose = function() {
+            if(!this.isDestructed()) {
+                this.destruct();
+            }
         };
 
         MSE.prototype._onMediaSourceError = function(evt) {
@@ -854,7 +871,7 @@
 
         MSE.prototype.performNextAction = function() {
             this._ensureNotDestructed();
-            if(this._sourceBuffer && !this._seeking && !this.isEOSSignalled()) {
+            if(this._sourceBuffer && !this._seeking && !this.isEOSSignalled() && !this.isClosed()) {
                 var that = this;
                 var formerDuration = this.getFormerBufferDuration(this._audio.currentTime);
                 if(formerDuration.duration > 6) {
@@ -952,9 +969,14 @@
 
         MSE.prototype._removeSourceBuffer = function() {
             if(this._sourceBuffer) {
+                var that = this;
                 this._sourceBuffer.removeEventListener('updateend', this._onSourceBufferUpdateEndHandler, false);
                 this._sourceBuffer.removeEventListener('error', this._onSourceBufferErrorHandler, false);
-                this._MediaSource.removeSourceBuffer(this._sourceBuffer);
+                if(Array.prototype.some.call(this._MediaSource.sourceBuffers, function(sourceBuffer){
+                    return sourceBuffer === that._sourceBuffer;
+                })) {
+                    this._MediaSource.removeSourceBuffer(this._sourceBuffer);
+                }
                 this._sourceBuffer = null;
             }
         };
@@ -1026,10 +1048,13 @@
                     this._MediaSource.removeEventListener('sourceopen', this._onMediaSourceInitHandler, false);
                 }
                 this._MediaSource.removeEventListener('sourceended', this._onMediaSourceEndedHandler, false);
+                this._MediaSource.removeEventListener("sourceclose", this._onMediaSourceCloseHandler, false);
                 this._MediaSource.removeEventListener("error", this._onMediaSourceErrorHandler, false);
                 this._removeSourceBuffer();
-                this._audio.src = '';
-                this._audio.load();
+                if(this._audio.src) {
+                    this._audio.removeAttribute('src');
+                    this._audio.load();
+                }
                 this._revokeURL();
                 this._audio = null;
                 this._CacheManager = null;
@@ -1069,8 +1094,10 @@
     var PlayerObserver = function() {
         function PlayerObserver(player) {
             this.onPlaying = new EventDispatcher;
+            this.onDestructed = new EventDispatcher;
             this._player = player;
             this._onAudioPlayingHandler = null;
+            this._onDestructedHandler = null;
         }
 
         PlayerObserver.prototype.getAutoplayPriority = function() {
@@ -1079,6 +1106,10 @@
 
         PlayerObserver.prototype.onAudioPlaying = function() {
             this.onPlaying.dispatch(this);
+        };
+
+        PlayerObserver.prototype.onAudioDestructed = function() {
+            this.onDestructed.dispatch(this);
         };
 
         PlayerObserver.prototype.isPlaying = function() {
