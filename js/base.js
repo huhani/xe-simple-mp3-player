@@ -1,4 +1,32 @@
 (function($SimpleMP3Player){
+
+    var __extend = function() {
+        var setProperty = Object.setPrototypeOf || {
+                __proto__: []
+            } instanceof Array && function(subClass, superClass) {
+                subClass.__proto__ = superClass;
+            }
+            || function(subClass, superClass) {
+                for (var key in superClass) {
+                    superClass.hasOwnProperty(key) && (subClass[key] = superClass[key]);
+                }
+            };
+
+        return function(subClass, superClass) {
+            function fn() {
+                this.constructor = subClass;
+            }
+
+            setProperty(subClass, superClass);
+            if(superClass === null) {
+                subClass.prototype = Object.create(superClass);
+            } else {
+                fn.prototype = superClass.prototype;
+                subClass.prototype = new fn;
+            }
+        };
+    }();
+
     var EventDispatcher = function() {
         var ID = 0;
         function EventDispatcher(){
@@ -51,6 +79,34 @@
 
         return EventDispatcher;
     }();
+
+    var makeDeferred = function() {
+        var __resolve, __reject;
+        var ended = false;
+        var promise = new Promise(function(resolve, reject){
+            __resolve = resolve;
+            __reject = reject;
+        });
+
+        return {
+            promise: promise,
+            resolve: function(data) {
+                if(!ended) {
+                    __resolve(data);
+                    ended = true;
+                }
+            },
+            reject: function(e) {
+                if(!ended) {
+                    __reject(e);
+                    ended = true;
+                }
+            },
+            isEnded: function() {
+                return ended;
+            }
+        };
+    };
 
     function MP3Muxer(data) {
         var audioBufferArr = [];
@@ -302,12 +358,13 @@
                 }
             }
 
-            function RequestToFetch(url, start, end) {
+            function RequestToFetch(url, start, end, includeCookies) {
                 if(!this.constructor.isSupported()) {
                     throw new Error('Fetch API does not supported in browser');
                 }
 
                 var that = this;
+                this._includeCookies = !!includeCookies;
                 this._id = REQUESTER_ID++;
                 this._url = url;
                 this._rangeStart = start;
@@ -345,7 +402,7 @@
                     this._fetch = window.fetch(this._url, {
                         method: 'GET',
                         signal: this._AbortController.signal,
-                        credentials: 'omit',
+                        credentials: this._includeCookies ? 'include' : 'omit',
                         headers: headers
                     }).then(function(response){
                         if(that.isAborted()) {
@@ -423,7 +480,7 @@
 
         }();
 
-        function getAudioBuffer(url, start, end) {
+        function getAudioBuffer(url, start, end, includeCookies) {
             url = convertURL2URI(url);
 
             function buildResultObj(code, data) {
@@ -436,7 +493,7 @@
             }
 
             if(RequestToFetch.isSupported()) {
-                var requestFetch = new RequestToFetch(url, start, end);
+                var requestFetch = new RequestToFetch(url, start, end, includeCookies);
                 return {
                     promise: always(requestFetch.getPromise.call(requestFetch)),
                     abort: requestFetch.abort.bind(requestFetch),
@@ -511,6 +568,323 @@
             };
         }
 
+        var BufferRetriever = function() {
+
+            function buildResultObj(code, data) {
+                return {
+                    aborted: aborted,
+                    code: code || -1,
+                    data: data || null,
+                    retryCount: retryCount
+                };
+            }
+
+            var BaseBufferRetriever = function() {
+                function BaseBufferRetriever() {
+                    this._destructed = false;
+                    this._encrypted = false;
+                    this._key = null;
+                    this._initialized = false;
+                    this._keyRetriever = null;
+                    this._bufferRetriever = [];
+
+                    this._init();
+                }
+
+                BaseBufferRetriever.prototype._init = function() {
+                    this._initialized = true;
+                };
+
+                BaseBufferRetriever.prototype.isEncrypted = function() {
+                    return null;
+                };
+
+                BaseBufferRetriever.prototype.isInitialized = function() {
+                    return this._initialized;
+                };
+
+                BaseBufferRetriever.prototype.isKeyRetrieving = function() {
+                    return !!this._keyRetriever && !this._keyRetriever.isSettled();
+                };
+
+                BaseBufferRetriever.prototype.getBuffer = function(url) {
+                    return null;
+                };
+
+                BaseBufferRetriever.prototype.abortKeyRetriever = function() {
+                    if(this.isKeyRetrieving()) {
+                        this._keyRetriever.abort();
+                    }
+                    this._keyRetriever = null;
+                };
+
+                BaseBufferRetriever.prototype.abort = function() {
+                    this.abortKeyRetriever();
+                    this._bufferRetriever.forEach(function(retriever) {
+                        retriever.abort();
+                    });
+                };
+
+                BaseBufferRetriever.prototype.destruct = function() {
+                    if(!this._destructed) {
+                        this.abort();
+                        this._bufferRetriever = [];
+                        this._destructed = true;
+                    }
+                };
+
+                return BaseBufferRetriever;
+            }();
+
+            var BufferRetriever = function () {
+
+                function BufferRetriever() {
+                    var that = BaseBufferRetriever.call(this) || this;
+                }
+
+                __extend(BufferRetriever, BaseBufferRetriever);
+
+                BufferRetriever.prototype._init = function() {
+                    BaseBufferRetriever.prototype._init.call(this);
+                };
+
+                BufferRetriever.prototype._observeBufferRetriever = function(retriever) {
+                    var that = this;
+                    this._bufferRetriever.push(retriever);
+                    always(retriever.promise).then(function(){
+                        var idx = that._bufferRetriever.indexOf(retriever);
+                        if(idx > -1) {
+                            that._bufferRetriever.splice(idx, 1);
+                        }
+                    });
+                };
+
+                BufferRetriever.prototype.getBuffer = function(url, start, end) {
+                    var retriever = getAudioBuffer(url, start, end);
+                    this._observeBufferRetriever(retriever);
+                    return retriever;
+                };
+
+                BufferRetriever.prototype.isEncrypted = function() {
+                    return false;
+                };
+
+                return BufferRetriever;
+            }();
+
+            var EncryptedBufferRetriever = function() {
+
+                function _base64ToArrayBuffer(base64) {
+                    var binary_string =  window.atob(base64);
+                    var len = binary_string.length;
+                    var bytes = new Uint8Array( len );
+                    for (var i = 0; i < len; i++)        {
+                        bytes[i] = binary_string.charCodeAt(i);
+                    }
+                    return bytes;
+                }
+
+                var keyPair = ['handshake', 'timestamp', 'document_srl', 'file_srl', 'ip'];
+
+                var KeyBufferMediator = function() {
+
+                    function _AESDecrypt(key, iv, cipher) {
+                        if('aesjs' in window) {
+                            try {
+                                var aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
+                                var decryptedData = aesCbc.decrypt(cipher);
+                                var decryptedBytes = aesjs.padding.pkcs7.strip(decryptedData);
+
+                                return decryptedBytes;
+                            } catch(e){
+                                throw e;
+                            }
+                        }
+
+                        return null;
+                    }
+
+                    function KeyBufferMediator(keyRetriever, bufferBuilder) {
+                        this._deferred = makeDeferred();
+                        this._aborted = false;
+                        this._settled = false;
+                        this.promise = this._deferred.promise;
+                        this._keyRetriever = keyRetriever;
+                        this._bufferBuilder = bufferBuilder;
+                        this._bufferRetriever = null;
+                        this._run();
+                    }
+
+                    KeyBufferMediator.prototype._run = function() {
+                        var that = this;
+                        var encKey = null;
+                        this._keyRetriever.promise.then(function(key){
+                            if(!that.isSettled()) {
+                                encKey = new Uint8Array(key.data);
+                                that._bufferRetriever = that._bufferBuilder();
+                                return that._bufferRetriever.promise;
+                            }
+                        }).then(function(result) {
+                            if(!that.isSettled()) {
+                                var encryptedBuffer = new Uint8Array(result.data);
+                                var cipherTextRaw = encryptedBuffer.slice(48, encryptedBuffer.byteLength);
+                                var iv = encryptedBuffer.slice(0, 16);
+                                var buffer = _AESDecrypt(encKey, iv, cipherTextRaw);
+                                result.data = buffer;
+                                that._deferred.resolve(result);
+                            }
+                        })['catch'](function(e){
+                            that._deferred.reject(e);
+                            that._settled = true;
+                        });
+                    };
+
+                    KeyBufferMediator.prototype.abort = function() {
+                        if(!this.isSettled()) {
+                            if(this._bufferRetriever) {
+                                if(!this._bufferRetriever.isSettled()) {
+                                    this._bufferRetriever.abort();
+                                }
+                                this._bufferRetriever = null;
+                            }
+                            this._aborted = true;
+                        }
+                    };
+
+                    KeyBufferMediator.prototype.isSettled = function() {
+                        return this._aborted || this._settled;
+                    };
+
+                    return KeyBufferMediator;
+                }();
+
+                var getURLParameter = function(audioURL) {
+                    var url = new URL((window.default_url+audioURL).replace(/(\/.\/)/, '/'));
+                    var obj = {};
+                    if(keyPair) {
+                        keyPair.forEach(function(key){
+                            var val = url.searchParams.get(key);
+                            if(val) {
+                                obj[key] = val;
+                            }
+                        });
+                    }
+
+                    return obj;
+                };
+
+                var getKeyRetreiverDecorator = function(promise) {
+                    return {
+                        promise: promise,
+                        abort: function(){},
+                        isSettled: function(){return true;}
+                    };
+                };
+
+                var isValidParameter = function(params) {
+                    return keyPair.every(function(param){
+                        return !!params[param];
+                    });
+                };
+
+                function EncryptedBufferRetriever() {
+                    var that = BufferRetriever.call(this) || this;
+                    that._handshake = null;
+                }
+
+                __extend(EncryptedBufferRetriever, BufferRetriever);
+
+                EncryptedBufferRetriever.prototype.onKeyRetrieved = function(key) {
+
+                };
+
+                EncryptedBufferRetriever.prototype._buildKeyRetriever = function(audioURL) {
+                    var params = getURLParameter(audioURL);
+                    if(isValidParameter(params)) {
+                        var url = window.default_url+'index.php?'+'mid='+window.current_mid
+                            +"&act=getSimpleMP3EncryptionKey&document_srl="+params.document_srl
+                            +"&file_srl="+params.file_srl
+                            +"&timestamp="+params.timestamp
+                            +"&ip="+params.ip
+                            +"&handshake="
+                            +params.handshake;
+                        return getAudioBuffer(url, void 0, void 0, true);
+                    }
+
+                    return null;
+                };
+
+                EncryptedBufferRetriever.prototype._updateKeyRetriever = function(audioURL) {
+                    var that = this;
+                    var retriever = this._buildKeyRetriever(audioURL);
+                    var params = getURLParameter(audioURL);
+                    if(retriever) {
+                        this._keyRetriever = retriever;
+                        this._handshake = params._handshake;
+                        retriever.promise.then(function(data){
+                            that.onKeyRetrieved(data);
+                        })['catch'](function(e) {
+
+                        });
+
+                        return retriever;
+                    }
+
+                    return null;
+                };
+
+                EncryptedBufferRetriever.prototype.isValidKey = function(audioURL) {
+                    var params = getURLParameter(audioURL);
+                    return params.handshake === this._handshake && !!this._key;
+                };
+
+                EncryptedBufferRetriever.prototype.getKeyRetriever = function(audioURL) {
+                    var params = getURLParameter(audioURL);
+                    if(this.isValidKey(audioURL)) {
+                        return getKeyRetreiverDecorator(Promise.resolve(this._key));
+                    } else {
+                        if(this.isKeyRetrieving()) {
+                            if(params.handshake === this._handshake) {
+                                return this._keyRetriever;
+                            }
+                            this.abortKeyRetriever();
+                        }
+                        this.resetKey();
+                        var retriever = this._updateKeyRetriever(audioURL);
+                        if(retriever) {
+                            return retriever;
+                        }
+                        return getKeyRetreiverDecorator(Promise.reject(void 0));
+                    }
+                };
+
+                EncryptedBufferRetriever.prototype.resetKey = function() {
+                    this._handshake = null;
+                    this._key = null;
+                };
+
+                EncryptedBufferRetriever.prototype._buildBufferRetriever = function(audioURL) {
+                    return BufferRetriever.prototype.getBuffer.call(this, audioURL);
+                };
+
+                EncryptedBufferRetriever.prototype.getBuffer = function(audioURL) {
+                    return new KeyBufferMediator(this.getKeyRetriever(audioURL), this._buildBufferRetriever.bind(this, audioURL));
+                };
+
+                EncryptedBufferRetriever.prototype.isEncrypted = function() {
+                    return true;
+                };
+
+                return EncryptedBufferRetriever;
+            }();
+
+            return {
+                EncryptedBufferRetriever: EncryptedBufferRetriever,
+                BufferRetriever: BufferRetriever
+            };
+
+        }();
+
         function getCachedAudioBuffer(data) {
             var requestAborted = false;
             return {
@@ -536,6 +910,7 @@
             this._file_srl = file_srl;
             this._playlist = playlist;
             this._duration = playlist.duration;
+            this._BufferRetriever = playlist.encrypted ? new BufferRetriever.EncryptedBufferRetriever : new BufferRetriever.BufferRetriever;
             this._offsets = normalizeOffsetList(this._playlist.offsets);
             this._mp3URL = mp3URL;
             this._MediaSource = new window.MediaSource;
@@ -815,7 +1190,7 @@
 
         MSE.prototype.isEOSSignalled = function() {
             return this._eosSignalled;
-        }
+        };
 
         MSE.prototype.provideCacheManager = function(cacheManager) {
             if(cacheManager) {
@@ -869,6 +1244,10 @@
             this.performNextAction();
         };
 
+        MSE.prototype.getBufferRetriever = function(url, start, end) {
+            return this._BufferRetriever.getBuffer(url, start, end);
+        };
+
         MSE.prototype.performNextAction = function() {
             this._ensureNotDestructed();
             if(this._sourceBuffer && !this._seeking && !this.isEOSSignalled() && !this.isClosed()) {
@@ -885,7 +1264,7 @@
                         if(cachedData) {
                             this._request = getCachedAudioBuffer(cachedData);
                         } else {
-                            this._request = idxData.url ? getAudioBuffer(idxData.url) :  getAudioBuffer(this._mp3URL, idxData.startOffset, idxData.endOffset);
+                            this._request = idxData.url ? this.getBufferRetriever(idxData.url) :  this.getBufferRetriever(this._mp3URL, idxData.startOffset, idxData.endOffset);
                         }
 
                         var requestPromise = this._request.promise;
@@ -1039,6 +1418,8 @@
             if(!this._desturct) {
                 this.abort();
                 this._desturct = true;
+                this._BufferRetriever.destruct();
+                this._BufferRetriever = null;
                 if(this._request && !this._request.isSettled()) {
                     this._request.abort();
                 }
@@ -1062,33 +1443,6 @@
         };
 
         return MSE;
-    }();
-
-    var __extend = function() {
-        var setProperty = Object.setPrototypeOf || {
-                __proto__: []
-            } instanceof Array && function(subClass, superClass) {
-                subClass.__proto__ = superClass;
-            }
-            || function(subClass, superClass) {
-                for (var key in superClass) {
-                    superClass.hasOwnProperty(key) && (subClass[key] = superClass[key]);
-                }
-            };
-
-        return function(subClass, superClass) {
-            function fn() {
-                this.constructor = subClass;
-            }
-
-            setProperty(subClass, superClass);
-            if(superClass === null) {
-                subClass.prototype = Object.create(superClass);
-            } else {
-                fn.prototype = superClass.prototype;
-                subClass.prototype = new fn;
-            }
-        };
     }();
 
     var PlayerObserver = function() {

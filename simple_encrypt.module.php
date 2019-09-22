@@ -29,12 +29,12 @@ class SimpleEncrypt {
         return true;
     }
 
-    public static function getEncrypt($plaintext, $key) {
+    public static function getEncrypt($plaintext, $key, $encode_base64 = true) {
         $ivlen = openssl_cipher_iv_length($cipher="AES-128-CBC");
         $iv = openssl_random_pseudo_bytes($ivlen);
         $ciphertext_raw = openssl_encrypt($plaintext, $cipher, $key, $options=OPENSSL_RAW_DATA, $iv);
         $hmac = hash_hmac('sha256', $ciphertext_raw, $key, $as_binary=true);
-        $ciphertext = base64_encode( $iv.$hmac.$ciphertext_raw );
+        $ciphertext = $encode_base64 ? base64_encode( $iv.$hmac.$ciphertext_raw ) : $iv.$hmac.$ciphertext_raw;
 
         return $ciphertext;
     }
@@ -59,11 +59,11 @@ class SimpleEncrypt {
         file_put_contents(self::getPathname().'__password.php', '<?php exit(); /*'.$password.'*/');
     }
 
-    private static function getRandomStr() {
+    public static function getRandomStr($len = 8) {
         $chrs = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $chrsLen = strlen($chrs);
         $randomString = '';
-        for ($i = 0; $i < 8; $i++) {
+        for ($i = 0; $i < $len; $i++) {
             $randomString .= $chrs[rand(0, $chrsLen - 1)];
         }
 
@@ -99,6 +99,10 @@ class SimpleEncrypt {
         }
 
         return null;
+    }
+
+    public static function getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip) {
+        return md5($handshake.$timestamp.$document_srl.$file_srl.$ip.$password, true);
     }
 
 }

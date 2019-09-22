@@ -64,6 +64,24 @@
                 <title xml:lang="ko">MP3 Buffer Cache Size</title>
                 <description xml:lang="ko">클라이언트 브라우저에서 mp3 실시간 재생시 서버로부터 불러온 버퍼를 임시로 RAM에 저장할 용량을 입력합니다. &lt;br/&gt;단위: B(바이트), 기본값 및 권장: 150000000(약 143MB)</description>
             </var>
+
+            <var name="mp3_realtime_encrypt" type="select">
+                <title xml:lang="ko">Using AES Encryption</title>
+                <description xml:lang="ko">AES-128-CBC 알고리즘을 사용하여 오디오 버퍼 데이터를 암호화합니다. 이 기능을 사용함으로써 오디오 추출 방지를 더욱 효과적으로 적용 할 수 있습니다.
+                만약 "브라우저 캐시 사용" 설정이 활성화 되어있거나, __password.php 파일을 생성할 수 없는 경우엔 자동으로 비활성화 됩니다.</description>
+                <options value="">
+                    <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
+                </options>
+            </var>
+            <var name="mp3_realtime_encryption_key_rotation_period" type="text">
+                <title xml:lang="ko">Encryption Key Rotation Period</title>
+                <description xml:lang="ko">각 세그먼트 세트마다 사용할 암호화 키 변경 주기를 설정합니다.
+                    기본값은 비활성화(0)이며, 세그먼트 횟수당  이 기능을 적용할 경우 오디오 무단 추출을 더욱 효과적으로 적용 할 수 있습니다.
+                </description>
+            </var>
         </group>
 
         <group>

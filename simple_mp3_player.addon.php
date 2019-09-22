@@ -403,14 +403,16 @@ if(!class_exists('SimpleMP3Describer', false)) {
         private $password = null;
         private $allow_browser_cache = false;
 
-        public function __construct($allow_browser_cache = false, $use_encrypt = false, $password = null) {
+        public function __construct($allow_browser_cache = false, $use_encrypt = false, $buffer_encrypt = false, $password = null) {
             if($password) {
                 $this->password = $password;
             }
             $this->allow_browser_cache = $allow_browser_cache;
+            $this->buffer_encrypt = false;
             if($use_encrypt && SimpleEncrypt::isEncryptSupported()) {
                 $this->use_encrypt = $use_encrypt;
                 $this->password = $password ? $password : SimpleEncrypt::getPassword();
+                $this->buffer_encrypt = $buffer_encrypt;
             }
         }
 
@@ -565,10 +567,11 @@ if(!class_exists('SimpleMP3Describer', false)) {
                         array('key'=>'timestamp', 'value'=>$timestamp),
                         array('key'=>'type', 'value'=>'progressive')
                     ));
+                    $offsetInfo->encrypted = !$this->allow_browser_cache && $this->buffer_encrypt;
                     if(!$this->allow_browser_cache) {
                         $currentOffset = 0;
                         foreach ($offsets as $eachOffset) {
-                            $eachOffset->url = $this->createMP3URL($filepath, array(
+                            $urlParamArr = array(
                                 array('key'=>'document_srl', 'value'=>$document_srl),
                                 array('key'=>'file_srl', 'value'=>$file_srl),
                                 array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
@@ -581,7 +584,12 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                 array('key'=>'offset', 'value'=>$currentOffset),
                                 array('key'=>'timestamp', 'value'=>$timestamp),
                                 array('key'=>'type', 'value'=>'realtime')
-                            ));
+                            );
+                            if($this->buffer_encrypt) {
+                                $urlParamArr[] = array('key'=>'handshake', 'value' => SimpleEncrypt::getRandomStr(16));
+                            }
+
+                            $eachOffset->url = $this->createMP3URL($filepath, $urlParamArr);
                             $currentOffset += $eachOffset->time;
                         }
                     }
@@ -1086,6 +1094,7 @@ $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_stre
 $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 50;
 $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
 $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
+$config->mp3_realtime_encrypt = !(isset($addon_info->mp3_realtime_encrypt) && $addon_info->mp3_realtime_encrypt === "N");
 $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
 $config->enable_video = (isset($addon_info->enable_video) && $addon_info->enable_video === "Y");
@@ -1145,6 +1154,7 @@ if(SimpleEncrypt::getPassword()) {
 if(!$password) {
     $config->use_url_encrypt = false;
     $config->allow_browser_cache = true;
+    $config->mp3_realtime_encrypt = false;
 }
 
 // !!! 애드온 설정 끝.
@@ -1155,12 +1165,12 @@ if(!$password) {
 
 
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription', 'updateSimpleMP3Thumbnail'))) {
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription', 'updateSimpleMP3Thumbnail', 'getSimpleMP3EncryptionKey'))) {
         $result = new stdClass();
         if($act === 'getSimpleMP3Descriptions') {
             ini_set('max_execution_time', 15);
             $document_srl = Context::get('document_srl');
-            $describer = new SimpleMP3Describer($config->allow_browser_cache, $config->use_url_encrypt, $password);
+            $describer = new SimpleMP3Describer($config->allow_browser_cache, $config->use_url_encrypt, $config->mp3_realtime_encrypt, $password);
             $descriptions = $describer->getDescriptionsByDocumentSrl($document_srl, $config->thumbnail_type, $config->thumbnail_width, $config->thumbnail_height, $config->mp3_realtime_segment_duration);
             unset($config->lyric_cache_expire);
             unset($config->lyric_cache_retry_duration);
@@ -1184,7 +1194,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             $search_keyword = Context::get('search_keyword');
             $offsets = Context::get('offset');
             $result->descriptions = array();
-            $describer = new SimpleMP3Describer($config->allow_browser_cache, $config->use_url_encrypt, $password);
+            $describer = new SimpleMP3Describer($config->allow_browser_cache, $config->use_url_encrypt, $config->mp3_realtime_encrypt, $password);
             if($mid && $document_srl && is_array($offsets)) {
                 foreach($offsets as $offset) {
                     $randomData = SimpleMP3Tools::getRandomFile($mid, $document_srl, $offset, $category_srl, $search_target, $search_keyword);
@@ -1220,6 +1230,24 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                 $output = SimpleMP3Tools::setDocumentThumbnail($document_srl, $file_srl, $config);
                 $result->result = $output;
             }
+        } else if($act === 'getSimpleMP3EncryptionKey') {
+            if (checkCSRF() || !isset($_SERVER['HTTP_REFERER']) ) {
+                exit();
+            }
+
+            $handshake = Context::get('handshake');
+            $document_srl = Context::get('document_srl');
+            $file_srl = Context::get('file_srl');
+            $ip = Context::get('ip');
+            $timestamp = Context::get('timestamp');
+
+            $oFileModel = getModel('file');
+            $oFile = $oFileModel->getFile($file_srl);
+            if($password && $oFile && SimpleMP3Describer::isAccessibleDocument($oFile->upload_target_srl)) {
+                $document_srl = (string)$oFile->upload_target_srl;
+                echo SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $oFile->upload_target_srl, $file_srl, $ip);
+            }
+            exit();
         }
         $result->message = "success";
         echo json_encode($result);
@@ -1261,6 +1289,9 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
     Context::loadFile(array('./addons/simple_mp3_player/js/corejs.min.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/transmuxer.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/base.js', 'body', '', null), true);
+    if(!isset($addon_info->mp3_realtime_encrypt) || $addon_info->mp3_realtime_encrypt) {
+        Context::loadFile(array('./addons/simple_mp3_player/js/enc.js', 'body', '', null), true);
+    }
     if(!isset($addon_info->playlist_player) || !$addon_info->playlist_player) {
         $addon_info->playlist_player = 'BluePlayer';
     }
@@ -1291,5 +1322,6 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
     }
 }
 
+unset($password);
 unset($config);
 

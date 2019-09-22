@@ -33,7 +33,6 @@ function determineValidParameter() {
 }
 
 
-
 // ============================= 요청 시작 부분
 
 if(!determineValidParameter()) {
@@ -59,6 +58,16 @@ $mimeType = isset($_GET['mime']) && $_GET['mime'] !== 'unknown' ? $_GET['mime'] 
 $startOffset = isset($_GET['start']) ? (int)$_GET['start'] : null;
 $endOffset = isset($_GET['end']) ? (int)$_GET['end'] : null;
 $isSegment = $_GET['type'] === 'realtime';
+$isBufferEncrypt = isset($_GET['handshake']);
+$handshake = $isBufferEncrypt ? (string)$_GET['handshake'] : null;
+$timestamp = isset($_GET['timestamp']) && $_GET['timestamp'] ? (string)$_GET['timestamp'] : null;
+$document_srl = isset($_GET['document_srl']) && $_GET['document_srl'] ? (string)$_GET['document_srl'] : null;
+$file_srl = isset($_GET['file_srl']) && $_GET['file_srl'] ? (string)$_GET['file_srl'] : null;
+$ip = isset($_GET['ip']) && $_GET['ip'] ? $_GET['ip'] : null;
+
+$bufferEncryptionKey = $isBufferEncrypt ? SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip) : null;
+
+
 $uploaded_filename = '../../'.$uploaded_filename;
 $filesize = null;
 if($uploaded_filename && file_exists($uploaded_filename)) {
@@ -80,11 +89,16 @@ $streamLength = $streamStartOffset !== null && $streamEndOffset !== null ? $stre
 
 $file = fopen($uploaded_filename, 'r');
 header('Accept-Ranges: bytes');
-
+//$bufferEncryptionKey = false;
 if($isSegment) {
     $size = $endOffset-$startOffset+1;
     fseek($file, $startOffset);
     $data = fread($file, $size);
+    if($bufferEncryptionKey) {
+        $data = SimpleEncrypt::getEncrypt($data, $bufferEncryptionKey, false);
+        $size = strlen($data);
+    }
+
     header('Content-Length: ' . $size);
 
     echo $data;
