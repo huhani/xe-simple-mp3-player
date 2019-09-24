@@ -286,6 +286,213 @@
         });
     };
 
+    var AESDecrypter = function() {
+
+        var AbortError = new Error('Decrypting Aborted');
+        var NotDecryptedError = new Error('could not read encrypted data');
+
+        var AESDecryptJob = function() {
+            function AESDecryptJob(cipher, iv, key) {
+                this.cipher = cipher;
+                this.iv = iv;
+                this.key = key;
+                this._finish = false;
+                this._workerRunning = false;
+                this._aborted = false;
+                this._deferred = makeDeferred();
+                this._promise = this._deferred.promise;
+                this.onAbort = new EventDispatcher;
+                this.onFinish = new EventDispatcher;
+                this.onDecryptStart = new EventDispatcher;
+                this.onDecryptEnded = new EventDispatcher;
+                this._onMessageHandler = this._onMessage.bind(this);
+                this._onErrorHandler = this._onError.bind(this);
+                this._workerTerminated = false;
+            }
+
+            AESDecryptJob.prototype._onMessage = function(evt) {
+                if(!this._finish) {
+                    var data = evt.data;
+                    if(data && data.buffer instanceof ArrayBuffer && data.byteLength !== undefined) {
+                        this._onFinish(data);
+                    } else {
+                        this._onError(NotDecryptedError);
+                    }
+                }
+            };
+
+            AESDecryptJob.prototype._onError = function(e) {
+                if(!this._finish) {
+                    if(!this.isAborted()) {
+                        this.abort(true);
+                    }
+                    this._deferred.reject(AbortError);
+                    this._onEnded(e);
+                }
+            };
+
+            AESDecryptJob.prototype._onFinish = function(decryptedData) {
+                this.onFinish.dispatch(decryptedData);
+                this._deferred.resolve(decryptedData);
+                this._onEnded();
+            };
+
+            AESDecryptJob.prototype._onEnded = function(data) {
+                if(!this._finish) {
+                    this._finish= true;
+                    this._workerRunning = false;
+                    if(this._worker) {
+                        this._worker.addEventListener('message', this._onMessageHandler, false);
+                        this._worker.addEventListener('error', this._onError, false);
+                        this._worker = null;
+                    }
+                    this.cipher = null;
+                    this.iv = null;
+                    this.key = null;
+                    this._finish = true;
+                    this.onDecryptEnded.dispatch(data);
+                }
+            };
+
+            AESDecryptJob.prototype._run = function() {
+                try {
+                    this._workerRunning = true;
+                    this._worker.postMessage({
+                        iv: this.iv,
+                        key: this.key,
+                        cipher: this.cipher
+                    });
+                    this.onDecryptStart.dispatch(this);
+                } catch(e) {
+                    this._deferred.reject(e);
+                }
+            };
+
+            AESDecryptJob.prototype._provideWorker = function(worker) {
+                if(!this.isFinish()){
+                    this._worker = worker;
+                    this._worker.addEventListener('message', this._onMessageHandler, false);
+                    this._worker.addEventListener('error', this._onErrorHandler, false);
+                    this._run();
+                }
+            };
+
+            AESDecryptJob.prototype.getPromise = function(){
+                return this._promise;
+            };
+
+            AESDecryptJob.prototype.isFinish = function(){
+                return this._finish || this._aborted;
+            };
+
+            AESDecryptJob.prototype.isWorkerRunning= function() {
+                return this._workerRunning;
+            };
+
+            AESDecryptJob.prototype.isWorkerTerminated = function() {
+                return this._workerTerminated;
+            };
+
+            AESDecryptJob.prototype.isAborted = function() {
+                return this._aborted;
+            };
+
+            AESDecryptJob.prototype.abort = function(fromEvent) {
+                if(!this.isFinish()) {
+                    this._aborted = true;
+                    if(this.isWorkerRunning()) {
+                        this._workerTerminated = true;
+                        this._worker.terminate();
+                    }
+                    if(!fromEvent) {
+                        this._onError(AbortError);
+                    }
+
+                    this.onAbort.dispatch(void 0);
+                }
+            };
+
+            return AESDecryptJob;
+        }();
+
+        function AESDecrypter() {
+            this._jobQueue = [];
+            this._worker = null;
+            this._destructed = false;
+            this._currentJob = null;
+        }
+
+        AESDecrypter.prototype._buildWorker = function() {
+            if(!this._worker) {
+                this._worker = new Worker(window.default_url+"addons/simple_mp3_player/js/decrypt.js");
+                return this._worker;
+            }
+
+            return null;
+        };
+
+        AESDecrypter.prototype.getWorker = function() {
+            return this._worker ? this._worker : this._buildWorker();
+        };
+
+        AESDecrypter.prototype._onJobEnded = function(job) {
+            if(this._currentJob === job) {
+                if(job.isWorkerTerminated()) {
+                    this._worker = null;
+                }
+                this._currentJob = null;
+            }
+            this._performNextJob();
+        };
+
+        AESDecrypter.prototype._performNextJob = function() {
+            if(this._jobQueue.length > 0) {
+                if(!this._currentJob || this._currentJob.isFinish()) {
+                    this._currentJob = this._jobQueue.shift();
+                    this._currentJob._provideWorker(this.getWorker());
+                }
+            }
+        };
+
+        AESDecrypter.prototype._decryptJobObserver = function(job) {
+            var that = this;
+            this._jobQueue.push(job);
+            job.onDecryptEnded.subscribe(function(){
+                that._onJobEnded(job);
+            });
+
+            this._performNextJob();
+        };
+
+        AESDecrypter.prototype._buildDecryptJob = function(cipher, iv, key) {
+            var job = new AESDecryptJob(cipher, iv, key);
+            this._decryptJobObserver(job);
+
+            return job;
+        };
+
+        AESDecrypter.prototype.decrypt = function(cipher, iv, key) {
+            return this._buildDecryptJob(cipher, iv, key);
+        };
+
+        AESDecrypter.prototype.destruct = function() {
+            if(!this._destructed) {
+                if(this._currentJob) {
+                    this._currentJob.abort();
+                    this._currentJob = null;
+                }
+                this._jobQueue.forEach(function(job){
+                    job.abort();
+                });
+                this._jobQueue = [];
+                this._destructed = true;
+            }
+        };
+
+
+        return AESDecrypter;
+    }();
+
     var MSE = function() {
 
         var MSE_ID = 0;
@@ -674,35 +881,9 @@
 
             var EncryptedBufferRetriever = function() {
 
-                function _base64ToArrayBuffer(base64) {
-                    var binary_string =  window.atob(base64);
-                    var len = binary_string.length;
-                    var bytes = new Uint8Array( len );
-                    for (var i = 0; i < len; i++)        {
-                        bytes[i] = binary_string.charCodeAt(i);
-                    }
-                    return bytes;
-                }
-
                 var keyPair = ['handshake', 'timestamp', 'document_srl', 'file_srl', 'ip'];
-
+                var decrypter = new AESDecrypter;
                 var KeyBufferMediator = function() {
-
-                    function _AESDecrypt(key, iv, cipher) {
-                        if('aesjs' in window) {
-                            try {
-                                var aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
-                                var decryptedData = aesCbc.decrypt(cipher);
-                                var decryptedBytes = aesjs.padding.pkcs7.strip(decryptedData);
-
-                                return decryptedBytes;
-                            } catch(e){
-                                throw e;
-                            }
-                        }
-
-                        return null;
-                    }
 
                     function KeyBufferMediator(keyRetriever, bufferBuilder) {
                         this._deferred = makeDeferred();
@@ -712,6 +893,8 @@
                         this._keyRetriever = keyRetriever;
                         this._bufferBuilder = bufferBuilder;
                         this._bufferRetriever = null;
+                        this._decrypter = null;
+                        this._retrievedData = null;
                         this._run();
                     }
 
@@ -726,12 +909,18 @@
                             }
                         }).then(function(result) {
                             if(!that.isSettled()) {
+                                that._retrievedData = result;
                                 var encryptedBuffer = new Uint8Array(result.data);
                                 var cipherTextRaw = encryptedBuffer.slice(48, encryptedBuffer.byteLength);
                                 var iv = encryptedBuffer.slice(0, 16);
-                                var buffer = _AESDecrypt(encKey, iv, cipherTextRaw);
-                                result.data = buffer;
-                                that._deferred.resolve(result);
+                                this._decrypter = decrypter.decrypt(cipherTextRaw, iv, encKey);
+
+                                return this._decrypter.getPromise();
+                            }
+                        }).then(function(data){
+                            if(!that.isSettled()) {
+                                that._retrievedData.data = data;
+                                that._deferred.resolve(that._retrievedData);
                             }
                         })['catch'](function(e){
                             that._deferred.reject(e);
@@ -746,6 +935,10 @@
                                     this._bufferRetriever.abort();
                                 }
                                 this._bufferRetriever = null;
+                            }
+                            if(this._decrypter) {
+                                this._decrypter.abort();
+                                this._decrypter = null;
                             }
                             this._aborted = true;
                         }
