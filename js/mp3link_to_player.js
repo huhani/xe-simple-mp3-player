@@ -65,8 +65,8 @@
 				var tags = this._description.tags;
 				var albumArt = tags.albumArt;
 				if(!albumArt) {
-					if(useThumbnail && description.thumbnail) {
-						albumArt = description.thumbnail;
+					if(useThumbnail && this._description.thumbnail) {
+						albumArt = this._description.thumbnail;
 					} else if(defaultCover) {
 						albumArt = defaultCover;
 					}
