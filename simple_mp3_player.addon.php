@@ -472,19 +472,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return $this->createURLWithParameters($argsArr, array('Signature', 'duration'));
         }
 
-        private function createEncryptionKeyURL($handshake, $timestamp, $document_srl, $file_srl, $ip) {
-            $publicKey = SimpleEncrypt::getEncrypt(SimpleEncrypt::getBufferPublicKey($this->password, $handshake), $this->password);
-            $url = './addons/simple_mp3_player/audioplayback.php?';
-            $url .= "Public=".urlencode($publicKey);
-            $url .= "&timestamp=".$timestamp;
-            $url .= "&document_srl=".$document_srl;
-            $url .= "&file_srl=".$file_srl;
-            $url .= "&ip=".$ip;
-            $url .= "&handshake=".$handshake;
-
-            return $url;
-        }
-
         private function createURLWithParameters($argsArr, $skipArgsArr = array()) {
             $url = './addons/simple_mp3_player/audioplayback.php?';
             $keys = array();
@@ -633,7 +620,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                         array('key'=>'timestamp', 'value'=>$timestamp),
                                         array('key'=>'handshake', 'value' => $lastHandshake)
                                     );
-                                    $eachOffset->num = $rotationCount;
                                     $eachOffset->key = $this->createMP3URL(null, $keyUrlParamArr);
                                 }
                                 $rotationCount++;
