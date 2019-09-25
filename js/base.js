@@ -536,12 +536,17 @@
 
         function normalizeOffsetList(offsets) {
             var duration = 0;
+            var lastKey = null;
             return offsets.map(function(each){
+                if(each.key) {
+                    lastKey = each.key;
+                }
                 var obj = {
                     duration: each.time,
                     startOffset: each.startOffset,
                     endOffset: each.endOffset,
                     url: each.url ? each.url : null,
+                    key: lastKey,
                     TimeRange: {
                         start: duration,
                         end: duration+each.time
@@ -777,7 +782,13 @@
 
         var BufferRetriever = function() {
 
-            function buildResultObj(code, data) {
+            function buildResultObj(code, data, aborted, retryCount) {
+                if(aborted === void 0) {
+                    aborted = false;
+                }
+                if(retryCount === void 0) {
+                    retryCount = 0;
+                }
                 return {
                     aborted: aborted,
                     code: code || -1,
@@ -987,35 +998,29 @@
 
                 __extend(EncryptedBufferRetriever, BufferRetriever);
 
-                EncryptedBufferRetriever.prototype.onKeyRetrieved = function(key) {
-
-                };
-
-                EncryptedBufferRetriever.prototype._buildKeyRetriever = function(audioURL) {
-                    var params = getURLParameter(audioURL);
-                    if(isValidParameter(params)) {
-                        var url = window.default_url+'index.php?'+'mid='+window.current_mid
-                            +"&act=getSimpleMP3EncryptionKey&document_srl="+params.document_srl
-                            +"&file_srl="+params.file_srl
-                            +"&timestamp="+params.timestamp
-                            +"&ip="+params.ip
-                            +"&handshake="
-                            +params.handshake;
-                        return getAudioBuffer(url, void 0, void 0, true);
+                EncryptedBufferRetriever.prototype.onKeyRetrieved = function(keyData) {
+                    if(keyData && keyData.data) {
+                        this._handshake = keyData.handshake;
+                        this._key = new Uint8Array(keyData.data);
                     }
-
-                    return null;
                 };
 
-                EncryptedBufferRetriever.prototype._updateKeyRetriever = function(audioURL) {
+                EncryptedBufferRetriever.prototype._buildKeyRetriever = function(keyURL) {
+                    return getAudioBuffer(keyURL, void 0, void 0, true);
+                };
+
+                EncryptedBufferRetriever.prototype._updateKeyRetriever = function(keyURL) {
                     var that = this;
-                    var retriever = this._buildKeyRetriever(audioURL);
-                    var params = getURLParameter(audioURL);
+                    var retriever = this._buildKeyRetriever(keyURL);
+                    var params = getURLParameter(keyURL);
                     if(retriever) {
                         this._keyRetriever = retriever;
                         this._handshake = params._handshake;
                         retriever.promise.then(function(data){
-                            that.onKeyRetrieved(data);
+                            that.onKeyRetrieved({
+                                data: data.data,
+                                handshake: params.handshake
+                            });
                         })['catch'](function(e) {
 
                         });
@@ -1026,15 +1031,15 @@
                     return null;
                 };
 
-                EncryptedBufferRetriever.prototype.isValidKey = function(audioURL) {
-                    var params = getURLParameter(audioURL);
+                EncryptedBufferRetriever.prototype.isValidKey = function(keyURL) {
+                    var params = getURLParameter(keyURL);
                     return params.handshake === this._handshake && !!this._key;
                 };
 
-                EncryptedBufferRetriever.prototype.getKeyRetriever = function(audioURL) {
-                    var params = getURLParameter(audioURL);
-                    if(this.isValidKey(audioURL)) {
-                        return getKeyRetreiverDecorator(Promise.resolve(this._key));
+                EncryptedBufferRetriever.prototype.getKeyRetriever = function(keyURL) {
+                    var params = getURLParameter(keyURL);
+                    if(this.isValidKey(keyURL)) {
+                        return getKeyRetreiverDecorator(Promise.resolve(buildResultObj(200, this._key)));
                     } else {
                         if(this.isKeyRetrieving()) {
                             if(params.handshake === this._handshake) {
@@ -1043,7 +1048,7 @@
                             this.abortKeyRetriever();
                         }
                         this.resetKey();
-                        var retriever = this._updateKeyRetriever(audioURL);
+                        var retriever = this._updateKeyRetriever(keyURL);
                         if(retriever) {
                             return retriever;
                         }
@@ -1060,8 +1065,8 @@
                     return BufferRetriever.prototype.getBuffer.call(this, audioURL);
                 };
 
-                EncryptedBufferRetriever.prototype.getBuffer = function(audioURL) {
-                    return new KeyBufferMediator(this.getKeyRetriever(audioURL), this._buildBufferRetriever.bind(this, audioURL));
+                EncryptedBufferRetriever.prototype.getBuffer = function(audioURL, keyURL) {
+                    return new KeyBufferMediator(this.getKeyRetriever(keyURL), this._buildBufferRetriever.bind(this, audioURL));
                 };
 
                 EncryptedBufferRetriever.prototype.isEncrypted = function() {
@@ -1457,7 +1462,7 @@
                         if(cachedData) {
                             this._request = getCachedAudioBuffer(cachedData);
                         } else {
-                            this._request = idxData.url ? this.getBufferRetriever(idxData.url) :  this.getBufferRetriever(this._mp3URL, idxData.startOffset, idxData.endOffset);
+                            this._request = idxData.url ? this.getBufferRetriever(idxData.url, idxData.key) :  this.getBufferRetriever(this._mp3URL, idxData.startOffset, idxData.endOffset);
                         }
 
                         var requestPromise = this._request.promise;

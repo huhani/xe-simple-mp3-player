@@ -8,7 +8,7 @@ function isEncrypted() {
     return !!$Signature;
 }
 
-function determineValidParameter() {
+function determineValidParameter($isKeyRequest = false) {
     $arguments = isset($_GET['arguments']) ? $_GET['arguments'] : null;
     $hash = isset($_GET['SN']) ? $_GET['SN'] : null;
     $text = '';
@@ -16,10 +16,13 @@ function determineValidParameter() {
         return false;
     }
     $arguments_split = explode(',', $arguments);
-    $foundFileParameter = in_array('file', $arguments_split);
-    if(!isEncrypted() && isset($_GET['file']) && !$foundFileParameter) {
-        return false;
+    if(!$isKeyRequest) {
+        $foundFileParameter = in_array('file', $arguments_split);
+        if(!isEncrypted() && isset($_GET['file']) && !$foundFileParameter) {
+            return false;
+        }
     }
+
     foreach($arguments_split as $eachArgument) {
         $argType = gettype($eachArgument);
         if(!isset($_GET[$eachArgument]) || !($argType === 'number' || $argType === 'string')) {
@@ -32,14 +35,42 @@ function determineValidParameter() {
     return substr(md5($text . SimpleEncrypt::getPassword()), 0, 24) === (string)$hash;
 }
 
+function isKeyRequest() {
+    return isset($_GET['Public']) && isset($_GET['handshake']);
+}
+
+function getDecryptKey($password) {
+    $Public = isset($_GET['Public']) ? (string)$_GET['Public'] : null;
+    $handshake = isset($_GET['handshake']) ? (string)$_GET['handshake'] : null;
+    $timestamp = isset($_GET['timestamp']) && $_GET['timestamp'] ? (string)$_GET['timestamp'] : null;
+    $document_srl = isset($_GET['document_srl']) && $_GET['document_srl'] ? (string)$_GET['document_srl'] : null;
+    $file_srl = isset($_GET['file_srl']) && $_GET['file_srl'] ? (string)$_GET['file_srl'] : null;
+    $ip = isset($_GET['ip']) && $_GET['ip'] ? (string)$_GET['ip'] : null;
+    if($Public && $handshake) {
+        $hash = SimpleEncrypt::getBufferPublicKey($password, $handshake);
+        $decrypt = SimpleEncrypt::getDecrypt($Public, $password);
+        if($decrypt && strlen($decrypt) === 20 && strcmp($decrypt, $hash) === 0) {
+            return SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip);
+        }
+    }
+
+    return "";
+}
+
 
 // ============================= 요청 시작 부분
-
-if(!determineValidParameter()) {
+if(!determineValidParameter(isKeyRequest())) {
     header('HTTP/1.1 403 Forbidden');
     return;
 }
 $password = SimpleEncrypt::getPassword();
+if(isKeyRequest()) {
+    echo getDecryptKey($password);
+    exit();
+}
+
+
+
 $uploaded_filename = null;
 if(isEncrypted()) {
     if(SimpleEncrypt::isEncryptSupported()) {

@@ -105,4 +105,8 @@ class SimpleEncrypt {
         return md5($handshake.$timestamp.$document_srl.$file_srl.$ip.$password, true);
     }
 
+    public static function getBufferPublicKey($password, $handshake) {
+        return sha1($handshake.$password, true);
+    }
+
 }
