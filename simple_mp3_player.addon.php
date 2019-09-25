@@ -411,6 +411,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $config->use_encrypt = false;
                 $config->password = false;
                 $config->encryption_key_update_period = 0;
+                $config->is_hls_mode = false;
             }
             if($config->password) {
                 $this->password = $config->password;
@@ -418,6 +419,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $this->allow_browser_cache = $config->allow_browser_cache;
             $this->buffer_encrypt = false;
             $this->encryption_key_update_period = 0;
+            $this->is_hls_mode = $config->is_hls_mode;
             if($config->use_encrypt && SimpleEncrypt::isEncryptSupported()) {
                 $this->use_encrypt = $config->use_encrypt;
                 $this->password = $config->password ? $config->password : SimpleEncrypt::getPassword();
@@ -571,16 +573,20 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     $offsetSize = count($offsets);
                     $streamStartOffset = $offsets[0]->startOffset;
                     $streamEndOffset = $offsets[$offsetSize-1]->endOffset;
-                    $description->filePath = $this->createMP3URL($filepath, array(
-                        array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
-                        array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
-                        array('key'=>'document_srl', 'value'=>$document_srl),
-                        array('key'=>'file_srl', 'value'=>$file_srl),
-                        array('key'=>'mime', 'value'=>$mime),
-                        array('key'=>'duration', 'value'=>$duration),
-                        array('key'=>'timestamp', 'value'=>$timestamp),
-                        array('key'=>'type', 'value'=>'progressive')
-                    ));
+                    if(!$this->is_hls_mode || $this->allow_browser_cache) {
+                        $description->filePath = $this->createMP3URL($filepath, array(
+                            array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
+                            array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
+                            array('key'=>'document_srl', 'value'=>$document_srl),
+                            array('key'=>'file_srl', 'value'=>$file_srl),
+                            array('key'=>'mime', 'value'=>$mime),
+                            array('key'=>'duration', 'value'=>$duration),
+                            array('key'=>'timestamp', 'value'=>$timestamp),
+                            array('key'=>'type', 'value'=>'progressive')
+                        ));
+                    } else if($this->is_hls_mode) {
+                        unset($description->filePath);
+                    }
                     $offsetInfo->encrypted = !$this->allow_browser_cache && $this->buffer_encrypt;
                     if(!$this->allow_browser_cache) {
                         $currentOffset = 0;
@@ -1207,6 +1213,7 @@ $SimpleMP3DescriberConfig->use_encrypt = $config->use_url_encrypt;
 $SimpleMP3DescriberConfig->buffer_encrypt = $config->mp3_realtime_encrypt;
 $SimpleMP3DescriberConfig->password = $password;
 $SimpleMP3DescriberConfig->encryption_key_update_period = $config->mp3_realtime_encryption_key_rotation_period;
+$SimpleMP3DescriberConfig->is_hls_mode = !(isset($_GET['hls']) && $_GET['hls'] === 'false');
 unset($config->mp3_realtime_encrypt);
 unset($config->mp3_realtime_encryption_key_rotation_period);
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
