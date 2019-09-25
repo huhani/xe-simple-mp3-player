@@ -1006,7 +1006,7 @@
                 };
 
                 EncryptedBufferRetriever.prototype._buildKeyRetriever = function(keyURL) {
-                    return getAudioBuffer(keyURL, void 0, void 0, true);
+                    return getAudioBuffer(keyURL);
                 };
 
                 EncryptedBufferRetriever.prototype._updateKeyRetriever = function(keyURL) {
