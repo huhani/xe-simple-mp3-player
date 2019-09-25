@@ -343,7 +343,7 @@
                     this._workerRunning = false;
                     if(this._worker) {
                         this._worker.addEventListener('message', this._onMessageHandler, false);
-                        this._worker.addEventListener('error', this._onError, false);
+                        this._worker.addEventListener('error', this._onErrorHandler, false);
                         this._worker = null;
                     }
                     this.cipher = null;
@@ -1988,6 +1988,9 @@
         return new Promise(function(resolve, reject){
             var xhr = new XMLHttpRequest;
             var url = window.request_uri+'index.php?act=getSimpleMP3Descriptions&document_srl='+document_srl;
+            if(!MSE.isSupported()) {
+                url += "&hls=false";
+            }
             xhr.open('GET', url, true);
             xhr.send();
             xhr.addEventListener('load', function(){
