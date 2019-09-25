@@ -984,13 +984,7 @@
                         isSettled: function(){return true;}
                     };
                 };
-
-                var isValidParameter = function(params) {
-                    return keyPair.every(function(param){
-                        return !!params[param];
-                    });
-                };
-
+                
                 function EncryptedBufferRetriever() {
                     var that = BufferRetriever.call(this) || this;
                     that._handshake = null;
