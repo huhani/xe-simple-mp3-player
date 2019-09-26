@@ -2242,7 +2242,7 @@
                     }
                 });
                 this._actuallyPlayingDeferred.promise['catch'](function(e){
-                    if(e && e instanceof Error) {
+                    if(e && e instanceof Error && e.name !== "NotAllowedError") {
                         console.error(e);
                     }
                 });
