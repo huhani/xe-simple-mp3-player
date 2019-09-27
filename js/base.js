@@ -1981,7 +1981,7 @@
 
         return new Promise(function(resolve, reject){
             var xhr = new XMLHttpRequest;
-            var url = window.request_uri+'index.php?act=getSimpleMP3Descriptions&document_srl='+document_srl;
+            var url = window.request_uri+'index.php?mid='+window.current_mid+'&act=getSimpleMP3Descriptions&document_srl='+document_srl;
             if(!MSE.isSupported()) {
                 url += "&hls=false";
             }
