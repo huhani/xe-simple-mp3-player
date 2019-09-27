@@ -11,6 +11,8 @@
     var limitMaxAutoStationTrack = 0;
     var showAlbumName = false;
     var enableMediaSession = true;
+    var mediaSessionForwardTime = 20;
+    var mediaSessionBackwardTime = 20;
     var enableRealtimeStreaming = true;
     var TrackRandomForce = false;
     var bufferSize = 12;
@@ -30,6 +32,8 @@
             autoplay = config.allow_autoplay;
             showAlbumName = config.BluePlayer_show_album_name;
             enableMediaSession = config.use_mediasession;
+            mediaSessionBackwardTime = config.mediasession_backward_time;
+            mediaSessionForwardTime = config.mediasession_forward_time;
             enableRealtimeStreaming = config.use_mp3_realtime_streaming;
             TrackRandomForce = config.BluePlayer__track_random_force;
             bufferSize = config.mp3_realtime_buffer_size;
@@ -464,6 +468,8 @@
             autoplay: false,
             mode: mode,
             enableMediaSession: enableMediaSession,
+            mediaSessionForwardTime: mediaSessionForwardTime * 1000,
+            mediaSessionBackwardTime: mediaSessionBackwardTime * 1000,
             labels: {
                 play: '재생',
                 pause: '일시정지',

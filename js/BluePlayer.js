@@ -3685,6 +3685,8 @@
             this._showAlbumName = config.showAlbumName || false;
             this._enableLyric = config.enableLyric || false;
             this._enableMediaSession = config.enableMediaSession || false;
+            this._mediaSessionForwardTime = config.mediaSessionForwardTime !== void 0 ? config.mediaSessionForwardTime : SEEK_TIME;
+            this._mediaSessionBackwardTime = config.mediaSessionBackwardTime !== void 0 ? config.mediaSessionBackwardTime : SEEK_TIME;
             this._activeFade = config.activeFade || false;
             this._fadeDuration = config.fadeDuration || 200;
             this._initPlaylist = config.playlist;
@@ -3772,14 +3774,23 @@
                 _MediaSession.setActionHandler("pause", function() {
                     that.pause();
                 });
+                if(this._mediaSessionBackwardTime) {
+                    _MediaSession.setActionHandler("seekbackward", function() {
+                        that.seek(Math.max(0, that.getPosition() - this._mediaSessionBackwardTime));
+                    });
+                } else {
+                    _MediaSession.setActionHandler("seekbackward", null);
+                }
+                if(this._mediaSessionForwardTime) {
+                    _MediaSession.setActionHandler("seekforward", function() {
+                        that.seek(Math.min(that.getDuration() || 0, that.getPosition() + this._mediaSessionForwardTime));
+                    });
+                } else {
+                    _MediaSession.setActionHandler("seekforward", null);
+                }
 
-                _MediaSession.setActionHandler("seekbackward", function() {
-                    that.seek(Math.max(0, that.getPosition() - SEEK_TIME));
-                });
 
-                _MediaSession.setActionHandler("seekforward", function() {
-                    that.seek(Math.min(that.getDuration() || 0, that.getPosition() + SEEK_TIME));
-                });
+
 
                 _MediaSession.setActionHandler("previoustrack", function() {
                     if(that.getPosition() > 10000) {

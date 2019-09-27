@@ -1111,6 +1111,8 @@ if(!class_exists('SimpleMP3Describer', false)) {
 $act = Context::get('act');
 $config = new stdClass();
 $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
+$config->mediasession_forward_time = isset($addon_info->mediasession_forward_time) && (int)$addon_info->mediasession_forward_time >= 0 ? $addon_info->mediasession_forward_time : 20;
+$config->mediasession_backward_time = isset($addon_info->mediasession_backward_time) && (int)$addon_info->mediasession_backward_time >= 0 ? $addon_info->mediasession_backward_time : 20;
 $config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
 $config->allow_autoplay = !(isset($addon_info->allow_autoplay) && $addon_info->allow_autoplay === "N");
 $config->link_to_media = (isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y");

@@ -143,6 +143,16 @@
                 </options>
             </var>
 
+            <var name="mediasession_forward_time" type="text">
+                <title xml:lang="ko">MediaSession 앞으로 감기 시간</title>
+                <description xml:lang="ko">MediaSession 앞으로 감기시 앞으로 건너뛸 시간을 입력합니다. 단위: 초, 기본값: 20, 비활성화: 0</description>
+            </var>
+
+            <var name="mediasession_backward_time" type="text">
+                <title xml:lang="ko">MediaSession 뒤로 감기 시간</title>
+                <description xml:lang="ko">MediaSession 뒤로 감기시 앞으로 건너뛸 시간을 입력합니다. 단위: 초, 기본값: 20, 비활성화: 0</description>
+            </var>
+
             <var name="allow_autoplay" type="select">
                 <title xml:lang="ko">자동 재생 (동영상 포함)</title>
                 <description xml:lang="ko">브라우저에서 자동 재생이 가능한 경우 맨 첫 곡(동영상)을 자동 재생합니다.</description>

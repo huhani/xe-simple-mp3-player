@@ -26,6 +26,8 @@
 			this._description = description;
 			this._MSE = null;
 			this._useMediaSession = useMediaSession !== void 0 ? useMediaSession : true;
+			this._mediaSessionForwardTime = SEEK_TIME;
+			this._mediaSessionBackwardTime = SEEK_TIME;
 			this._destruct = false;
 			this._audio.preload = "metadata";
 			this._audio.controls = true;
@@ -41,6 +43,12 @@
 				var config = $SimpleMP3Player.config;
 				var enableRealtimeStreaming = config.use_mp3_realtime_streaming;
 				var bufferSize = config.mp3_realtime_buffer_size;
+				if(config.mediaSessionForwardTime !== void 0) {
+					this._mediaSessionForwardTime = config.mediaSessionForwardTime;
+				}
+				if(config.mediaSessionBackwardTime !== void 0) {
+					this._mediaSessionBackwardTime = config.mediaSessionBackwardTime;
+				}
 			}
 
 			this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
@@ -55,29 +63,33 @@
 		};
 
 		SimplePlayer.prototype._updateMediaSessionMetadata = function() {
-			if(_MediaSession && this._description.tags !== void 0) {
-				var config = $SimpleMP3Player.config;
-				var defaultCover = config.default_cover;
-				var useThumbnail = config.use_thumbnail;
-				if(defaultCover) {
-					defaultCover = $SimpleMP3Player.convertURL2URI(defaultCover);
-				}
-				var tags = this._description.tags;
-				var albumArt = tags.albumArt;
-				if(!albumArt) {
-					if(useThumbnail && this._description.thumbnail) {
-						albumArt = this._description.thumbnail;
-					} else if(defaultCover) {
-						albumArt = defaultCover;
+			if(_MediaSession) {
+				if(this._description.tags !== void 0) {
+					var config = $SimpleMP3Player.config;
+					var defaultCover = config.default_cover;
+					var useThumbnail = config.use_thumbnail;
+					if(defaultCover) {
+						defaultCover = $SimpleMP3Player.convertURL2URI(defaultCover);
 					}
-				}
+					var tags = this._description.tags;
+					var albumArt = tags.albumArt;
+					if(!albumArt) {
+						if(useThumbnail && this._description.thumbnail) {
+							albumArt = this._description.thumbnail;
+						} else if(defaultCover) {
+							albumArt = defaultCover;
+						}
+					}
 
-				_MediaSession.metadata = new window.MediaMetadata({
-					title: tags.title ? tags.title : void 0,
-					artist: tags.artist ? tags.artist : void 0,
-					album: tags.album ? tags.album : void 0,
-					artwork: albumArt ? [{src : albumArt}] : void 0
-				});
+					_MediaSession.metadata = new window.MediaMetadata({
+						title: tags.title ? tags.title : void 0,
+						artist: tags.artist ? tags.artist : void 0,
+						album: tags.album ? tags.album : void 0,
+						artwork: albumArt ? [{src : albumArt}] : void 0
+					});
+				} else {
+					_MediaSession.metadata = void 0;
+				}
 			}
 		};
 
@@ -93,11 +105,11 @@
 				});
 
 				_MediaSession.setActionHandler("seekbackward", function() {
-					that._audio.currentTime = Math.max(0, that._audio.currentTime - SEEK_TIME);
+					that._audio.currentTime = Math.max(0, that._audio.currentTime - this._mediaSessionBackwardTime);
 				});
 
 				_MediaSession.setActionHandler("seekforward", function() {
-					that._audio.currentTime = Math.min(that._audio.duration || 0, that._audio.currentTime + SEEK_TIME);
+					that._audio.currentTime = Math.min(that._audio.duration || 0, that._audio.currentTime + this._mediaSessionForwardTime);
 				});
 
 				_MediaSession.setActionHandler("previoustrack", null);

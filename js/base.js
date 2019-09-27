@@ -984,7 +984,7 @@
                         isSettled: function(){return true;}
                     };
                 };
-                
+
                 function EncryptedBufferRetriever() {
                     var that = BufferRetriever.call(this) || this;
                     that._handshake = null;

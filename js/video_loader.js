@@ -105,6 +105,8 @@
             this._autoplay = config.autoplay;
             this._preload = config.preload;
             this._enableMediaSession = config.enableMediaSession;
+            this._mediaSessionForwardTime = config.mediaSessionForwardTime !== void 0 ? config.mediaSessionForwardTime : SEEK_TIME;
+            this._mediaSessionBackwardTime = config.mediaSessionBackwardTime !== void 0 ? config.mediaSessionBackwardTime : SEEK_TIME;
             this._src = config.src;
             this._title = config.title;
             this._artist = config.artist;
@@ -207,11 +209,11 @@
                 });
 
                 _MediaSession.setActionHandler("seekbackward", function() {
-                    that._video.currentTime = Math.max(0, that._video.currentTime - SEEK_TIME);
+                    that._video.currentTime = Math.max(0, that._video.currentTime - this._mediaSessionBackwardTime);
                 });
 
                 _MediaSession.setActionHandler("seekforward", function() {
-                    that._video.currentTime = Math.min(that._video.duration || 0, that._video.currentTime + SEEK_TIME);
+                    that._video.currentTime = Math.min(that._video.duration || 0, that._video.currentTime + this._mediaSessionForwardTime);
                 });
 
                 _MediaSession.setActionHandler("previoustrack", null);
@@ -263,6 +265,8 @@
         var useThumbnail = config.use_thumbnail;
         var linkToMedia = config.link_to_media;
         var enableMediaSession = config.use_mediasession;
+        var mediaSessionBackwardTime = config.mediasession_backward_time;
+        var mediaSessionForwardTime = config.mediasession_forward_time;
         var enableVideo = config.enable_video;
         var enableWebM = config.enable_webm;
         var videoAutoplay = config.video_autoplay;
@@ -321,6 +325,8 @@
                     preload: preload,
                     gifMode: isGIFMode,
                     enableMediaSession: hasAudio && enableMediaSession,
+                    mediaSessionBackwardTime: mediaSessionBackwardTime,
+                    mediaSessionForwardTime: mediaSessionForwardTime,
                     title: title,
                     artist: artist,
                     album: album,

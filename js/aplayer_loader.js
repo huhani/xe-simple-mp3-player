@@ -61,6 +61,8 @@
 
     function buildAPlayer($target, data, useLyric) {
         var useMediaSession = !!($SimpleMP3Player.config && $SimpleMP3Player.config.use_mediasession);
+        var mediaSessionForwardTime = SEEK_TIME;
+        var mediaSessionBackwardTime = SEEK_TIME;
         var targetSelector = $SimpleMP3Player.config && $SimpleMP3Player.config.playlist_player_selector ? $SimpleMP3Player.config.playlist_player_selector : null;
         var enableRealtimeStreaming = true;
         var bufferSize = 12;
@@ -74,6 +76,8 @@
             var config = $SimpleMP3Player.config;
             enableRealtimeStreaming = config.use_mp3_realtime_streaming;
             bufferSize = config.mp3_realtime_buffer_size;
+            mediaSessionForwardTime = config.mediasession_forward_time;
+            mediaSessionBackwardTime = config.mediasession_backward_time;
         }
 
         var $SimpleMP3PlaylistPlayer = $('<div id="SimpleMP3PlaylistPlayer__container"></div>');
@@ -151,15 +155,15 @@
                     aPlayer.pause();
                 });
 
-                _MediaSession.setActionHandler("seekbackward", function() {
-                    audio.currentTime = Math.max(0, audio.currentTime - SEEK_TIME);
-                });
+                _MediaSession.setActionHandler("seekbackward", mediaSessionBackwardTime > 0 ? function() {
+                    audio.currentTime = Math.max(0, audio.currentTime - mediaSessionBackwardTime);
+                } : null);
 
-                _MediaSession.setActionHandler("seekforward", function() {
-                    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + SEEK_TIME);
-                });
+                _MediaSession.setActionHandler("seekforward",mediaSessionForwardTime > 0 ? function() {
+                    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + mediaSessionForwardTime);
+                } : null);
 
-                _MediaSession.setActionHandler("previoustrack", size > 1 ? function() {
+                _MediaSession.setActionHandler("previoustrack", size > 0 ? function() {
                     if(audio.currentTime && audio.currentTime > 10) {
                         audio.currentTime = 0;
                     } else {
@@ -167,13 +171,12 @@
                     }
                 } : null);
 
-                _MediaSession.setActionHandler("nexttrack", size > 1 ? function() {
+                _MediaSession.setActionHandler("nexttrack", size > 0 ? function() {
                     aPlayer.skipForward();
                 } : null);
             }
         }
     }
-
 
 
     function onDescriptionLoad(data) {
