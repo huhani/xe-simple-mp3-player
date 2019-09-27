@@ -50,6 +50,7 @@ function getDecryptKey($password) {
         $hash = SimpleEncrypt::getBufferPublicKey($password, $handshake);
         $decrypt = SimpleEncrypt::getDecrypt($Public, $password);
         if($decrypt && strlen($decrypt) === 20 && strcmp($decrypt, $hash) === 0) {
+            addCacheControlHeader();
             return SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip);
         }
     }
@@ -57,6 +58,16 @@ function getDecryptKey($password) {
     return "";
 }
 
+function addCacheControlHeader() {
+    $timestamp = isset($_GET['timestamp']) && (int)$_GET['timestamp'] > 0 ? (int)$_GET['timestamp'] : 0;
+    if($timestamp) {
+        $now = time();
+        $diff = $now - $timestamp;
+        $ageDuration = 21300;
+        $age = $ageDuration + 5 - $diff;
+        header('Cache-Control: private, max-age=' . (max(min($ageDuration, $age), 0)) );
+    }
+}
 
 // ============================= 요청 시작 부분
 if(!determineValidParameter(isKeyRequest())) {
@@ -120,6 +131,7 @@ $streamLength = $streamStartOffset !== null && $streamEndOffset !== null ? $stre
 
 $file = fopen($uploaded_filename, 'r');
 header('Accept-Ranges: bytes');
+header('Expires: '.gmdate('D, d M Y H:i:s \G\M\T', time()));
 //$bufferEncryptionKey = false;
 if($isSegment) {
     $size = $endOffset-$startOffset+1;
@@ -130,6 +142,8 @@ if($isSegment) {
         $size = strlen($data);
     }
 
+    addCacheControlHeader();
+    header('Content-Type: '.$mimeType);
     header('Content-Length: ' . $size);
 
     echo $data;
