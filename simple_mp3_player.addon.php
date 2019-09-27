@@ -1216,6 +1216,9 @@ $SimpleMP3DescriberConfig->buffer_encrypt = $config->mp3_realtime_encrypt;
 $SimpleMP3DescriberConfig->password = $password;
 $SimpleMP3DescriberConfig->encryption_key_update_period = $config->mp3_realtime_encryption_key_rotation_period;
 $SimpleMP3DescriberConfig->is_hls_mode = !(isset($_GET['hls']) && $_GET['hls'] === 'false');
+if(!$config->use_mp3_realtime_streaming) {
+    $SimpleMP3DescriberConfig->is_hls_mode = false;
+}
 unset($config->mp3_realtime_encrypt);
 unset($config->mp3_realtime_encryption_key_rotation_period);
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
