@@ -2166,6 +2166,8 @@
                             if(stream && stream.duration) {
                                 var target = stream.isVideo ? videoDescriptions : audioDescriptions;
                                 target.push(each);
+                            } else if(description.offsetInfo && description.offsetInfo.offsets && description.offsetInfo.offsets.length > 0) {
+                                audioDescriptions.push(each);
                             }
                         }
                     });
