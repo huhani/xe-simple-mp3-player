@@ -139,7 +139,7 @@
                 var offsetString = offsets.map(function(offset){
                     return 'offset[]='+offset;
                 }).join('&');
-                return getXHR(mid, document_srl, 'getFileDescription', offsetString);
+                return getXHR(mid, document_srl, 'getFileDescription', offsetString+(MSE.isSupported() ? '' : '&hls=false'));
             }
 
             function CustomPlaylistManager(Player) {
