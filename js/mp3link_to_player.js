@@ -5,6 +5,7 @@
 	}
 
 
+	var MSE = $SimpleMP3Player.MSE;
 	var PlayerManager = $SimpleMP3Player.PlayerManager;
 	var PlayerObserver = $SimpleMP3Player.PlayerObserver;
 	var SimplePlayerObserver = PlayerObserver.SimplePlayerObserver;
@@ -16,7 +17,9 @@
 		var SEEK_TIME = 20;
 
 		function SimplePlayer(targetDOM, description, useMediaSession) {
-			if(!description || description.filePath === void 0) {
+			if(!description ||
+				!(MSE.isSupported() && description.offsetInfo || description.filePath)
+			) {
 				throw new Error("No source found.");
 			}
 
@@ -52,8 +55,8 @@
 			}
 
 			this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
-			if(enableRealtimeStreaming && $SimpleMP3Player.MSE.isSupported()) {
-				this._MSE = new $SimpleMP3Player.MSE(this._audio, this._description.filePath, this._description.offsetInfo, this._description.file_srl, bufferSize);
+			if(enableRealtimeStreaming && MSE.isSupported()) {
+				this._MSE = new MSE(this._audio, this._description.filePath, this._description.offsetInfo, this._description.file_srl, bufferSize);
 				this._MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
 			} else {
 				this._audio.src = this._description.filePath;
