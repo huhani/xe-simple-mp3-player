@@ -297,6 +297,7 @@
                 this.iv = iv;
                 this.key = key;
                 this._finish = false;
+                this._worker = null;
                 this._workerRunning = false;
                 this._aborted = false;
                 this._deferred = makeDeferred();
@@ -342,8 +343,8 @@
                     this._finish= true;
                     this._workerRunning = false;
                     if(this._worker) {
-                        this._worker.addEventListener('message', this._onMessageHandler, false);
-                        this._worker.addEventListener('error', this._onErrorHandler, false);
+                        this._worker.removeEventListener('message', this._onMessageHandler, false);
+                        this._worker.removeEventListener('error', this._onErrorHandler, false);
                         this._worker = null;
                     }
                     this.cipher = null;
