@@ -386,7 +386,6 @@
         }
 
         linkToVideoPlayers.concat(topAttachedPlayers).forEach(function(eachPlayer) {
-            console.log(eachPlayer);
             if(!eachPlayer._gifMode && eachPlayer._hasAudio) {
                 PlayerManager.registerPlayer(new SimpleVideoPlayerObserver(eachPlayer));
             }
