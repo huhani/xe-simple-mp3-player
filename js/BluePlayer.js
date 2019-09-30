@@ -3776,21 +3776,18 @@
                 });
                 if(this._mediaSessionBackwardTime) {
                     _MediaSession.setActionHandler("seekbackward", function() {
-                        that.seek(Math.max(0, that.getPosition() - this._mediaSessionBackwardTime));
+                        that.seek(Math.max(0, that.getPosition() - that._mediaSessionBackwardTime));
                     });
                 } else {
                     _MediaSession.setActionHandler("seekbackward", null);
                 }
                 if(this._mediaSessionForwardTime) {
                     _MediaSession.setActionHandler("seekforward", function() {
-                        that.seek(Math.min(that.getDuration() || 0, that.getPosition() + this._mediaSessionForwardTime));
+                        that.seek(Math.min(that.getDuration() || 0, that.getPosition() + that._mediaSessionForwardTime));
                     });
                 } else {
                     _MediaSession.setActionHandler("seekforward", null);
                 }
-
-
-
 
                 _MediaSession.setActionHandler("previoustrack", function() {
                     if(that.getPosition() > 10000) {

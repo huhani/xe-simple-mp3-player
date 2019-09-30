@@ -108,11 +108,11 @@
 				});
 
 				_MediaSession.setActionHandler("seekbackward", function() {
-					that._audio.currentTime = Math.max(0, that._audio.currentTime - this._mediaSessionBackwardTime);
+					that._audio.currentTime = Math.max(0, that._audio.currentTime - that._mediaSessionBackwardTime);
 				});
 
 				_MediaSession.setActionHandler("seekforward", function() {
-					that._audio.currentTime = Math.min(that._audio.duration || 0, that._audio.currentTime + this._mediaSessionForwardTime);
+					that._audio.currentTime = Math.min(that._audio.duration || 0, that._audio.currentTime + that._mediaSessionForwardTime);
 				});
 
 				_MediaSession.setActionHandler("previoustrack", null);
