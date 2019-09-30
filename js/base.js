@@ -2079,15 +2079,6 @@
                         };
                     }
                     var tags = description.tags;
-                    if(tags.title) {
-                        tags.title = ampToAmp(tags.title);
-                    }
-                    if(tags.artist) {
-                        tags.artist = ampToAmp(tags.artist);
-                    }
-                    if(tags.album) {
-                        tags.album = ampToAmp(tags.album);
-                    }
                     if(description.download_url) {
                         description.download_url = window.default_url + "index.php" + ampToAmp(description.download_url);
                     }
@@ -2136,6 +2127,15 @@
                             }
                         }
                     });
+                    if(tags.title) {
+                        tags.title = ampToAmp(tags.title);
+                    }
+                    if(tags.artist) {
+                        tags.artist = ampToAmp(tags.artist);
+                    }
+                    if(tags.album) {
+                        tags.album = ampToAmp(tags.album);
+                    }
                 }
             });
         }
