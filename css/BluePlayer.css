@@ -70,6 +70,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .PlaybackTimeline__TimePassed {display:inline-block; float: left; margin: 0 2px 0 10px;}
 #BluePlayer .PlaybackTimeline__ProgressBar {display:inline-block; position:relative; top: -8px; width: 240px;}
 #BluePlayer .PlaybackTimeline__ProgressBar .PlaybackTimelineSlider__extend { position: relative; top: -10px; height: 25px;}
+#BluePlayer .PlaybackTimeline__ProgressBar .PlaybackTimelineSlider__leftBuffer { position: absolute; z-index: 1; font-size: 0.7em; display: block; top: 0px; height: 100%; left: 0px; background-color: #B7B7B7; transition: all 0.2s ease;}
 #BluePlayer .PlaybackTimeline__Duration {display:inline-block;float: right; margin: 0 4px 0 4px;}
 
 
@@ -80,13 +81,13 @@ body {margin: 0; padding: 0;}
 #BluePlayer .ui-widget-content {border: unset; color: unset; background-color: #CECECE;}
 #BluePlayer .ui-slider-horizontal .ui-slider-range-min {left: 0;}
 #BluePlayer .ui-slider-horizontal .ui-slider-range {top: 0; height: 100%;}
-#BluePlayer .ui-slider .ui-slider-range { position: absolute;  z-index: 1;  font-size: .7em;  display: block;  border: 0;  background-position: 0 0;}
+#BluePlayer .ui-slider .ui-slider-range { position: absolute;  z-index: 2;  font-size: .7em;  display: block;  border: 0;  background-position: 0 0;}
 
 #BluePlayer .ui-state-default, .ui-widget-content .ui-state-default, #BluePlayer .ui-widget-header .ui-state-default {border: unset; color: unset; background: unset;}
 #BluePlayer .ui-slider-horizontal .ui-slider-handle {top: -3px; margin-left: -5px;}
 #BluePlayer .ui-slider .ui-slider-handle {position: absolute; z-index: 2; background-color: #00a0ff; width: 9px; height: 9px; border: 0px; border-radius: 5px; outline: none; opacity: 0; transition: opacity .15s;
 }
-#BluePlayer .ui-slider:hover .ui-slider-handle,#BluePlayer .ui-slider .ui-slider-handle:active, #BluePlayer .ui-slider.sliding .ui-slider-handle {position: absolute; z-index: 2; background-color: #00a0ff; width: 9px; height: 9px; border: 0px; border-radius: 5px; outline: none;
+#BluePlayer .ui-slider:hover .ui-slider-handle,#BluePlayer .ui-slider .ui-slider-handle:active, #BluePlayer .ui-slider.sliding .ui-slider-handle {position: absolute; z-index: 3; background-color: #00a0ff; width: 9px; height: 9px; border: 0px; border-radius: 5px; outline: none;
     opacity: 1;
 }
 #BluePlayer .ui-slider-range {background-color:#00a0ff; }
