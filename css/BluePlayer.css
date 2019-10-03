@@ -164,7 +164,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackItemDescription__left {float:left; display: table; height: 100%;}
 #BluePlayer .TrackItemDescription__left .albumCover__wrapper {display: table-cell; vertical-align: middle; padding: 0 4px 0 8px; }
 #BluePlayer .TrackItemDescription__left .albumCover {width: 32px; height: 32px; background-color: #E0E0E0; display: block;}
-#BluePlayer .TrackItemDescription__left .albumCover .albumCover__img {width: 32px; height: 32px;}
+#BluePlayer .TrackItemDescription__left .albumCover .albumCover__img {width: 32px; height: 32px; object-fit: cover;}
 #BluePlayer .TrackItemDescription__left .info {display: table-cell; vertical-align: middle; padding: 0 5px;}
 #BluePlayer .TrackItemDescription__left .info span {display: inline-block; text-align: left; vertical-align: middle;}
 #BluePlayer .TrackItemDescription__left .info .artist span{font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
