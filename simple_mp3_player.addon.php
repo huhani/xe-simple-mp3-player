@@ -401,12 +401,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
     class SimpleMP3Describer {
         private $use_encrypt = false;
         private $password = null;
-        private $allow_browser_cache = false;
 
         public function __construct($config) {
             if($config === null) {
                 $config->password = null;
-                $config->allow_browser_cache = false;
                 $config->buffer_encrypt = false;
                 $config->use_encrypt = false;
                 $config->password = false;
@@ -416,7 +414,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
             if($config->password) {
                 $this->password = $config->password;
             }
-            $this->allow_browser_cache = $config->allow_browser_cache;
             $this->buffer_encrypt = false;
             $this->encryption_key_update_period = 0;
             $this->is_hls_mode = $config->is_hls_mode;
@@ -427,6 +424,9 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     $this->encryption_key_update_period = $config->encryption_key_update_period;
                     $this->buffer_encrypt = $config->buffer_encrypt;
                 }
+            }
+            if(!$this->use_encrypt) {
+                $this->buffer_encrypt = false;
             }
         }
 
@@ -458,7 +458,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
         private function createMP3URL($uploaded_filename, $args = array()) {
             $argsArr = array();
             if($uploaded_filename) {
-                if($this->allow_browser_cache) {
+                if(!$this->use_encrypt) {
                     return $uploaded_filename;
                 }
 
@@ -573,7 +573,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     $offsetSize = count($offsets);
                     $streamStartOffset = $offsets[0]->startOffset;
                     $streamEndOffset = $offsets[$offsetSize-1]->endOffset;
-                    if(!$this->is_hls_mode || $this->allow_browser_cache) {
+                    if(!$this->is_hls_mode) {
                         $description->filePath = $this->createMP3URL($filepath, array(
                             array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
                             array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
@@ -587,8 +587,8 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     } else if($this->is_hls_mode) {
                         unset($description->filePath);
                     }
-                    $offsetInfo->encrypted = !$this->allow_browser_cache && $this->buffer_encrypt;
-                    if(!$this->allow_browser_cache) {
+                    $offsetInfo->encrypted = $this->use_encrypt && $this->buffer_encrypt;
+                    if($this->use_encrypt) {
                         $currentOffset = 0;
                         $rotationCount = 0;
                         $lastHandshake = null;
@@ -1113,11 +1113,10 @@ $config = new stdClass();
 $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
 $config->mediasession_forward_time = isset($addon_info->mediasession_forward_time) && (int)$addon_info->mediasession_forward_time >= 0 ? $addon_info->mediasession_forward_time : 20;
 $config->mediasession_backward_time = isset($addon_info->mediasession_backward_time) && (int)$addon_info->mediasession_backward_time >= 0 ? $addon_info->mediasession_backward_time : 20;
-$config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
+$config->use_url_encrypt = true;
 $config->allow_autoplay = !(isset($addon_info->allow_autoplay) && $addon_info->allow_autoplay === "N");
 $config->link_to_media = (isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y");
 $config->default_cover = isset($addon_info->default_cover) && $addon_info->default_cover ? $addon_info->default_cover : null;
-$config->allow_browser_cache = (isset($addon_info->allow_browser_cache) && $addon_info->allow_browser_cache === "Y");
 $config->playlist_player_selector = isset($addon_info->playlist_player_selector) ? $addon_info->playlist_player_selector : null;
 $config->use_thumbnail = !(isset($addon_info->use_thumbnail) && $addon_info->use_thumbnail === "N");
 $config->thumbnail_type = isset($addon_info->thumbnail_type) && $addon_info->thumbnail_type ? $addon_info->thumbnail_type : 'crop';
@@ -1199,7 +1198,6 @@ if(SimpleEncrypt::getPassword()) {
 }
 if(!$password) {
     $config->use_url_encrypt = false;
-    $config->allow_browser_cache = true;
     $config->mp3_realtime_encrypt = false;
 }
 
@@ -1210,7 +1208,6 @@ if(!$password) {
 
 
 $SimpleMP3DescriberConfig = new stdClass;
-$SimpleMP3DescriberConfig->allow_browser_cache = $config->allow_browser_cache;
 $SimpleMP3DescriberConfig->use_encrypt = $config->use_url_encrypt;
 $SimpleMP3DescriberConfig->buffer_encrypt = $config->mp3_realtime_encrypt;
 $SimpleMP3DescriberConfig->password = $password;
