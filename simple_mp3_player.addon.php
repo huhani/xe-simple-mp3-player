@@ -410,6 +410,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $config->password = false;
                 $config->encryption_key_update_period = 0;
                 $config->is_hls_mode = false;
+                $config->include_uploaded_filename = false;
             }
             if($config->password) {
                 $this->password = $config->password;
@@ -417,6 +418,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $this->buffer_encrypt = false;
             $this->encryption_key_update_period = 0;
             $this->is_hls_mode = $config->is_hls_mode;
+            $this->include_uploaded_filename = $config->include_uploaded_filename;
             if($config->use_encrypt && SimpleEncrypt::isEncryptSupported()) {
                 $this->use_encrypt = $config->use_encrypt;
                 $this->password = $config->password ? $config->password : SimpleEncrypt::getPassword();
@@ -458,7 +460,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
         private function createMP3URL($uploaded_filename, $args = array()) {
             $argsArr = array();
             if($uploaded_filename) {
-                if(!$this->use_encrypt) {
+                if(!$this->use_encrypt || !$this->is_hls_mode) {
                     return $uploaded_filename;
                 }
 
@@ -566,6 +568,9 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 if(!$mime) {
                     $mime = 'unknown';
                 }
+                if($this->include_uploaded_filename) {
+                    $description->uploaded_filename = $filepath;
+                }
                 if($description->offsetInfo) {
                     $offsetInfo = $description->offsetInfo;
                     $offsets = $offsetInfo->offsets;
@@ -573,69 +578,72 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     $offsetSize = count($offsets);
                     $streamStartOffset = $offsets[0]->startOffset;
                     $streamEndOffset = $offsets[$offsetSize-1]->endOffset;
-                    if(!$this->is_hls_mode) {
-                        $description->filePath = $this->createMP3URL($filepath, array(
-                            array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
-                            array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
-                            array('key'=>'document_srl', 'value'=>$document_srl),
-                            array('key'=>'file_srl', 'value'=>$file_srl),
-                            array('key'=>'mime', 'value'=>$mime),
-                            array('key'=>'duration', 'value'=>$duration),
-                            array('key'=>'timestamp', 'value'=>$timestamp),
-                            array('key'=>'type', 'value'=>'progressive')
-                        ));
-                    } else if($this->is_hls_mode) {
-                        unset($description->filePath);
-                    }
-                    $offsetInfo->encrypted = $this->use_encrypt && $this->buffer_encrypt;
                     if($this->use_encrypt) {
-                        $currentOffset = 0;
-                        $rotationCount = 0;
-                        $lastHandshake = null;
-                        foreach ($offsets as $eachOffset) {
-                            $urlParamArr = array(
-                                array('key'=>'document_srl', 'value'=>$document_srl),
-                                array('key'=>'file_srl', 'value'=>$file_srl),
+                        if(!$this->is_hls_mode) {
+                            $description->filePath = $this->createMP3URL($filepath, array(
                                 array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
                                 array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
+                                array('key'=>'document_srl', 'value'=>$document_srl),
+                                array('key'=>'file_srl', 'value'=>$file_srl),
                                 array('key'=>'mime', 'value'=>$mime),
-                                array('key'=>'start', 'value'=>$eachOffset->startOffset),
-                                array('key'=>'end', 'value'=>$eachOffset->endOffset),
                                 array('key'=>'duration', 'value'=>$duration),
-                                array('key'=>'ip', 'value'=>$ip),
-                                array('key'=>'offset', 'value'=>$currentOffset),
                                 array('key'=>'timestamp', 'value'=>$timestamp),
-                                array('key'=>'type', 'value'=>'realtime')
-                            );
-                            if($this->buffer_encrypt) {
-                                if(!$lastHandshake) {
-                                    $lastHandshake = SimpleEncrypt::getRandomStr(16);
-                                }
-                                if($rotationCount === 0 ||
-                                    ($this->encryption_key_update_period > 0 && $rotationCount % $this->encryption_key_update_period === 0)
-                                ) {
-                                    if($rotationCount > 0) {
+                                array('key'=>'type', 'value'=>'progressive')
+                            ));
+                        } else {
+                            unset($description->filePath);
+                        }
+                        if($this->is_hls_mode) {
+                            $currentOffset = 0;
+                            $rotationCount = 0;
+                            $lastHandshake = null;
+                            foreach ($offsets as $eachOffset) {
+                                $urlParamArr = array(
+                                    array('key'=>'document_srl', 'value'=>$document_srl),
+                                    array('key'=>'file_srl', 'value'=>$file_srl),
+                                    array('key'=>'streamStartOffset', 'value'=>$streamStartOffset),
+                                    array('key'=>'streamEndOffset', 'value'=>$streamEndOffset),
+                                    array('key'=>'mime', 'value'=>$mime),
+                                    array('key'=>'start', 'value'=>$eachOffset->startOffset),
+                                    array('key'=>'end', 'value'=>$eachOffset->endOffset),
+                                    array('key'=>'duration', 'value'=>$duration),
+                                    array('key'=>'ip', 'value'=>$ip),
+                                    array('key'=>'offset', 'value'=>$currentOffset),
+                                    array('key'=>'timestamp', 'value'=>$timestamp),
+                                    array('key'=>'type', 'value'=>'realtime')
+                                );
+                                if($this->buffer_encrypt) {
+                                    if(!$lastHandshake) {
                                         $lastHandshake = SimpleEncrypt::getRandomStr(16);
                                     }
-                                    $publicKey = SimpleEncrypt::getEncrypt(SimpleEncrypt::getBufferPublicKey($this->password, $lastHandshake), $this->password);
-                                    $keyUrlParamArr = array(
-                                        array('key'=>'Public', 'value'=> $publicKey),
-                                        array('key'=>'document_srl', 'value'=>$document_srl),
-                                        array('key'=>'file_srl', 'value'=>$file_srl),
-                                        array('key'=>'ip', 'value'=>$ip),
-                                        array('key'=>'timestamp', 'value'=>$timestamp),
-                                        array('key'=>'handshake', 'value' => $lastHandshake)
-                                    );
-                                    $eachOffset->key = $this->createMP3URL(null, $keyUrlParamArr);
+                                    if($rotationCount === 0 ||
+                                        ($this->encryption_key_update_period > 0 && $rotationCount % $this->encryption_key_update_period === 0)
+                                    ) {
+                                        if($rotationCount > 0) {
+                                            $lastHandshake = SimpleEncrypt::getRandomStr(16);
+                                        }
+                                        $publicKey = SimpleEncrypt::getEncrypt(SimpleEncrypt::getBufferPublicKey($this->password, $lastHandshake), $this->password);
+                                        $keyUrlParamArr = array(
+                                            array('key'=>'Public', 'value'=> $publicKey),
+                                            array('key'=>'document_srl', 'value'=>$document_srl),
+                                            array('key'=>'file_srl', 'value'=>$file_srl),
+                                            array('key'=>'ip', 'value'=>$ip),
+                                            array('key'=>'timestamp', 'value'=>$timestamp),
+                                            array('key'=>'handshake', 'value' => $lastHandshake)
+                                        );
+                                        $eachOffset->key = $this->createMP3URL(null, $keyUrlParamArr);
+                                    }
+                                    $rotationCount++;
+                                    $urlParamArr[] = array('key'=>'handshake', 'value' => $lastHandshake);
                                 }
-                                $rotationCount++;
-                                $urlParamArr[] = array('key'=>'handshake', 'value' => $lastHandshake);
-                            }
 
-                            $eachOffset->url = $this->createMP3URL($filepath, $urlParamArr);
-                            $currentOffset += $eachOffset->time;
+                                $eachOffset->url = $this->createMP3URL($filepath, $urlParamArr);
+                                $currentOffset += $eachOffset->time;
+                            }
                         }
                     }
+
+                    $offsetInfo->encrypted = $this->use_encrypt && $this->buffer_encrypt;
                 } else {
                     $arguments = array(
                         array('key'=>'document_srl', 'value'=>$document_srl),
@@ -1113,7 +1121,7 @@ $config = new stdClass();
 $config->use_mediasession = !(isset($addon_info->use_mediasession) && $addon_info->use_mediasession === "N");
 $config->mediasession_forward_time = isset($addon_info->mediasession_forward_time) && (int)$addon_info->mediasession_forward_time >= 0 ? $addon_info->mediasession_forward_time : 20;
 $config->mediasession_backward_time = isset($addon_info->mediasession_backward_time) && (int)$addon_info->mediasession_backward_time >= 0 ? $addon_info->mediasession_backward_time : 20;
-$config->use_url_encrypt = true;
+$config->use_url_encrypt = !(isset($addon_info->use_url_encrypt) && $addon_info->use_url_encrypt === "N");
 $config->allow_autoplay = !(isset($addon_info->allow_autoplay) && $addon_info->allow_autoplay === "N");
 $config->link_to_media = (isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y");
 $config->default_cover = isset($addon_info->default_cover) && $addon_info->default_cover ? $addon_info->default_cover : null;
@@ -1213,6 +1221,7 @@ $SimpleMP3DescriberConfig->buffer_encrypt = $config->mp3_realtime_encrypt;
 $SimpleMP3DescriberConfig->password = $password;
 $SimpleMP3DescriberConfig->encryption_key_update_period = $config->mp3_realtime_encryption_key_rotation_period;
 $SimpleMP3DescriberConfig->is_hls_mode = !(isset($_GET['hls']) && $_GET['hls'] === 'false');
+$SimpleMP3DescriberConfig->include_uploaded_filename = $config->link_to_media;
 if(!$config->use_mp3_realtime_streaming) {
     $SimpleMP3DescriberConfig->is_hls_mode = false;
 }

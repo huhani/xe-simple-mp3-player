@@ -251,7 +251,6 @@
         };
 
         return SimpleVideoPlayer;
-
     }();
 
     function loadVideoPlayers(data) {
@@ -344,13 +343,16 @@
             return null;
         };
         if(linkToMedia) {
-            $document_content.find('a[data-file-srl]').each(function() {
+            $document_content.find('a').each(function() {
                 var that = this;
                 var $this = $(this);
                 var href = $this.attr('href');
-                var file_srl = parseInt($this.attr('data-file-srl'), 10);
-                var findDescription = data.find(function(description) {
-                    return description.file_srl === file_srl;
+                var data_file_srl = $this.attr('data-file-srl') || null;
+                var file_srl = data_file_srl ? parseInt(data_file_srl, 10) : NaN;
+                var findDescription = data.find(function(data) {
+                    var description = data.description;
+                    var uploaded_filename = description && description.uploaded_filename ? description.uploaded_filename.replace(/^.\/files/i, '/files') : null;
+                    return (file_srl && !isNaN(file_srl) && description.file_srl === file_srl) || (uploaded_filename && href && href.indexOf(uploaded_filename) > -1);
                 });
                 if(findDescription) {
                     var description = findDescription.description;
