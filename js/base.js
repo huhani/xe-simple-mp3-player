@@ -558,8 +558,10 @@
             })
         }
 
-        var RequestToFetch = function() {
+        var Request = function() {
 
+            var STALLED_TIME_MSEC = 2000;
+            var RETRY_TIME_MSEC = 1000;
             var REQUESTER_ID = 0;
 
             function buildResponse(code, data, retryCount, aborted) {
@@ -571,40 +573,192 @@
                 }
             }
 
-            function RequestToFetch(url, start, end, includeCookies) {
-                if(!this.constructor.isSupported()) {
-                    throw new Error('Fetch API does not supported in browser');
+            var BaseRequest = function() {
+                function BaseRequest(url, start, end) {
+                    var that = this;
+                    this._id = REQUESTER_ID++;
+                    this._url = url;
+                    this._rangeStart = start;
+                    this._rangeEnd = end;
+                    this._resolveHandler  = null;
+                    this._rejectHandler = null;
+                    this._settled = false;
+                    this._aborted = false;
+                    this._response = null;
+                    this._promise = new window.Promise(function(resolve, reject){
+                        that._resolveHandler = resolve;
+                        that._rejectHandler = reject;
+                    });
+                    this._retryTimerID = null;
+                    this._stalledTimerID = null;
+                    this._retryCount = 0;
+                    this._initTimerID = window.setTimeout(function(){
+                        that._initTimerID = null;
+                        that._run();
+                    }, 0);
                 }
 
-                var that = this;
-                this._includeCookies = !!includeCookies;
-                this._id = REQUESTER_ID++;
-                this._url = url;
-                this._rangeStart = start;
-                this._rangeEnd = end;
-                this._AbortController = null;
-                this._resolveHandler  = null;
-                this._rejectHandler = null;
-                this._settled = false;
-                this._aborted = false;
-                this._response = null;
-                this._promise = new window.Promise(function(resolve, reject){
-                    that._resolveHandler = resolve;
-                    that._rejectHandler = reject;
-                });
-                this._retryTimerID = null;
-                this._retryCount = 0;
-                this._fetch = null;
-                this._run();
-            }
+                BaseRequest.prototype._run = function() {
+                    return null;
+                };
 
-            RequestToFetch.isSupported = function() {
-                return 'AbortController' in window && 'fetch' in window && 'Headers' in window;
-            };
+                BaseRequest.prototype._performRequest = function() {
+                    return null;
+                };
 
-            RequestToFetch.prototype._run = function() {
-                if(!this.isSettled()) {
-                    var that = this;
+                BaseRequest.prototype._resolve = function(data) {
+                    if(!this._settled) {
+                        this._resolveHandler(data);
+                        this._settled = true;
+                    }
+                };
+
+                BaseRequest.prototype._reject = function(err) {
+                    if(!this._settled) {
+                        this._rejectHandler(err);
+                        this._settled = true;
+                    }
+                };
+
+                BaseRequest.prototype._clearRetryTimerID = function() {
+                    if(this._retryTimerID !== null) {
+                        window.clearTimeout(this._retryTimerID);
+                    }
+                    this._retryTimerID = null;
+                };
+
+                BaseRequest.prototype._clearStalledTimerID = function() {
+                    if(this._stalledTimerID) {
+                        console.log('clearsssss');
+                        window.clearTimeout(this._stalledTimerID);
+                    }
+                    this._stalledTimerID = null;
+                };
+
+                BaseRequest.prototype._setStalledTimerID = function() {
+                    this._clearStalledTimerID();
+                    console.log('setsssss');
+                    this._stalledTimerID = window.setTimeout(this._onTimeout.bind(this), STALLED_TIME_MSEC);
+                };
+
+                BaseRequest.prototype._onTimeout = function() {
+                    this._clearStalledTimerID();
+                    console.log('aborted');
+                    this._abort();
+                };
+
+                BaseRequest.prototype.abort = function() {
+                    if(!this._settled) {
+                        if(this._initTimerID !== null) {
+                            window.clearTimeout(this._initTimerID);
+                            this._initTimerID = null;
+                        }
+                        this._aborted = true;
+                        this._clearRetryTimerID();
+                        this._clearStalledTimerID();
+                        this._reject(buildResponse(void 0, void 0, void 0, true));
+                    }
+                };
+
+                BaseRequest.prototype.isSettled = function() {
+                    return this._settled || this._aborted;
+                };
+
+                BaseRequest.prototype.isAborted = function() {
+                    return this._aborted;
+                };
+
+                BaseRequest.prototype.getPromise = function() {
+                    return this._promise;
+                };
+
+                return BaseRequest;
+            }();
+
+            var RequestToFetch = function() {
+
+                function responseIsStalled(response) {
+                    return response && (response.ok || (response.status && response.status >=400 && response.status <= 500));
+                }
+
+                function RequestToFetch(url, start, end) {
+                    var that = BaseRequest.apply(this, arguments) || this;
+                    that._AbortController = null;
+                    that._runHandler = null;
+                    that._requestJob = null;
+                }
+                __extend(RequestToFetch, BaseRequest);
+
+                RequestToFetch.isSupported = function() {
+                    return 'AbortController' in window && 'fetch' in window && 'Headers' in window;
+                };
+
+                RequestToFetch.prototype._onTimeout = function() {
+                    if(this._runHandler) {
+                        this._requestJob.aborted = true;
+                        BaseRequest.prototype._onTimeout.call(this);
+                        this._runHandler();
+                    }
+                };
+
+                RequestToFetch.prototype._run = function() {
+                    if(!this.isSettled()) {
+                        var that = this;
+                        this._runHandler = function() {
+                            var requestJob = that._performRequest();
+                            requestJob.promise.then(function(response) {
+                                if(that.isAborted() || requestJob.aborted) {
+                                    return;
+                                }
+                                if(responseIsStalled(response)) {
+                                    that._clearStalledTimerID();
+                                }
+                                if(response.ok) {
+                                    response.arrayBuffer().then(function(data){
+                                        that._resolve(buildResponse(response.status, data, that._retryCount, that.isAborted()));
+                                    })['catch'](function(e){
+
+                                    });
+                                } else {
+                                    if(response.status && response.status >=400 && response.status <= 500) {
+                                        that._reject(buildResponse(response.status, null, that._retryCount, that.isAborted()));
+                                    } else {
+                                        that._retryTimerID = window.setTimeout(that._run.bind(that), RETRY_TIME_MSEC);
+                                    }
+                                }
+                                that._response = response;
+                            })['catch'](function(e){
+                                if(requestJob.aborted) {
+                                    return;
+                                }
+                                that._clearStalledTimerID();
+                                if(!that._aborted) {
+                                    if(that._retryTimerID === null) {
+                                        that._retryTimerID = window.setTimeout(that._run.bind(that), RETRY_TIME_MSEC);
+                                    }
+                                }
+                            });
+                            that._requestJob = requestJob;
+                            that._setStalledTimerID();
+                        };
+                        this._runHandler();
+                    }
+                };
+
+                RequestToFetch.prototype._abort = function() {
+                    if(this._AbortController) {
+                        this._AbortController.abort();
+                    }
+                };
+
+                RequestToFetch.prototype.abort = function() {
+                    if(!this._settled) {
+                        this._abort();
+                        BaseRequest.prototype.abort.call(this);
+                    }
+                };
+
+                RequestToFetch.prototype._performRequest = function() {
                     this._clearRetryTimerID();
                     this._AbortController = new window.AbortController;
                     var headers = void 0;
@@ -612,89 +766,173 @@
                         headers = new window.Headers;
                         headers.append('Range', 'bytes='+this._rangeStart+'-'+this._rangeEnd);
                     }
-                    this._fetch = window.fetch(this._url, {
+                    var fetch = window.fetch(this._url, {
                         method: 'GET',
                         signal: this._AbortController.signal,
-                        credentials: this._includeCookies ? 'include' : 'omit',
+                        credentials: 'omit',
                         headers: headers
-                    }).then(function(response){
-                        if(that.isAborted()) {
-                            return;
-                        }
-                        if(response.ok) {
-                            response.arrayBuffer().then(function(data){
-                                that._resolve(buildResponse(response.status, data, that._retryCount, that.isAborted()));
-                            })['catch'](function(e){
-
-                            });
-                        } else {
-                            if(response.status && response.status >=400 && response.status <= 500) {
-                                that._reject(buildResponse(response.status, null, that._retryCount, that.isAborted()));
-                            } else {
-                                that._retryTimerID = window.setTimeout(that._run.bind(that), 1000);
-                            }
-                        }
-                        that._response = response;
-                    })['catch'](function(err){
-                        if(!that._aborted) {
-                            if(that._retryTimerID === null) {
-                                that._retryTimerID = window.setTimeout(that._run.bind(that), 1000);
-                            }
-                        }
                     });
-                }
-            };
+                    return {
+                        promise: fetch,
+                        aborted: false
+                    };
+                };
 
-            RequestToFetch.prototype._resolve = function(data) {
-                if(!this._settled) {
-                    this._resolveHandler(data);
-                    this._settled = true;
-                }
-            };
 
-            RequestToFetch.prototype._reject = function(err) {
-                if(!this._settled) {
-                    this._rejectHandler(err);
-                    this._settled = true;
-                }
-            };
+                return RequestToFetch;
+            }();
 
-            RequestToFetch.prototype._clearRetryTimerID = function() {
-                if(this._retryTimerID !== null) {
-                    window.clearTimeout(this._retryTimerID);
-                    this._retryTimerID = null;
-                }
-            };
+/*
+            var RequestToFetch = function() {
 
-            RequestToFetch.prototype.abort = function() {
-                if(!this._settled) {
-                    this._aborted = true;
-                    this._clearRetryTimerID();
-                    if(this._AbortController) {
-                        this._AbortController.abort();
+                var REQUESTER_ID = 0;
+
+                function buildResponse(code, data, retryCount, aborted) {
+                    return {
+                        code: code || -1,
+                        data: data || null,
+                        retryCount: retryCount || 0,
+                        aborted: aborted
                     }
-                    this._reject(buildResponse(void 0, void 0, void 0, true));
                 }
+
+                function RequestToFetch(url, start, end, includeCookies) {
+                    if(!this.constructor.isSupported()) {
+                        throw new Error('Fetch API does not supported in browser');
+                    }
+
+                    var that = this;
+                    this._includeCookies = !!includeCookies;
+                    this._id = REQUESTER_ID++;
+                    this._url = url;
+                    this._rangeStart = start;
+                    this._rangeEnd = end;
+                    this._AbortController = null;
+                    this._resolveHandler  = null;
+                    this._rejectHandler = null;
+                    this._settled = false;
+                    this._aborted = false;
+                    this._response = null;
+                    this._promise = new window.Promise(function(resolve, reject){
+                        that._resolveHandler = resolve;
+                        that._rejectHandler = reject;
+                    });
+                    this._retryTimerID = null;
+                    this._retryCount = 0;
+                    this._fetch = null;
+                    this._run();
+                }
+
+                RequestToFetch.isSupported = function() {
+                    return 'AbortController' in window && 'fetch' in window && 'Headers' in window;
+                };
+
+                RequestToFetch.prototype._run = function() {
+                    if(!this.isSettled()) {
+                        var that = this;
+                        this._clearRetryTimerID();
+                        this._AbortController = new window.AbortController;
+                        var headers = void 0;
+                        if(this._rangeStart !== void 0 && this._rangeEnd !== void 0) {
+                            headers = new window.Headers;
+                            headers.append('Range', 'bytes='+this._rangeStart+'-'+this._rangeEnd);
+                        }
+                        this._fetch = window.fetch(this._url, {
+                            method: 'GET',
+                            signal: this._AbortController.signal,
+                            credentials: this._includeCookies ? 'include' : 'omit',
+                            headers: headers
+                        }).then(function(response){
+                            if(that.isAborted()) {
+                                return;
+                            }
+                            if(response.ok) {
+                                response.arrayBuffer().then(function(data){
+                                    that._resolve(buildResponse(response.status, data, that._retryCount, that.isAborted()));
+                                })['catch'](function(e){
+
+                                });
+                            } else {
+                                if(response.status && response.status >=400 && response.status <= 500) {
+                                    that._reject(buildResponse(response.status, null, that._retryCount, that.isAborted()));
+                                } else {
+                                    that._retryTimerID = window.setTimeout(that._run.bind(that), 1000);
+                                }
+                            }
+                            that._response = response;
+                        })['catch'](function(err){
+                            if(!that._aborted) {
+                                if(that._retryTimerID === null) {
+                                    that._retryTimerID = window.setTimeout(that._run.bind(that), 1000);
+                                }
+                            }
+                        });
+                    }
+                };
+
+                RequestToFetch.prototype._resolve = function(data) {
+                    if(!this._settled) {
+                        this._resolveHandler(data);
+                        this._settled = true;
+                    }
+                };
+
+                RequestToFetch.prototype._reject = function(err) {
+                    if(!this._settled) {
+                        this._rejectHandler(err);
+                        this._settled = true;
+                    }
+                };
+
+                RequestToFetch.prototype._clearRetryTimerID = function() {
+                    if(this._retryTimerID !== null) {
+                        window.clearTimeout(this._retryTimerID);
+                        this._retryTimerID = null;
+                    }
+                };
+
+                RequestToFetch.prototype.abort = function() {
+                    if(!this._settled) {
+                        this._aborted = true;
+                        this._clearRetryTimerID();
+                        if(this._AbortController) {
+                            this._AbortController.abort();
+                        }
+                        this._reject(buildResponse(void 0, void 0, void 0, true));
+                    }
+                };
+
+                RequestToFetch.prototype.isSettled = function() {
+                    return this._settled || this._aborted;
+                };
+
+                RequestToFetch.prototype.isAborted = function() {
+                    return this._aborted;
+                };
+
+                RequestToFetch.prototype.getPromise = function() {
+                    return this._promise;
+                };
+
+                return RequestToFetch;
+
+            }();
+*/
+            var RequestToXHR = function() {
+
+            }();
+            return {
+                RequestToFetch: RequestToFetch
             };
-
-            RequestToFetch.prototype.isSettled = function() {
-                return this._settled || this._aborted;
-            };
-
-            RequestToFetch.prototype.isAborted = function() {
-                return this._aborted;
-            };
-
-            RequestToFetch.prototype.getPromise = function() {
-                return this._promise;
-            };
-
-            return RequestToFetch;
-
         }();
+
+
+
 
         function getAudioBuffer(url, start, end, includeCookies) {
             url = convertURL2URI(url);
+
+            var RequestToFetch = Request.RequestToFetch;
 
             function buildResultObj(code, data) {
                 return {
