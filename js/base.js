@@ -2319,7 +2319,6 @@
     $SimpleMP3Player.MemoryCacheManager = new MemoryCacheManager;
     $SimpleMP3Player.descriptionDecorator = descriptionDecorator;
     $SimpleMP3Player.EventDispatcher = EventDispatcher;
-    $SimpleMP3Player.MP3Muxer = MP3Muxer;
     $SimpleMP3Player.MSE = MSE;
 
 })(window.$SimpleMP3Player || (window.$SimpleMP3Player = {}));
