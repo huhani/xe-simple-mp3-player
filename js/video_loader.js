@@ -107,6 +107,7 @@
             this._enableMediaSession = config.enableMediaSession;
             this._mediaSessionForwardTime = config.mediaSessionForwardTime !== void 0 ? config.mediaSessionForwardTime : SEEK_TIME;
             this._mediaSessionBackwardTime = config.mediaSessionBackwardTime !== void 0 ? config.mediaSessionBackwardTime : SEEK_TIME;
+            this._playsinline = config.playsinline;
             this._src = config.src;
             this._title = config.title;
             this._artist = config.artist;
@@ -127,9 +128,11 @@
             this._video.preload = this._gifMode ? 'auto' : this._preload;
             this._video.controls = true;
             this._video.setAttribute('controlslist',["nodownload"]);
-            if(this._gifMode) {
+            if(this._playsinline || this._gifMode) {
                 this._video.setAttribute('playsinline', '');
                 this._video.setAttribute('webkit-playsinline', '');
+            }
+            if(this._gifMode) {
                 if(this._video.hasAttribute('controls')) {
                     this._video.removeAttribute('controls');
                 }
@@ -270,6 +273,7 @@
         var enableWebM = config.enable_webm;
         var videoAutoplay = config.video_autoplay;
         var videoAutoplayWithoutAudio = config.video_autoplay_without_audio;
+        var videoPlaysinline = config.video_playsinline;
         var videoLoop = config.video_loop;
         var videoLoopWithoutAudio = config.video_loop_without_audio;
         var enableVideoGIFMode = config.video_gif_without_audio;
@@ -323,6 +327,7 @@
                     autoplay: hasAudio ? false : autoplay,
                     preload: preload,
                     gifMode: isGIFMode,
+                    playsinline: videoPlaysinline,
                     enableMediaSession: hasAudio && enableMediaSession,
                     mediaSessionBackwardTime: mediaSessionBackwardTime,
                     mediaSessionForwardTime: mediaSessionForwardTime,

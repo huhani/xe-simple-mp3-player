@@ -112,7 +112,7 @@
 
             <var name="use_url_encrypt" type="select">
                 <title xml:lang="ko">미디어 URL 암호화</title>
-                <description xml:lang="ko">사용으로 설정할 경우 mp3파일 주소가 아닌 audioplayback.php를 이용하여 스트리밍합니다.
+                <description xml:lang="ko">사용으로 설정할 경우 원본 파일 주소가 아닌 audioplayback.php를 이용하여 스트리밍합니다.
                     기본값은 사용이며, 음원 추출을 방지해야 한다면 사용하는 것을 권장합니다.
                 </description>
                 <options value="">
@@ -363,6 +363,16 @@
                 <title xml:lang="ko">무음 동영상 반복재생</title>
                 <description xml:lang="ko">오디오가 없는 동영상이 재생이 완료 되었을 경우 처음부터 다시 재생합니다.
                 이 설정은 '동영상 반복재생' 설정보다 우선순위가 높습니다.</description>
+                <options value="">
+                    <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
+                </options>
+            </var>
+            <var name="video_playsinline" type="select">
+                <title xml:lang="ko">playsinline 속성 적용</title>
+                <description xml:lang="ko">iOS Safari에서 동영상 재생시 자동으로 전체화면이 되지 않도록 합니다.</description>
                 <options value="">
                     <title xml:lang="ko">사용</title>
                 </options>
