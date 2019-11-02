@@ -558,7 +558,7 @@
             })
         }
 
-        var Request = function() {
+        var BufferRequest = function() {
 
             var STALLED_TIME_MSEC = 18000;
             var RETRY_TIME_MSEC = 1200;
@@ -680,10 +680,6 @@
 
             var RequestToFetch = function() {
 
-                function responseIsStalled(response) {
-                    return response && (response.ok || (response.status && response.status >=400 && response.status <= 500));
-                }
-
                 function RequestToFetch(url, start, end) {
                     var that = BaseRequest.apply(this, arguments) || this;
                     that._AbortController = null;
@@ -704,16 +700,15 @@
                             if(that.isAborted() || requestJob.aborted) {
                                 return;
                             }
-                            if(responseIsStalled(response)) {
-                                that._clearStalledTimerID();
-                            }
                             if(response.ok) {
                                 response.arrayBuffer().then(function(data){
+                                    that._clearStalledTimerID();
                                     that._resolve(buildResponse(response.status, data, that._retryCount, that.isAborted()));
                                 })['catch'](function(e){
 
                                 });
                             } else {
+                                that._clearStalledTimerID();
                                 if(response.status && response.status >=400 && response.status <= 500) {
                                     that._reject(buildResponse(response.status, null, that._retryCount, that.isAborted()));
                                 } else {
@@ -775,7 +770,6 @@
 
                 return RequestToFetch;
             }();
-
 
             var RequestToXHR = function() {
 
@@ -881,93 +875,16 @@
 
 
 
-        function getAudioBuffer(url, start, end, includeCookies) {
+        function getAudioBuffer(url, start, end) {
             url = convertURL2URI(url);
-
-            var RequestToFetch = Request.RequestToFetch;
-
-            function buildResultObj(code, data) {
-                return {
-                    aborted: aborted,
-                    code: code || -1,
-                    data: data || null,
-                    retryCount: retryCount
-                };
-            }
-
-            if(RequestToFetch.isSupported()) {
-                var requestFetch = new Request.RequestToXHR(url, start, end, includeCookies);
-                return {
-                    promise: always(requestFetch.getPromise.call(requestFetch)),
-                    abort: requestFetch.abort.bind(requestFetch),
-                    isSettled: requestFetch.isSettled.bind(requestFetch)
-                };
-            }
-
-            var retryCount = 0;
-            var xhr = null;
-            var aborted = false;
-            var finish = false;
-            var retryTimeID = null;
-            var isSettled = function() {
-                return aborted || finish;
-            }
-            var abortFn = function() {
-                if(!isSettled()) {
-                    aborted = true;
-                    if(retryTimeID !== null) {
-                        window.clearTimeout(retryTimeID);
-                        retryTimeID = null;
-                        reject(buildResultObj());
-                    }
-                    if(xhr && xhr.readyState !== 4) {
-                        xhr.abort();
-                        xhr = null;
-                    }
-                }
-            };
-
-            var promise = new Promise(function (resolve, reject)  {
-                function run() {
-                    xhr = new XMLHttpRequest;
-                    xhr.open('GET', url, true);
-                    if(start !== void 0 && end !== void 0) {
-                        xhr.setRequestHeader('Range', 'bytes='+start+'-'+end);
-                    }
-                    xhr.responseType = "arraybuffer";
-                    xhr.send();
-                    xhr.addEventListener('readystatechange', function(evt){
-                        if(!isSettled()) {
-                            if(aborted) {
-                                return reject(buildResultObj());
-                            }
-                            if(xhr.status >= 400 && xhr.status < 500) {
-                                finish = true;
-                                reject(buildResultObj(xhr.status));
-                            } else if(xhr.readyState === XMLHttpRequest.DONE) {
-                                if(xhr.status === 200 || xhr.status === 206) {
-                                    finish = true;
-                                    resolve(buildResultObj(xhr.status, xhr.response));
-                                } else {
-                                    xhr = null;
-                                    retryCount++;
-                                    retryTimeID = window.setTimeout(function(){
-                                        retryTimeID = null;
-                                        run();
-                                    }, 1000);
-                                }
-                            }
-                        }
-                    }, false);
-                }
-
-                run();
-            });
+            var RequestToFetch = BufferRequest.RequestToFetch;
+            var RequestToXHR = BufferRequest.RequestToXHR;
+            var requester = RequestToFetch.isSupported() ? new RequestToFetch(url, start, end) : new RequestToXHR(url, start, end);
 
             return {
-                promise: promise,
-                abort: abortFn,
-                isSettled: isSettled
+                promise: always(requester.getPromise.call(requester)),
+                abort: requester.abort.bind(requester),
+                isSettled: requester.isSettled.bind(requester)
             };
         }
 
