@@ -225,7 +225,6 @@ if(!class_exists('SimpleMP3Tools', false)) {
              }
             if($file_srl) {
                 if(!$oDocument->isGranted()) {
-                    debugPrint('wtf');
                     return false;
                 }
             } else if(!self::isDocumentThumbnailExist($oDocument)) {
