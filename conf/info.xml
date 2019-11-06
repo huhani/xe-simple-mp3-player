@@ -483,10 +483,10 @@
                     비디오 섬네일 같은 경우 "동영상 섬네일 사용" 기능이 활성화 되어야 적용됩니다.
                     이 기능과 'HTML5 플레이어 전체 설정 - 섬네일을 앨범아트로 사용' 기능을 함께 사용할 경우 앨범 커버가 없는 곡에서 다른 이미지가 나올 수 있으니 주의하세요.</description>
                 <options value="">
-                    <title xml:lang="ko">사용 안 함</title>
-                </options>
-                <options value="Y">
                     <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
                 </options>
             </var>
             <var name="document_thumbnail_insert_type" type="select">

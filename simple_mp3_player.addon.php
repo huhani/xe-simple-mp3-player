@@ -1297,7 +1297,7 @@ $config->video_thumbnail_format = isset($addon_info->video_thumbnail_format) && 
 $config->video_thumbnail_poster = !(isset($addon_info->video_thumbnail_poster) && $addon_info->video_thumbnail_poster === "N");
 $config->ffmpeg_pathname = isset($addon_info->ffmpeg_pathname) && $addon_info->ffmpeg_pathname ? $addon_info->ffmpeg_pathname : '/usr/bin/ffmpeg';
 
-$config->document_thumbnail = (isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "Y");
+$config->document_thumbnail = !(isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "N");
 $config->document_thumbnail_insert_type = isset($addon_info->document_thumbnail_insert_type) && $addon_info->document_thumbnail_insert_type ? $addon_info->document_thumbnail_insert_type : 'insert_image_hide';
 $config->is_supported_to_set_thumbnail = SimpleMP3Tools::isSupportedToSetThumbnail();
 
