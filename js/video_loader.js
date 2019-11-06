@@ -382,8 +382,6 @@
                 });
             };
 
-            console.log(contentMediaURL);
-
             $document_content.find('a').each(function() {
                 var that = this;
                 var $this = $(this);
