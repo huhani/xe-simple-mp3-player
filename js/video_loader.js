@@ -113,6 +113,7 @@
             this._artist = config.artist;
             this._album = config.album;
             this._albumArt = config.albumArt;
+            this._poster = config.poster || null;
             this._width = config.width;
             this._height = config.height;
             this._hasAudio = config.hasAudio;
@@ -131,6 +132,9 @@
             if(this._playsinline || this._gifMode) {
                 this._video.setAttribute('playsinline', '');
                 this._video.setAttribute('webkit-playsinline', '');
+            }
+            if(this._poster) {
+                this._video.setAttribute('poster', this._poster);
             }
             if(this._gifMode) {
                 if(this._video.hasAttribute('controls')) {
@@ -153,7 +157,7 @@
         SimpleVideoPlayer.prototype._onVideoPlaying = function() {
             if(!this._gifMode && this._enableMediaSession) {
                 this._registerMediaSessionHandlers();
-                //this._updateMediaSessionMetadata();
+                this._updateMediaSessionMetadata();
             }
         };
 
@@ -193,9 +197,9 @@
             if(_MediaSession) {
                 _MediaSession.metadata = new window.MediaMetadata({
                     title: this._title ? this._title : void 0,
-                    artist: this.artist ? this._artist : void 0,
-                    album: this.album ? this._album : void 0,
-                    artwork: this._albumArt ? [{src : this._albumArt}] : void 0
+                    artist: this._artist ? this._artist : void 0,
+                    album: this._album ? this._album : void 0,
+                    artwork: this._poster ? [{src: this._poster}] : (this._albumArt ? [{src : this._albumArt}] : void 0)
                 });
             }
         };
@@ -281,6 +285,7 @@
         var videoPreload = config.video_preload;
         var videoResize = config.video_resize;
         var videoAutoAttach = config.video_auto_attach;
+        var videoThumgnailPoster = config.video_thumbnail_poster;
         if(!enableVideo) {
             return;
         }
@@ -299,10 +304,14 @@
             var preload = videoPreload;
             var src = description.filePath;
             var tags = description.tags ? description.tags : null;
-            var title = tags && tags.title ? tags.title : description.filename;
-            var artist = tags && tags.artist ? tags.artist : null;
-            var album = tags && tags.album ? tags.album : null;
+            //var title = tags && tags.title ? tags.title : description.filename;
+            //var artist = tags && tags.artist ? tags.artist : null;
+            //var album = tags && tags.album ? tags.album : null;
+            var title = document.title;
+            var artist = null;
+            var album = null;
             var albumArt = tags && tags.albumArt ? tags.albumArt : null;
+            var poster = videoThumgnailPoster && description.poster ? description.poster : null;
             var width = video && video.resolution_x ? video.resolution_x : null;
             var height = video && video.resolution_y ? video.resolution_y : null;
             var hasAudio =  stream ? stream.isAudio : false;
@@ -335,6 +344,7 @@
                     artist: artist,
                     album: album,
                     albumArt: albumArt,
+                    poster: poster,
                     width: width,
                     height: height,
                     hasAudio: hasAudio,

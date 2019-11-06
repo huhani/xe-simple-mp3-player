@@ -213,20 +213,23 @@ if(!class_exists('SimpleMP3Tools', false)) {
             }
             $module_srl = $oDocument->get('module_srl');
             $target_file_srl = $file_srl;
-            $useFirstAlbumArt = false;
-            $firstDescriptionAlbumArt = null;
+            $useFirstImage = false;
+            $firstDescriptionImage = null;
 
-            $simpleMP3Describer = new SimpleMP3Describer;
-            $descriptions = $simpleMP3Describer->getDescriptionsByDocumentSrl($document_srl, $addon_config->thumbnail_type, $addon_config->thumbnail_width, $addon_config->thumbnail_height, $addon_config->mp3_realtime_segment_duration);
+
+            $simpleMP3Describer = new SimpleMP3Describer($addon_config->SimpleMP3DescriberConfig);
+            $descriptions = $simpleMP3Describer->getDescriptionsByDocumentSrl($document_srl, $addon_config->thumbnail_type, $addon_config->thumbnail_width, $addon_config->thumbnail_height, $addon_config->mp3_realtime_segment_duration, true);
+
              if(!$module_srl || !$descriptions || count($descriptions) < 1) {
                  return null;
              }
             if($file_srl) {
                 if(!$oDocument->isGranted()) {
+                    debugPrint('wtf');
                     return false;
                 }
             } else if(!self::isDocumentThumbnailExist($oDocument)) {
-                $useFirstAlbumArt = true;
+                $useFirstImage = true;
             }
 
             $target_file_srl = (int)$target_file_srl;
@@ -236,9 +239,10 @@ if(!class_exists('SimpleMP3Tools', false)) {
                 $file_srl = $description && isset($description->file_srl) && $description->file_srl ? $description->file_srl : null;
                 $tags = $description && isset($description->tags) && $description->tags ? $description->tags : null;
                 $albumArt = $tags && isset($tags->albumArt) && $tags->albumArt ? $tags->albumArt : null;
-                if($albumArt) {
-                    if($useFirstAlbumArt && !$firstDescriptionAlbumArt) {
-                        $firstDescriptionAlbumArt = $description;
+                $poster = $description->poster;
+                if($albumArt || ($poster && $addon_config->video_thumbnail)) {
+                    if($useFirstImage && !$firstDescriptionImage) {
+                        $firstDescriptionImage = $description;
                     }
                     if($target_file_srl && $file_srl) {
                         if($target_file_srl === $description->file_srl) {
@@ -249,50 +253,88 @@ if(!class_exists('SimpleMP3Tools', false)) {
                 }
             }
 
-            if($useFirstAlbumArt && $firstDescriptionAlbumArt) {
-                $targetDescription = $firstDescriptionAlbumArt;
+            if($useFirstImage && $firstDescriptionImage) {
+                $targetDescription = $firstDescriptionImage;
             }
-            if($targetDescription) {
-                $targetAlbumArt = $targetDescription->tags && $targetDescription->tags->albumArt ? $targetDescription->tags->albumArt : null;
-                if($targetAlbumArt) {
-                    $file_srl = $targetDescription->file_srl;
-                    $targetAlbumArtInfo = pathinfo($targetAlbumArt);
-                    $extension = $targetAlbumArtInfo && isset($targetAlbumArtInfo['extension']) ? $targetAlbumArtInfo['extension'] : null;
-                    $basename = $targetAlbumArtInfo && isset($targetAlbumArtInfo['basename']) ? $targetAlbumArtInfo['basename'] : null;
-                    $dirname = $targetAlbumArtInfo && isset($targetAlbumArtInfo['dirname']) ? $targetAlbumArtInfo['dirname'] : null;
-                    if($file_srl && $extension && $basename && $dirname) {
-                        $mime = mime_content_type($targetAlbumArt);
-                        $filesize = filesize($targetAlbumArt);
-                        if($filesize) {
-                            $copypath = $dirname.'/'.'Cover.tmp';
-                            $isCopied = copy($targetAlbumArt, $copypath);
-                            if(!$isCopied) {
-                                return null;
-                            }
-                            self::removeDocumentThumbnailFromAddons($oDocument);
-                            $fileInformationArray = array(
-                                'name' => 'Cover##'.$file_srl.'.'.$extension,
-                                'type' => $mime,
-                                'tmp_name' => $copypath,
-                                'error' => 0,
-                                'size' => $filesize
-                            );
-                            $oFileController = getController('file');
-                            $oUploadedFile = $oFileController->insertFile($fileInformationArray, $module_srl, $document_srl, 0, true);
-                            if($oUploadedFile->toBool()) {
-                                $args = new stdClass;
-                                $args->upload_target_srl = $document_srl;
-                                $args->isvalid = 'Y';
-                                executeQuery('addons.simple_mp3_player.updateFileValid', $args);
-                                $oDocumentController = getController('document');
-                                $oDocumentController->updateUploaedCount(array($document_srl));
-                                self::updateDocumentThumbnail($document_srl, $oUploadedFile->get('file_srl'));
-                            }
-                            if(file_exists($copypath)) {
-                                FileHandler::removeFile($copypath);
-                            }
 
-                            return true;
+            if($targetDescription) {
+                $type = null;
+                $image = null;
+                if($targetDescription->tags && $targetDescription->tags->albumArt) {
+                    $image = $targetDescription->tags->albumArt;
+                    $type = 'albumart';
+                } else if($targetDescription->poster) {
+                    $image = $targetDescription->poster;
+                    $type = 'poster';
+                }
+                if($image) {
+                    $documentThumbnailInsertType = $addon_config->document_thumbnail_insert_type;
+                    self::removeDocumentThumbnailFromAddons($oDocument);
+                    if($documentThumbnailInsertType === 'insert_file' && self::isSupportedToSetThumbnail()) {
+                        $file_srl = $targetDescription->file_srl;
+                        $targetAlbumArtInfo = pathinfo($image);
+                        $extension = $targetAlbumArtInfo && isset($targetAlbumArtInfo['extension']) ? $targetAlbumArtInfo['extension'] : null;
+                        $basename = $targetAlbumArtInfo && isset($targetAlbumArtInfo['basename']) ? $targetAlbumArtInfo['basename'] : null;
+                        $dirname = $targetAlbumArtInfo && isset($targetAlbumArtInfo['dirname']) ? $targetAlbumArtInfo['dirname'] : null;
+                        $source_filename_without_extension = substr($targetDescription->filename, 0, strrpos($targetDescription->filename, "."));
+                        if($file_srl && $extension && $basename && $dirname) {
+                            $mime = mime_content_type($image);
+                            $filesize = filesize($image);
+
+                            if($filesize) {
+                                $copypath = $dirname.'/'.'image.tmp';
+                                $isCopied = copy($image, $copypath);
+                                if(!$isCopied) {
+                                    return null;
+                                }
+                                $fileInformationArray = array(
+                                    'name' => ($type == 'albumart' ? "cover_" : "poster_").$source_filename_without_extension.'.'.$extension,
+                                    'type' => $mime,
+                                    'tmp_name' => $copypath,
+                                    'error' => 0,
+                                    'size' => $filesize
+                                );
+
+                                self::removeDocumentThumbnailFromContent($oDocument);
+                                $oFileController = getController('file');
+                                $oUploadedFile = $oFileController->insertFile($fileInformationArray, $module_srl, $document_srl, 0, true);
+                                if($oUploadedFile->toBool()) {
+                                    $args = new stdClass;
+                                    $args->upload_target_srl = $document_srl;
+                                    $args->isvalid = 'Y';
+                                    executeQuery('addons.simple_mp3_player.updateFileValid', $args);
+                                    $oDocumentController = getController('document');
+                                    $oDocumentController->updateUploaedCount(array($document_srl));
+                                    self::updateDocumentThumbnail($document_srl, $oUploadedFile->get('file_srl'));
+                                }
+                                if(file_exists($copypath)) {
+                                    FileHandler::removeFile($copypath);
+                                }
+
+                                return true;
+                            }
+                        }
+                    } else if($documentThumbnailInsertType === 'insert_image' || $documentThumbnailInsertType === 'insert_image_hide') {
+                        $documentContent = $oDocument->get('content');
+                        if($documentContent) {
+                            $documentContent = preg_replace("/<!--DocumentThumbnailStart-->.*?<!--DocumentThumbnailEnd-->/", "", $documentContent);
+                            $imgTag = sprintf('<img src="%s">', $image);
+                            if($documentThumbnailInsertType === 'insert_image_hide') {
+                                $imgTag = '<!-- '.$imgTag.' -->';
+                            }
+                            $imgTag = sprintf('<!--DocumentThumbnailStart-->%s<!--DocumentThumbnailEnd-->', $imgTag);
+                            $targetDocumentContent = $imgTag.$documentContent;
+
+                            $args = new stdClass;
+                            $args->document_srl = $document_srl;
+                            $args->content = $targetDocumentContent;
+                            $output = executeQuery('addons.simple_mp3_player.updateDocumentContent', $args);
+                            if($output->toBool()) {
+                                $thumbnail_path = sprintf('files/thumbnails/%s', getNumberingPath($document_srl, 3));
+                                Filehandler::removeFilesInDir($thumbnail_path);
+
+                                return true;
+                            }
                         }
                     }
                 }
@@ -343,6 +385,27 @@ if(!class_exists('SimpleMP3Tools', false)) {
                         if($file_srl) {
                             $oFileController->deleteFile($oFile->file_srl);
                         }
+                    } else if(substr($oFile->source_filename, 0, 7) === 'poster_' ||
+                        substr($oFile->source_filename, 0, 6) === 'cover_'
+                    ) {
+                        $oFileController->deleteFile($oFile->file_srl);
+                    }
+                }
+            }
+        }
+
+        public static function removeDocumentThumbnailFromContent($oDocument) {
+            if($oDocument && $oDocument->isExists()) {
+                $documentContent = $oDocument->get('content');
+                $document_srl = $oDocument->get('document_srl');
+                if($documentContent) {
+                    $args = new stdClass;
+                    $args->document_srl = $document_srl;
+                    $args->content = preg_replace("/<!--DocumentThumbnailStart-->.*?<!--DocumentThumbnailEnd-->/", "", $documentContent);
+                    $output = executeQuery('addons.simple_mp3_player.updateDocumentContent', $args);
+                    if($output->toBool()) {
+                        $thumbnail_path = sprintf('files/thumbnails/%s', getNumberingPath($document_srl, 3));
+                        Filehandler::removeFilesInDir($thumbnail_path);
                     }
                 }
             }
@@ -394,6 +457,27 @@ if(!class_exists('SimpleMP3Tools', false)) {
 
             return (isset($headers['XAddonsXssProtector']) && $headers['XAddonsXssProtector'] === 'OK');
         }
+
+        public static function createVideoThumbnail($uploaded_filename, $ffmpeg_pathname = '/usr/local/ffmpeg', $image_format = 'jpg') {
+            if($uploaded_filename) {
+                $uploaded_filename_pathinfo = pathinfo($uploaded_filename);
+                $thumbnail_filename = $uploaded_filename_pathinfo['dirname'] . $uploaded_filename_pathinfo['filename'] . '.'.$image_format;
+                $command = $ffmpeg_pathname;
+                $command .= " -y -i " . escapeshellarg($uploaded_filename);
+                $command .= " -vframes 1 " . escapeshellarg($thumbnail_filename);
+                $status = @exec($command, $output, $result);
+                if($result === 0 && file_exists($thumbnail_filename)) {
+                    return $thumbnail_filename;
+                }
+            }
+
+            return null;
+        }
+
+        public static function isFFmpegExist($ffmpegPathname = '/usr/bin/ffmpeg') {
+            $status = @exec($ffmpegPathname." -version", $output, $result);
+            return !$result;
+        }
     }
 }
 
@@ -401,6 +485,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
     class SimpleMP3Describer {
         private $use_encrypt = false;
         private $password = null;
+        private $ffmpegNotSupported = false;
 
         public function __construct($config) {
             if($config === null) {
@@ -411,6 +496,9 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $config->encryption_key_update_period = 0;
                 $config->is_hls_mode = false;
                 $config->include_uploaded_filename = false;
+                $config->video_thumbnail = false;
+                $config->video_thumbnail_format = 'jpg';
+                $config->ffmpeg_pathname = '/usr/bin/ffmpeg';
             }
             if($config->password) {
                 $this->password = $config->password;
@@ -419,6 +507,11 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $this->encryption_key_update_period = 0;
             $this->is_hls_mode = $config->is_hls_mode;
             $this->include_uploaded_filename = $config->include_uploaded_filename;
+
+            $this->video_thumbnail = $config->video_thumbnail;
+            $this->video_thumbnail_format = $config->video_thumbnail_format;
+            $this->ffmpeg_pathname = $config->ffmpeg_pathname;
+
             if($config->use_encrypt && SimpleEncrypt::isEncryptSupported()) {
                 $this->use_encrypt = $config->use_encrypt;
                 $this->password = $config->password ? $config->password : SimpleEncrypt::getPassword();
@@ -507,10 +600,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return $url;
         }
 
-        public function getDescriptionsByDocumentSrl($document_srl, $thumbnail_type = 'crop', $thumbnail_width = 420, $thumbnail_height = 420, $segmentDuration = null) {
+        public function getDescriptionsByDocumentSrl($document_srl, $thumbnail_type = 'crop', $thumbnail_width = 420, $thumbnail_height = 420, $segmentDuration = null, $isForce = false) {
             $oDocumentModel = getModel('document');
             $oDocument = $oDocumentModel->getDocument($document_srl);
-            if(!($oDocument->isExists() && $oDocument->isAccessible())) {
+            if(!$oDocument->isExists() || !($oDocument->isAccessible() || $isForce)) {
                 return null;
             }
             $descriptions = array();
@@ -524,11 +617,13 @@ if(!class_exists('SimpleMP3Describer', false)) {
             }
             if($files) {
                 foreach($files as $file) {
-                    $description = self::getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl, $file->sid, $file->module_srl, $segmentDuration);
+                    $description = $this->getDescription($file->file_srl, $file->uploaded_filename, $file->source_filename, $document_srl, $file->sid, $file->module_srl, $segmentDuration);
                     if($description) {
                         $this->normalizeDescription($description, $document_srl, $file->file_srl);
                         $description->thumbnail = $thumbnail;
                         $description->editable = $oDocument->isGranted();
+                    } else {
+                        continue;
                     }
                     $obj = new stdClass;
                     $obj->file_srl = $file->file_srl;
@@ -586,7 +681,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                 array('key'=>'document_srl', 'value'=>$document_srl),
                                 array('key'=>'file_srl', 'value'=>$file_srl),
                                 array('key'=>'mime', 'value'=>$mime),
-                                array('key'=>'duration', 'value'=>$duration),
+                                array('key'=>'duration', 'value'=>round($duration, 2)),
                                 array('key'=>'timestamp', 'value'=>$timestamp),
                                 array('key'=>'type', 'value'=>'progressive')
                             ));
@@ -606,7 +701,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                     array('key'=>'mime', 'value'=>$mime),
                                     array('key'=>'start', 'value'=>$eachOffset->startOffset),
                                     array('key'=>'end', 'value'=>$eachOffset->endOffset),
-                                    array('key'=>'duration', 'value'=>$duration),
+                                    array('key'=>'duration', 'value'=> round($duration, 2)),
                                     array('key'=>'ip', 'value'=>$ip),
                                     array('key'=>'offset', 'value'=>$currentOffset),
                                     array('key'=>'timestamp', 'value'=>$timestamp),
@@ -656,7 +751,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     if(isset($description->stream)) {
                         $stream = $description->stream;
                         if(isset($stream->duration)) {
-                            $arguments[] = array('key'=>'duration', 'value'=>$stream->duration);
+                            $arguments[] = array('key'=>'duration', 'value'=>round($stream->duration, 2));
                         }
                     }
 
@@ -665,7 +760,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             }
         }
 
-        static function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null, $segmentDuration = null) {
+        function getDescription($file_srl, $uploaded_filename, $source_filename, $document_srl = null, $file_sid = null, $module_srl = null, $segmentDuration = null) {
             $description = self::getDescriptionFile($file_srl, $uploaded_filename);
             if($description && (!isset($description->version) || $description->version !== self::getDescriptionVersion())) {
                 $description = null;
@@ -684,7 +779,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 }
             }
             if(!$description) {
-                $description = self::getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename, $segmentDuration);
+                $description = $this->getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename, $uploaded_filename, $segmentDuration);
             }
             if($description) {
                 if($file_srl) {
@@ -731,7 +826,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return '0.0.1';
         }
 
-        static function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null, $segmentDuration = null) {
+        function getMP3DescriptionFromOrigin($document_srl, $file_srl, $source_filename = null, $filepath = null, $segmentDuration = null) {
             if(!$filepath) {
                 $filepathData = self::getFilePathname($file_srl, $document_srl);
                 if($filepathData) {
@@ -754,6 +849,8 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $tags = $mp3Spec ? $mp3Spec->tags : null;
             $stream = $mp3Spec ? $mp3Spec->stream : null;
             $obj = new stdClass();
+            $obj->document_srl = $document_srl;
+            $obj->file_srl = $file_srl;
             $obj->filePath = $filepath;
             $obj->filename = $source_filename;
             $obj->offsetInfo = null;
@@ -761,13 +858,37 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $obj->stream = $stream;
             $obj->isValidFile = !!($stream && $stream->fileformat);
             $obj->version = self::getDescriptionVersion();
+            $obj->poster = null;
             if(($stream && $stream->fileformat === 'mp3') || (!$stream && $extension === 'mp3')) {
                 $offsets = self::getSplitPosition($filepath, $segmentDuration);
                 $obj->isValidFile = !!(isset($offsets->duration) && $offsets->duration > 2);
                 $obj->offsetInfo = $offsets;
             }
+            if(in_array($stream->fileformat, array('mp4', 'webm'))) {
+                $obj->poster = $this->createVideoThumbnail($filepath, $descriptionFilePath);
+            }
 
             return self::createDescriptionFile($obj, $descriptionFilePath);
+        }
+
+        function createVideoThumbnail($uploaded_filename, $descriptionFilePath) {
+            if(!FileHandler::makeDir($descriptionFilePath) || !$this->video_thumbnail) {
+                return null;
+            }
+
+            $thumbnailPathname = SimpleMP3Tools::createVideoThumbnail($uploaded_filename, $this->ffmpeg_pathname, $this->video_thumbnail_format);
+            if($thumbnailPathname) {
+                $posterBinary = FileHandler::readFile($thumbnailPathname);
+                if($posterBinary) {
+                    FileHandler::removeFile($thumbnailPathname);
+                    $obj = new stdClass;
+                    $obj->data = $posterBinary;
+                    $obj->format = $this->video_thumbnail_format;
+                    return $obj;
+                }
+            }
+
+            return null;
         }
 
         static function createDescriptionFile($originDescription = null, $savePath) {
@@ -786,6 +907,14 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     $albumArtBuffer = $albumArt['data'];
                     $albumArtExtension = $albumArt['image_mime'] === 'image/png' ? 'png' : ($albumArt['image_mime'] === 'image/gif' ? 'gif' : ($albumArt['image_mime'] === 'image/jpeg' ? 'jpg' : ($albumArt['image_mime'] === 'image/bmp' ? 'bmp' : null)));
                 }
+                $poster = $originDescription->poster;
+                unset($originDescription->poster);
+                $poster_pathname = null;
+                if($poster && $poster->format) {
+                    $poster_pathname = $savePath."poster.".$poster->format;
+                    FileHandler::writeFile($poster_pathname, $poster->data);
+                }
+                $originDescription->poster = $poster_pathname;
 
                 unset($tag->albumArt);
                 if($albumArtBuffer && $albumArtExtension) {
@@ -1164,7 +1293,13 @@ $config->video_resize = !(isset($addon_info->video_resize) && $addon_info->video
 $config->video_auto_attach = (isset($addon_info->video_auto_attach) && $addon_info->video_auto_attach === "Y");
 
 
+$config->video_thumbnail = !(isset($addon_info->video_thumbnail) && $addon_info->video_thumbnail === "N");
+$config->video_thumbnail_format = isset($addon_info->video_thumbnail_format) && $addon_info->video_thumbnail_format ? $addon_info->video_thumbnail_format : 'jpg';
+$config->video_thumbnail_poster = !(isset($addon_info->video_thumbnail_poster) && $addon_info->video_thumbnail_poster === "N");
+$config->ffmpeg_pathname = isset($addon_info->ffmpeg_pathname) && $addon_info->ffmpeg_pathname ? $addon_info->ffmpeg_pathname : '/usr/bin/ffmpeg';
+
 $config->document_thumbnail = (isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "Y");
+$config->document_thumbnail_insert_type = isset($addon_info->document_thumbnail_insert_type) && $addon_info->document_thumbnail_insert_type ? $addon_info->document_thumbnail_insert_type : 'insert_image_hide';
 $config->is_supported_to_set_thumbnail = SimpleMP3Tools::isSupportedToSetThumbnail();
 
 //이전 코드 호환용
@@ -1223,6 +1358,10 @@ $SimpleMP3DescriberConfig->password = $password;
 $SimpleMP3DescriberConfig->encryption_key_update_period = $config->mp3_realtime_encryption_key_rotation_period;
 $SimpleMP3DescriberConfig->is_hls_mode = !(isset($_GET['hls']) && $_GET['hls'] === 'false');
 $SimpleMP3DescriberConfig->include_uploaded_filename = $config->link_to_media;
+$SimpleMP3DescriberConfig->video_thumbnail = $config->video_thumbnail;
+$SimpleMP3DescriberConfig->ffmpeg_pathname = $config->ffmpeg_pathname;
+$SimpleMP3DescriberConfig->video_thumbnail_format = $config->video_thumbnail_format;
+$config->SimpleMP3DescriberConfig = $SimpleMP3DescriberConfig;
 if(!$config->use_mp3_realtime_streaming) {
     $SimpleMP3DescriberConfig->is_hls_mode = false;
 }
@@ -1238,6 +1377,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             $descriptions = $describer->getDescriptionsByDocumentSrl($document_srl, $config->thumbnail_type, $config->thumbnail_width, $config->thumbnail_height, $config->mp3_realtime_segment_duration);
             unset($config->lyric_cache_expire);
             unset($config->lyric_cache_retry_duration);
+            unset($config->ffmpeg_pathname);
             $result->descriptions = $descriptions;
             $result->config = $config;
         } else if($act === 'getFileCount') {
@@ -1349,7 +1489,9 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         SimpleMP3Describer::HandleDeleteDescription();
     }
 
-} else if($called_position == 'after_module_proc' && Context::getResponseMethod()!="XMLRPC" && Context::get('document_srl')) {
+} else if($called_position == 'after_module_proc' && Context::getResponseMethod()!="XMLRPC" && Context::get('document_srl')
+    && !in_array($act, array('dispBoardWrite', 'dispBoardDelete', 'dispBoardWriteComment', 'dispBoardReplyComment', 'dispBoardModifyComment', 'dispBoardDeleteComment'))
+) {
     Context::loadFile(array('./addons/simple_mp3_player/js/corejs.min.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/transmuxer.js', 'body', '', null), true);
     Context::loadFile(array('./addons/simple_mp3_player/js/base.js', 'body', '', null), true);
