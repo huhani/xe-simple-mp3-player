@@ -358,6 +358,32 @@
             return null;
         };
         if(linkToMedia) {
+            var contentMediaURL = [];
+            $document_content.find('audio, video').each(function(idx, each){
+                var $this = $(this);
+                var $source = $this.find('source');
+                if($source.length) {
+                    $source.each(function(idx, sourceEach){
+                        var $thisSource = $(this);
+                        var sourceURL = $thisSource.attr('src');
+                        if(sourceURL) {
+                            contentMediaURL.push(sourceURL);
+                        }
+                    });
+                }
+                var url = $this.attr('src');
+                if(url) {
+                    contentMediaURL.push(url);
+                }
+            });
+            var includedMediaURL = function(url) {
+                return contentMediaURL.find(function(each){
+                    return each.indexOf(url) > -1 || url.indexOf(each) > -1;
+                });
+            };
+
+            console.log(contentMediaURL);
+
             $document_content.find('a').each(function() {
                 var that = this;
                 var $this = $(this);
@@ -388,6 +414,9 @@
                 return each.description && linkToVideoDescriptions.indexOf(each.description) === -1;
             }).reverse().forEach(function(each){
                 var description = each.description;
+                if(includedMediaURL(description.uploaded_filename)) {
+                    return;
+                }
                 var player = buildPlayer(description);
                 if(player) {
                     topAttachedPlayers.unshift(player);
