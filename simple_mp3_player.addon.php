@@ -1329,7 +1329,7 @@ if($config->mp3_realtime_segment_duration) {
     $config->mp3_realtime_segment_duration = count($newSegmentDuration) > 0 ? $newSegmentDuration : null;
 }
 if(!$config->mp3_realtime_segment_duration) {
-    $config->mp3_realtime_segment_duration = array(2, 3, 10);
+    $config->mp3_realtime_segment_duration = array(2, 3, 5);
 }
 $password = null;
 if(SimpleEncrypt::getPassword()) {
