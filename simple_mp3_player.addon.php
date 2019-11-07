@@ -315,6 +315,11 @@ if(!class_exists('SimpleMP3Tools', false)) {
                         }
                     } else if($documentThumbnailInsertType === 'insert_image' || $documentThumbnailInsertType === 'insert_image_hide') {
                         $documentContent = $oDocument->get('content');
+			$oContext = Context::getInstance();
+			$requestVars = Context::getRequestVars();
+                        if(isset($requestVars->content) && $requestVars->content) {
+                            $documentContent = $requestVars->content;
+                        }
                         if($documentContent) {
                             $documentContent = preg_replace("/<!--DocumentThumbnailStart-->.*?<!--DocumentThumbnailEnd-->/", "", $documentContent);
                             $imgTag = sprintf('<img src="%s">', $image);
@@ -329,6 +334,7 @@ if(!class_exists('SimpleMP3Tools', false)) {
                             $args->content = $targetDocumentContent;
                             $output = executeQuery('addons.simple_mp3_player.updateDocumentContent', $args);
                             if($output->toBool()) {
+				$oContext->set('content', $documentContent, TRUE);
                                 $thumbnail_path = sprintf('files/thumbnails/%s', getNumberingPath($document_srl, 3));
                                 Filehandler::removeFilesInDir($thumbnail_path);
 
@@ -397,12 +403,19 @@ if(!class_exists('SimpleMP3Tools', false)) {
             if($oDocument && $oDocument->isExists()) {
                 $documentContent = $oDocument->get('content');
                 $document_srl = $oDocument->get('document_srl');
+		$oContext = Context::getInstance();
+		$requestVars = Context::getRequestVars();
+		if(isset($requestVars->content) && $requestVars->content) {
+			$documentContent = $requestVars->content;
+		}
+
                 if($documentContent) {
                     $args = new stdClass;
                     $args->document_srl = $document_srl;
                     $args->content = preg_replace("/<!--DocumentThumbnailStart-->.*?<!--DocumentThumbnailEnd-->/", "", $documentContent);
                     $output = executeQuery('addons.simple_mp3_player.updateDocumentContent', $args);
                     if($output->toBool()) {
+                        $oContext->set('content', $documentContent, TRUE);
                         $thumbnail_path = sprintf('files/thumbnails/%s', getNumberingPath($document_srl, 3));
                         Filehandler::removeFilesInDir($thumbnail_path);
                     }
