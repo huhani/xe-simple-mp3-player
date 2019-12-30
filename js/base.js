@@ -108,77 +108,15 @@
         };
     };
 
-    function MP3Muxer(data) {
-        var audioBufferArr = [];
-        var samplerate = null;
-        var mp3Info = {
-            rate: samplerate || 44100,
-            id: 3
-        };
-
-        var n_2 = 2;
-        var n_8 = 8;
-        var n_16 = 16;
-        var trackInfo = null;
-        var mp3Parser = new MP3Parser();
-        var mp4Mux = null;
-        mp3Parser.onFrame = function(data) {
-            try {
-                if(mp4Mux === null) {
-                    samplerate = mp3Parser.samplerate;
-                    mp3Info = {
-                        rate: samplerate,
-                        id: 3
-                    };
-                    trackInfo = {
-                        codecId: n_2,
-                        channels: n_2,
-                        samplerate: mp3Info.rate,
-                        samplesize: n_16,
-                        timescale: samplerate
-                    };
-                    mp4Mux = new MP4Mux({
-                        audioTrackId: 0,
-                        videoTrackId: -1,
-                        tracks: [trackInfo]
-                    });
-                    mp4Mux.ondata = function(push_data) {
-                        audioBufferArr.push(push_data);
-                    };
-                }
-                mp3Parser.onFrame = function(_data) {
-                    var buf = new Uint8Array(_data.length + 1);
-                    var n_ = n_2 << 4;
-                    n_ |= mp3Info.id << 2;
-                    n_ |= (16 === n_16 ? 1 : 0) << 1;
-                    n_ |= 2 === n_2 ? 1 : 0;
-                    buf[0] = n_;
-                    buf.set(_data, 1);
-                    var i = 0;
-                    mp4Mux.pushPacket(n_8, buf, i);
-                };
-                mp3Parser.onFrame(data);
-            } catch(e) {
-                console.log(e);
-            }
-        };
-        mp3Parser.push(data);
-        mp3Parser.close();
-        mp4Mux.flush();
-        if(audioBufferArr.length === 0) {
-            throw new Error("There was no output.");
-        }
-
-        return audioBufferArr;
-    }
-
-    function convertURL2URI(url) {
-        if(url && url.substring(0, 4) !== 'http' && window.request_uri) {
-            url = (window.request_uri + url).replace(/(\/.\/)/gi, '/');
-        }
-
-        return url;
-    }
+    var always = function(promise) {
+        return new Promise(function(resolve) {
+            promise.then(function(data){
+                resolve(data);
+            })['catch'](function(e){
+                resolve(e);
+            });
+        });
+    };
 
     var MemoryCacheManager = function() {
         function MemoryCacheManager(maxCacheSize) {
@@ -276,223 +214,13 @@
 
     }();
 
-    var always = function(promise) {
-        return new Promise(function(resolve) {
-            promise.then(function(data){
-                resolve(data);
-            })['catch'](function(e){
-                resolve(e);
-            });
-        });
-    };
-
-    var AESDecrypter = function() {
-
-        var AbortError = new Error('Decrypting Aborted');
-        var NotDecryptedError = new Error('could not read encrypted data');
-
-        var AESDecryptJob = function() {
-            function AESDecryptJob(cipher, iv, key) {
-                this.cipher = cipher;
-                this.iv = iv;
-                this.key = key;
-                this._finish = false;
-                this._worker = null;
-                this._workerRunning = false;
-                this._aborted = false;
-                this._deferred = makeDeferred();
-                this._promise = this._deferred.promise;
-                this.onAbort = new EventDispatcher;
-                this.onFinish = new EventDispatcher;
-                this.onDecryptStart = new EventDispatcher;
-                this.onDecryptEnded = new EventDispatcher;
-                this._onMessageHandler = this._onMessage.bind(this);
-                this._onErrorHandler = this._onError.bind(this);
-                this._workerTerminated = false;
-            }
-
-            AESDecryptJob.prototype._onMessage = function(evt) {
-                if(!this._finish) {
-                    var data = evt.data;
-                    if(data && data.buffer instanceof ArrayBuffer && data.byteLength !== undefined) {
-                        this._onFinish(data);
-                    } else {
-                        this._onError(NotDecryptedError);
-                    }
-                }
-            };
-
-            AESDecryptJob.prototype._onError = function(e) {
-                if(!this._finish) {
-                    if(!this.isAborted()) {
-                        this.abort(true);
-                    }
-                    this._deferred.reject(AbortError);
-                    this._onEnded(e);
-                }
-            };
-
-            AESDecryptJob.prototype._onFinish = function(decryptedData) {
-                this.onFinish.dispatch(decryptedData);
-                this._deferred.resolve(decryptedData);
-                this._onEnded();
-            };
-
-            AESDecryptJob.prototype._onEnded = function(data) {
-                if(!this._finish) {
-                    this._finish= true;
-                    this._workerRunning = false;
-                    if(this._worker) {
-                        this._worker.removeEventListener('message', this._onMessageHandler, false);
-                        this._worker.removeEventListener('error', this._onErrorHandler, false);
-                        this._worker = null;
-                    }
-                    this.cipher = null;
-                    this.iv = null;
-                    this.key = null;
-                    this._finish = true;
-                    this.onDecryptEnded.dispatch(data);
-                }
-            };
-
-            AESDecryptJob.prototype._run = function() {
-                try {
-                    this._workerRunning = true;
-                    this._worker.postMessage({
-                        iv: this.iv,
-                        key: this.key,
-                        cipher: this.cipher
-                    });
-                    this.onDecryptStart.dispatch(this);
-                } catch(e) {
-                    this._deferred.reject(e);
-                }
-            };
-
-            AESDecryptJob.prototype._provideWorker = function(worker) {
-                if(!this.isFinish()){
-                    this._worker = worker;
-                    this._worker.addEventListener('message', this._onMessageHandler, false);
-                    this._worker.addEventListener('error', this._onErrorHandler, false);
-                    this._run();
-                }
-            };
-
-            AESDecryptJob.prototype.getPromise = function(){
-                return this._promise;
-            };
-
-            AESDecryptJob.prototype.isFinish = function(){
-                return this._finish || this._aborted;
-            };
-
-            AESDecryptJob.prototype.isWorkerRunning= function() {
-                return this._workerRunning;
-            };
-
-            AESDecryptJob.prototype.isWorkerTerminated = function() {
-                return this._workerTerminated;
-            };
-
-            AESDecryptJob.prototype.isAborted = function() {
-                return this._aborted;
-            };
-
-            AESDecryptJob.prototype.abort = function(fromEvent) {
-                if(!this.isFinish()) {
-                    this._aborted = true;
-                    if(this.isWorkerRunning()) {
-                        this._workerTerminated = true;
-                        this._worker.terminate();
-                    }
-                    if(!fromEvent) {
-                        this._onError(AbortError);
-                    }
-
-                    this.onAbort.dispatch(void 0);
-                }
-            };
-
-            return AESDecryptJob;
-        }();
-
-        function AESDecrypter() {
-            this._jobQueue = [];
-            this._worker = null;
-            this._destructed = false;
-            this._currentJob = null;
+    function convertURL2URI(url) {
+        if(url && url.substring(0, 4) !== 'http' && window.request_uri) {
+            url = (window.request_uri + url).replace(/(\/.\/)/gi, '/');
         }
 
-        AESDecrypter.prototype._buildWorker = function() {
-            if(!this._worker) {
-                this._worker = new Worker(window.default_url+"addons/simple_mp3_player/js/decrypt.js");
-                return this._worker;
-            }
-
-            return null;
-        };
-
-        AESDecrypter.prototype.getWorker = function() {
-            return this._worker ? this._worker : this._buildWorker();
-        };
-
-        AESDecrypter.prototype._onJobEnded = function(job) {
-            if(this._currentJob === job) {
-                if(job.isWorkerTerminated()) {
-                    this._worker = null;
-                }
-                this._currentJob = null;
-            }
-            this._performNextJob();
-        };
-
-        AESDecrypter.prototype._performNextJob = function() {
-            if(this._jobQueue.length > 0) {
-                if(!this._currentJob || this._currentJob.isFinish()) {
-                    this._currentJob = this._jobQueue.shift();
-                    this._currentJob._provideWorker(this.getWorker());
-                }
-            }
-        };
-
-        AESDecrypter.prototype._decryptJobObserver = function(job) {
-            var that = this;
-            this._jobQueue.push(job);
-            job.onDecryptEnded.subscribe(function(){
-                that._onJobEnded(job);
-            });
-
-            this._performNextJob();
-        };
-
-        AESDecrypter.prototype._buildDecryptJob = function(cipher, iv, key) {
-            var job = new AESDecryptJob(cipher, iv, key);
-            this._decryptJobObserver(job);
-
-            return job;
-        };
-
-        AESDecrypter.prototype.decrypt = function(cipher, iv, key) {
-            return this._buildDecryptJob(cipher, iv, key);
-        };
-
-        AESDecrypter.prototype.destruct = function() {
-            if(!this._destructed) {
-                if(this._currentJob) {
-                    this._currentJob.abort();
-                    this._currentJob = null;
-                }
-                this._jobQueue.forEach(function(job){
-                    job.abort();
-                });
-                this._jobQueue = [];
-                this._destructed = true;
-            }
-        };
-
-
-        return AESDecrypter;
-    }();
+        return url;
+    }
 
     var MSE = function() {
 
@@ -557,6 +285,286 @@
                 return obj;
             })
         }
+
+        function MP3Muxer(data) {
+            var audioBufferArr = [];
+            var samplerate = null;
+            var mp3Info = {
+                rate: samplerate || 44100,
+                id: 3
+            };
+
+            var n_2 = 2;
+            var n_8 = 8;
+            var n_16 = 16;
+            var trackInfo = null;
+            var mp3Parser = new MP3Parser();
+            var mp4Mux = null;
+            mp3Parser.onFrame = function(data) {
+                try {
+                    if(mp4Mux === null) {
+                        /**
+                         * @nocollapse
+                         */
+                        samplerate = mp3Parser.samplerate;
+                        mp3Info = {
+                            rate: samplerate,
+                            id: 3
+                        };
+                        trackInfo = {
+                            codecId: n_2,
+                            channels: n_2,
+                            samplerate: mp3Info.rate,
+                            samplesize: n_16,
+                            timescale: samplerate
+                        };
+                        mp4Mux = new MP4Mux({
+                            audioTrackId: 0,
+                            videoTrackId: -1,
+                            tracks: [trackInfo]
+                        });
+                        /**
+                         * @nocollapse
+                         */
+                        mp4Mux.ondata = function(push_data) {
+                            audioBufferArr.push(push_data);
+                        };
+                    }
+                    /**
+                     * @nocollapse
+                     */
+                    mp3Parser.onFrame = function(_data) {
+                        var buf = new Uint8Array(_data.length + 1);
+                        var n_ = n_2 << 4;
+                        n_ |= mp3Info.id << 2;
+                        n_ |= (16 === n_16 ? 1 : 0) << 1;
+                        n_ |= 2 === n_2 ? 1 : 0;
+                        buf[0] = n_;
+                        buf.set(_data, 1);
+                        var i = 0;
+                        mp4Mux.pushPacket(n_8, buf, i);
+                    };
+                    mp3Parser.onFrame(data);
+                } catch(e) {
+                    console.log(e);
+                }
+            };
+            mp3Parser.push(data);
+            mp3Parser.close();
+            mp4Mux.flush();
+            if(audioBufferArr.length === 0) {
+                throw new Error("There was no output.");
+            }
+            return audioBufferArr;
+        }
+
+        var AESDecrypter = function() {
+
+            var AbortError = new Error('Decrypting Aborted');
+            var NotDecryptedError = new Error('could not read encrypted data');
+
+            var AESDecryptJob = function() {
+                function AESDecryptJob(cipher, iv, key) {
+                    this.cipher = cipher;
+                    this.iv = iv;
+                    this.key = key;
+                    this._finish = false;
+                    this._worker = null;
+                    this._workerRunning = false;
+                    this._aborted = false;
+                    this._deferred = makeDeferred();
+                    this._promise = this._deferred.promise;
+                    this.onAbort = new EventDispatcher;
+                    this.onFinish = new EventDispatcher;
+                    this.onDecryptStart = new EventDispatcher;
+                    this.onDecryptEnded = new EventDispatcher;
+                    this._onMessageHandler = this._onMessage.bind(this);
+                    this._onErrorHandler = this._onError.bind(this);
+                    this._workerTerminated = false;
+                }
+
+                AESDecryptJob.prototype._onMessage = function(evt) {
+                    if(!this._finish) {
+                        var data = evt.data;
+                        if(data && data.buffer instanceof ArrayBuffer && data.byteLength !== undefined) {
+                            this._onFinish(data);
+                        } else {
+                            this._onError(NotDecryptedError);
+                        }
+                    }
+                };
+
+                AESDecryptJob.prototype._onError = function(e) {
+                    if(!this._finish) {
+                        if(!this.isAborted()) {
+                            this.abort(true);
+                        }
+                        this._deferred.reject(AbortError);
+                        this._onEnded(e);
+                    }
+                };
+
+                AESDecryptJob.prototype._onFinish = function(decryptedData) {
+                    this.onFinish.dispatch(decryptedData);
+                    this._deferred.resolve(decryptedData);
+                    this._onEnded();
+                };
+
+                AESDecryptJob.prototype._onEnded = function(data) {
+                    if(!this._finish) {
+                        this._finish= true;
+                        this._workerRunning = false;
+                        if(this._worker) {
+                            this._worker.removeEventListener('message', this._onMessageHandler, false);
+                            this._worker.removeEventListener('error', this._onErrorHandler, false);
+                            this._worker = null;
+                        }
+                        this.cipher = null;
+                        this.iv = null;
+                        this.key = null;
+                        this._finish = true;
+                        this.onDecryptEnded.dispatch(data);
+                    }
+                };
+
+                AESDecryptJob.prototype._run = function() {
+                    try {
+                        this._workerRunning = true;
+                        this._worker.postMessage({
+                            iv: this.iv,
+                            key: this.key,
+                            cipher: this.cipher
+                        });
+                        this.onDecryptStart.dispatch(this);
+                    } catch(e) {
+                        this._deferred.reject(e);
+                    }
+                };
+
+                AESDecryptJob.prototype._provideWorker = function(worker) {
+                    if(!this.isFinish()){
+                        this._worker = worker;
+                        this._worker.addEventListener('message', this._onMessageHandler, false);
+                        this._worker.addEventListener('error', this._onErrorHandler, false);
+                        this._run();
+                    }
+                };
+
+                AESDecryptJob.prototype.getPromise = function(){
+                    return this._promise;
+                };
+
+                AESDecryptJob.prototype.isFinish = function(){
+                    return this._finish || this._aborted;
+                };
+
+                AESDecryptJob.prototype.isWorkerRunning= function() {
+                    return this._workerRunning;
+                };
+
+                AESDecryptJob.prototype.isWorkerTerminated = function() {
+                    return this._workerTerminated;
+                };
+
+                AESDecryptJob.prototype.isAborted = function() {
+                    return this._aborted;
+                };
+
+                AESDecryptJob.prototype.abort = function(fromEvent) {
+                    if(!this.isFinish()) {
+                        this._aborted = true;
+                        if(this.isWorkerRunning()) {
+                            this._workerTerminated = true;
+                            this._worker.terminate();
+                        }
+                        if(!fromEvent) {
+                            this._onError(AbortError);
+                        }
+
+                        this.onAbort.dispatch(void 0);
+                    }
+                };
+
+                return AESDecryptJob;
+            }();
+
+            function AESDecrypter() {
+                this._jobQueue = [];
+                this._worker = null;
+                this._destructed = false;
+                this._currentJob = null;
+            }
+
+            AESDecrypter.prototype._buildWorker = function() {
+                if(!this._worker) {
+                    this._worker = new Worker(window.default_url+"addons/simple_mp3_player/js/decrypt.js");
+                    return this._worker;
+                }
+
+                return null;
+            };
+
+            AESDecrypter.prototype.getWorker = function() {
+                return this._worker ? this._worker : this._buildWorker();
+            };
+
+            AESDecrypter.prototype._onJobEnded = function(job) {
+                if(this._currentJob === job) {
+                    if(job.isWorkerTerminated()) {
+                        this._worker = null;
+                    }
+                    this._currentJob = null;
+                }
+                this._performNextJob();
+            };
+
+            AESDecrypter.prototype._performNextJob = function() {
+                if(this._jobQueue.length > 0) {
+                    if(!this._currentJob || this._currentJob.isFinish()) {
+                        this._currentJob = this._jobQueue.shift();
+                        this._currentJob._provideWorker(this.getWorker());
+                    }
+                }
+            };
+
+            AESDecrypter.prototype._decryptJobObserver = function(job) {
+                var that = this;
+                this._jobQueue.push(job);
+                job.onDecryptEnded.subscribe(function(){
+                    that._onJobEnded(job);
+                });
+
+                this._performNextJob();
+            };
+
+            AESDecrypter.prototype._buildDecryptJob = function(cipher, iv, key) {
+                var job = new AESDecryptJob(cipher, iv, key);
+                this._decryptJobObserver(job);
+
+                return job;
+            };
+
+            AESDecrypter.prototype.decrypt = function(cipher, iv, key) {
+                return this._buildDecryptJob(cipher, iv, key);
+            };
+
+            AESDecrypter.prototype.destruct = function() {
+                if(!this._destructed) {
+                    if(this._currentJob) {
+                        this._currentJob.abort();
+                        this._currentJob = null;
+                    }
+                    this._jobQueue.forEach(function(job){
+                        job.abort();
+                    });
+                    this._jobQueue = [];
+                    this._destructed = true;
+                }
+            };
+
+
+            return AESDecrypter;
+        }();
 
         var BufferRequest = function() {
 
@@ -872,9 +880,6 @@
             };
         }();
 
-
-
-
         function getAudioBuffer(url, start, end) {
             url = convertURL2URI(url);
             var RequestToFetch = BufferRequest.RequestToFetch;
@@ -1004,7 +1009,7 @@
                 var decrypter = new AESDecrypter;
                 var KeyBufferMediator = function() {
 
-                    function KeyBufferMediator(keyRetriever, bufferBuilder) {
+                    function KeyBufferMediator(keyRetriever, bufferBuilder, iv) {
                         this._deferred = makeDeferred();
                         this._aborted = false;
                         this._settled = false;
@@ -1014,6 +1019,7 @@
                         this._bufferRetriever = null;
                         this._decrypter = null;
                         this._retrievedData = null;
+                        this._iv = iv || null;
                         this._run();
                     }
 
@@ -1030,8 +1036,8 @@
                             if(!that.isSettled()) {
                                 that._retrievedData = result;
                                 var encryptedBuffer = new Uint8Array(result.data);
-                                var cipherTextRaw = encryptedBuffer.slice(48, encryptedBuffer.byteLength);
-                                var iv = encryptedBuffer.slice(0, 16);
+                                var cipherTextRaw = that._iv ? encryptedBuffer : encryptedBuffer.slice(48, encryptedBuffer.byteLength);
+                                var iv = that._iv ? that._iv : encryptedBuffer.slice(0, 16);
                                 this._decrypter = decrypter.decrypt(cipherTextRaw, iv, encKey);
 
                                 return this._decrypter.getPromise();
@@ -1167,8 +1173,8 @@
                     return BufferRetriever.prototype.getBuffer.call(this, audioURL);
                 };
 
-                EncryptedBufferRetriever.prototype.getBuffer = function(audioURL, keyURL) {
-                    return new KeyBufferMediator(this.getKeyRetriever(keyURL), this._buildBufferRetriever.bind(this, audioURL));
+                EncryptedBufferRetriever.prototype.getBuffer = function(audioURL, keyURL, iv) {
+                    return new KeyBufferMediator(this.getKeyRetriever(keyURL), this._buildBufferRetriever.bind(this, audioURL), iv);
                 };
 
                 EncryptedBufferRetriever.prototype.isEncrypted = function() {
@@ -1204,15 +1210,23 @@
             }
         }
 
-        function MSE(audioNode, mp3URL, playlist, file_srl, bufferSize) {
+        function MSE(audioNode, playlist, config) {
+            if(config === void 0) {
+                config = {
+                    file_srl: null,
+                    bufferSize: MAX_BUFFER_SIZE,
+                    mp3url: null
+                };
+            }
+
             this._id = MSE_ID++;
             this._audio = audioNode;
-            this._file_srl = file_srl;
+            this._file_srl = config.file_srl;
             this._playlist = playlist;
-            this._duration = playlist.duration;
-            this._BufferRetriever = playlist.encrypted ? new BufferRetriever.EncryptedBufferRetriever : new BufferRetriever.BufferRetriever;
+            this._duration = this._playlist.duration;
+            this._BufferRetriever = this._playlist.encrypted ? new BufferRetriever.EncryptedBufferRetriever : new BufferRetriever.BufferRetriever;
             this._offsets = normalizeOffsetList(this._playlist.offsets);
-            this._mp3URL = mp3URL;
+            this._mp3URL = config.mp3url;
             this._MediaSource = new window.MediaSource;
             this._sourceBuffer = null;
             this._url = window.URL.createObjectURL(this._MediaSource);
@@ -1230,7 +1244,7 @@
             this._onSourceBufferErrorHandler = this._onSourceBufferError.bind(this);
             this._currentPerformJob = null;
             this._CacheManager = null;
-            this._bufferSize = bufferSize && typeof bufferSize === 'number' ? bufferSize : MAX_BUFFER_SIZE;
+            this._bufferSize = config.bufferSize && typeof config.bufferSize === 'number' ? config.bufferSize : MAX_BUFFER_SIZE;
             this._MediaSource.addEventListener("sourceopen", this._onMediaSourceInitHandler, false);
             this._MediaSource.addEventListener("sourceclose", this._onMediaSourceCloseHandler, false);
             this._MediaSource.addEventListener("error", this._onMediaSourceErrorHandler, false);
@@ -1243,6 +1257,10 @@
 
             this._init();
         }
+
+        MSE.helper = {
+            getAudioBuffer: getAudioBuffer
+        };
 
         MSE.isSupported = function() {
             if('MediaSource' in window) {
@@ -1564,7 +1582,7 @@
                         if(cachedData) {
                             this._request = getCachedAudioBuffer(cachedData);
                         } else {
-                            this._request = idxData.url ? this.getBufferRetriever(idxData.url, idxData.key) :  this.getBufferRetriever(this._mp3URL, idxData.startOffset, idxData.endOffset);
+                            this._request = idxData.url ? this.getBufferRetriever(idxData.url, idxData.key, idxData.iv ? idxData.iv : void 0) :  this.getBufferRetriever(this._mp3URL, idxData.startOffset, idxData.endOffset);
                         }
 
                         var requestPromise = this._request.promise;
@@ -1587,7 +1605,7 @@
         };
 
         MSE.prototype.getCache = function(start, end) {
-            if(this._CacheManager) {
+            if(this._CacheManager && this._file_srl) {
                 return this._CacheManager.getCache(this._file_srl, start, end);
             }
 
@@ -1595,7 +1613,7 @@
         };
 
         MSE.prototype.setCache = function(data, start, end) {
-            if(this._CacheManager) {
+            if(this._CacheManager && this._file_srl) {
                 return this._CacheManager.setCache(data, this._file_srl, start, end);
             }
         };
@@ -1744,6 +1762,624 @@
 
         return MSE;
     }();
+
+    var SimpleHLS = function() {
+
+        var PLAYER_TYPE, ENCRYPT_TYPE;
+        (0, function() {
+            PLAYER_TYPE[PLAYER_TYPE.VOD = 0] = "VOD";
+            PLAYER_TYPE[PLAYER_TYPE.LIVE = 1] = "LIVE";
+            PLAYER_TYPE[PLAYER_TYPE.EVENT = 2] = "EVENT";
+        })(PLAYER_TYPE || (PLAYER_TYPE = {}));
+        (0, function() {
+            ENCRYPT_TYPE[ENCRYPT_TYPE.NONE = 0] = "NONE";
+            ENCRYPT_TYPE[ENCRYPT_TYPE.AES_128 = 1] = "AES_128";
+            ENCRYPT_TYPE[ENCRYPT_TYPE.SAMPLE_AES = 2] = "SAMPLE_AES";
+        })(ENCRYPT_TYPE || (ENCRYPT_TYPE = {}));
+
+        var MSEHelper = MSE.helper;
+        var getAudioBuffer = MSEHelper.getAudioBuffer;
+
+        var TimeRange = function() {
+            function TimeRange(start, duration, end) {
+                if(start < 0 || duration <= 0) {
+                    throw new Error("Invalid TimeRange argument error.");
+                }
+                this.start = start;
+                this.duration = duration;
+                this.end = end || start + duration;
+            }
+
+            TimeRange.sortTimeRanges = function(timeRanges) {
+                return timeRanges.slice(0).sort(function(one, two) {
+                    return two.start - one.start;
+                });
+            };
+
+            TimeRange.normalizeTimeRanges = function(timeRanges) {
+                return TimeRange.sortTimeRanges(timeRanges).reduce(function(accmulator, currentValue, currentIndex) {
+                    var accmulatorLastIndex = accmulator.length - 1;
+                    if(currentIndex > 0 && currentValue.start <= accmulator[accmulatorLastIndex].end) {
+                        accmulator[accmulatorLastIndex].end = currentValue.end;
+                    } else {
+                        accmulator.push(currentValue);
+                    }
+                    return accmulator;
+                }, []).map(function(currentTimeRange) {
+                    var start = currentTimeRange.start;
+                    var end = currentTimeRange.end;
+                    var duration = end-start;
+                    return new TimeRange(start, duration, end);
+                });
+            };
+
+            return TimeRange;
+        }();
+
+        var makeTimeRanges = function(buffered, timescale) {
+            var bufferedLen = buffered.length;
+            var timeRanges = [];
+            if(timescale === void 0) {
+                timescale = 1;
+            }
+            for(var i=0; i<bufferedLen; i++) {
+                timeRanges.push({
+                    start: buffered.start(i) * timescale,
+                    end: buffered.end(i) * timescale
+                });
+            }
+            return TimeRange.normalizeTimeRanges(timeRanges);
+        };
+
+        var M3U8Playlist = function() {
+            var regex = /(?:(?:#(EXTM3U))|(?:#EXT-X-(PLAYLIST-TYPE):(.+))|(?:#EXT-X-(MEDIA-SEQUENCE): *(\d+))|(?:#EXT-X-(ALLOWCACHE): *(\w+))|(?:#EXT-X-(TARGETDURATION): *(\d+))|(?:#EXT-X-(KEY):(.+))|(?:#EXT-X-(MAP):(.+))|(?:#EXT-X-(START):(.+))|(?:#EXT(INF): *(\d+(?:\.\d+)?)(?:,(.*))?)|(?:(?!#)()(\S.+))|(?:#EXT-X-(BYTERANGE): *(\d+(?:@\d+(?:\.\d+)?)?)|(?:#EXT-X-(ENDLIST))|(?:#EXT-X-(DISCONTINUITY-SEQ)UENCE:(\d+))|(?:#EXT-X-(DIS)CONTINUITY))|(?:#EXT-X-(PROGRAM-DATE-TIME):(.+))|(?:#EXT-X-(VERSION):(\d+))|(?:(#)(.*):(.*))|(?:(#)(.*)))(?:.*)\r?\n?/g;
+            var regex1 = /(.+?)=(.+?)(?:,|$)/g;
+            var regex2 = /^\d*(\.\d+)?$/;
+
+            function readMapString(mapString) {
+                if(mapString.indexOf('"') === 0 && mapString.lastIndexOf('"') === mapString.length-1) {
+                    return mapString.slice(1, -1);
+                } else {
+                    return mapString;
+                }
+            }
+
+            function parseMap(mpaData) {
+                var data = {};
+                regex1.lastIndex = 0;
+                var readRegex;
+                while((readRegex = regex1.exec(mpaData)) !== null) {
+                    var index = readRegex[1].trim().toLowerCase();
+                    var str = readMapString(readRegex[2].trim());
+                    data[index] = str;
+                }
+                return data;
+            }
+
+
+            function ivToBuffer(ivH16Str) {
+                if(ivH16Str.indexOf("0x") === 0) {
+                    ivH16Str = ivH16Str.substr(2);
+                }
+                var ivBuffer = new Uint16Array(8);
+                if(ivH16Str.length % 4 != 0) {
+                    throw new Error("Failed to parse IV (length is not multiple of 4).");
+                }
+                for(var i=0; i< ivH16Str.length; i+=4) {
+                    var num = parseInt(ivH16Str.substr(i, 4), 16);
+                    if(isNaN(num)) {
+                        throw new Error("Failed to parse hex number in IV string.");
+                    }
+                    ivBuffer[i/4] = num
+                }
+
+                return new Uint8Array(ivBuffer);
+            }
+
+            function sequenceToIV(sequence){
+                var iv = new Uint8Array(16);
+                for(var i=12; i<16; i++) {
+                    iv[i] = sequence >> 8 * (15 - i) & 255;
+                }
+
+                return iv;
+            }
+
+
+            function M3U8Playlist(m3u8) {
+                this._data = null;
+                this._data = this.parse(m3u8);
+            }
+
+            M3U8Playlist.prototype.parse = function(m3u8) {
+                var data = this._data;
+                var info = {
+                    version: null,
+                    type: PLAYER_TYPE.VOD,
+                    mediaSequence: null,
+                    targetDuration: null,
+                    totalDuration: 0,
+                    allowCache: null,
+                    ended: false
+                };
+                regex.lastIndex = 0;
+                var segmentIndexes = [];
+                var tmpParse;
+                var tmpDuration = null;
+                var parseIndex = 0;
+                var mapStr = null;
+                var encryptData = {
+                    method: ENCRYPT_TYPE.NONE
+                };
+                var segmentSequence = 0;
+                while((tmpParse = regex.exec(m3u8)) !== null) {
+                    var filterLine = tmpParse.filter(function(each, index) {
+                        return index === 0 ? false : each !== void 0;
+                    }).map(function(each, index) {
+                        return index === 0 ? each.toLowerCase() : each;
+                    });
+
+                    var firstLine = filterLine[0];
+                    var copyLine = filterLine.slice(1);
+                    var headerProcessed = false;
+                    if(parseIndex === 0) {
+                        if(firstLine !== "extm3u") {
+                            throw new Error("First line did not contain EXTM3U tag.");
+                        }
+                    } else {
+                        if(!headerProcessed) {
+                            switch(firstLine) {
+                                case "playlist-type":
+                                    if(info.type !== PLAYER_TYPE.LIVE) {
+                                        throw new Error("Already have playlist type.");
+                                    }
+                                    switch (copyLine[0].toLowerCase()) {
+                                        case "vod":
+                                            info.type = PLAYER_TYPE.VOD;
+                                            break;
+                                        case "event":
+                                            info.type = PLAYER_TYPE.EVENT;
+                                            break;
+                                        default:
+                                            throw new Error("Invalid playlist type.");
+                                    }
+                                    break;
+                                case "media-sequence":
+                                    if (info.mediaSequence !== null) {
+                                        throw new Error("Already have media sequence number.");
+                                    }
+                                    var sequence = parseInt(copyLine[0], 10);
+                                    if (copyLine[0] !== sequence+"") {
+                                        throw new Error("Invalid media sequence number.");
+                                    }
+                                    info.mediaSequence = sequence;
+                                    segmentSequence = sequence;
+                                    break;
+
+                                case "allowcache":
+                                    info.allowCache = copyLine[0].toLowerCase() === "YES";
+                                    break;
+
+                                case "targetduration":
+                                    if (info.targetDuration !== null) {
+                                        throw new Error("Already have target duration.");
+                                    }
+                                    var _targetduration = parseInt(copyLine[0], 10);
+                                    if (copyLine[0] !== _targetduration + "" || _targetduration < 0) {
+                                        throw new Error("Invalid target duration.");
+                                    }
+                                    info.targetDuration = 1000 * _targetduration;
+                                    break;
+
+                                case "version":
+                                    if (info.version !== null) {
+                                        throw new Error("Already have version.");
+                                    }
+                                    var _version = parseInt(copyLine[0], 10);
+                                    if (copyLine[0] !== _version + "") {
+                                        throw new Error("Invalid version.");
+                                    }
+                                    if (_version < 3) {
+                                        throw new Error("HLS version must be 3 or above.");
+                                    }
+                                    info.version = _version;
+                                    break;
+                                default:
+                                    headerProcessed = true;
+                            }
+                        }
+
+                        if(headerProcessed) {
+                            switch(firstLine) {
+
+                                case "key":
+                                    mapStr = parseMap(copyLine[0]);
+                                    var method = "method" in mapStr ? mapStr.method.toLowerCase() : null;
+                                    var keyURL = "uri" in mapStr ? mapStr.uri : null;
+                                    var iv = "iv" in mapStr ? ivToBuffer(mapStr.iv) : null;
+                                    if(!method) {
+                                        throw new Error("Missing encryption method.");
+                                    }
+                                    if(method !== "none" && !keyURL) {
+                                        throw new Error("Missing key url.");
+                                    }
+                                    if(keyURL && !iv) {
+                                        iv = sequenceToIV(segmentSequence);
+                                    }
+                                    switch (method) {
+                                        case "none":
+                                            if(keyURL !== null) {
+                                                throw new Error("Key url not allowed.");
+                                            }
+                                            if(iv !== null) {
+                                                throw new Error("IV not allowed.");
+                                            }
+                                            encryptData = {
+                                                method: ENCRYPT_TYPE.NONE
+                                            };
+                                            break;
+
+                                            break;
+                                        case "aes-128":
+                                            if (!keyURL) {
+                                                throw new Error("Key url required.");
+                                            }
+                                            encryptData = {
+                                                method: ENCRYPT_TYPE.AES_128,
+                                                keyUrl: keyURL,
+                                                iv: iv
+                                            };
+                                            break;
+                                        case "sample-aes":
+                                            if (!keyURL) {
+                                                throw new Error("Key url required.");
+                                            }
+                                            encryptData = {
+                                                method: ENCRYPT_TYPE.SAMPLE_AES,
+                                                keyUrl: keyURL,
+                                                iv: iv
+                                            };
+                                            break;
+
+                                        default:
+                                            throw new Error("Unknown encryption method.");
+
+                                    }
+
+                                    break;
+
+                                case "map":
+                                    //FIXME
+                                    mapStr = parseMap(copyLine[0]);
+                                    if (!("uri" in mapStr)) {
+                                        throw new Error("URI missing from EXT-X-MAP tag.");
+                                    }
+                                    if ("byterange" in mapStr) {
+                                        throw new Error("BYTERANGE in EXT-X-MAP tag is currently unsupported.");
+                                    }
+                                    var mapUrl = mapStr;
+                                    break;
+                                case "inf":
+                                    if (!copyLine[0].match(regex2)) {
+                                        throw new Error("Invalid segment duration.");
+                                    }
+                                    tmpDuration = 1000 * parseFloat(copyLine[0]);
+                                    break;
+                                case "":
+                                    if (info.ended) {
+                                        throw new Error("Already received ENDLIST tag.");
+                                    }
+                                    if(tmpDuration === null) {
+                                        throw new Error("Not received segment duration.");
+                                    }
+                                    segmentIndexes.push({
+                                        url: copyLine[0],
+                                        timeRange: new TimeRange(info.totalDuration, tmpDuration),
+                                        encryptData: encryptData
+                                    });
+                                    info.totalDuration += tmpDuration;
+                                    tmpDuration = null;
+                                    segmentSequence++;
+                                    break;
+                                case "endlist":
+                                    if (info.ended) {
+                                        throw new Error("Already had ENDLIST tag.");
+                                    }
+                                    info.ended = !0;
+                                    break;
+                                default:
+                                    console.warn("Unable to parse playlist line.", firstLine);
+                            }
+                        }
+
+                    }
+
+                    parseIndex++;
+                }
+
+                var version = info.version;
+                var type = info.type;
+                var mediaSequence = info.mediaSequence;
+                var targetDuration = info.targetDuration;
+                var ended = info.ended;
+                var totalDuration = info.totalDuration;
+                if(version === null) {
+                    throw new Error("Missing version.");
+                }
+                if(targetDuration === null) {
+                    throw new Error("Missing target duration.");
+                }
+                if(ended && type === PLAYER_TYPE.LIVE) {
+                    throw new Error("Cannot be ended if type is LIVE.");
+                }
+                if(!ended && type === PLAYER_TYPE.VOD) {
+                    throw new Error("Must be ended if type is VOD.");
+                }
+                if(mediaSequence === null) {
+                    mediaSequence = 0;
+                }
+                if(data) {
+                    if (data.type !== type) {
+                        throw new Error("Playlist type has changed since last update.");
+                    }
+                    if (data.type === PLAYER_TYPE.EVENT && mediaSequence !== data.mediaSequence) {
+                        throw new Error("Media sequence number has changed. Not valid for EVENT playlist.");
+                    }
+                    var contactSegment = info.segments[mediaSequence - info.mediaSequence];
+                    if(!contactSegment) {
+                        throw new Error("Tracking lost. The last segment of the previous playlist is no longer in the new one.");
+                    }
+                    var contactSegmentStart = contactSegment.timeRange.start;
+                    segmentIndexes.forEach(function(each) {
+                        var timeRange = each.timeRange;
+                        each.timeRange = new TimeRange(timeRange.start+contactSegmentStart, timeRange.duration);
+                    });
+                    totalDuration += contactSegmentStart;
+                }
+
+                return {
+                    version: version,
+                    type: type,
+                    mediaSequence: mediaSequence,
+                    targetDuration: targetDuration,
+                    totalDuration: totalDuration,
+                    ended: ended,
+                    segments: segmentIndexes
+                };
+            };
+
+            M3U8Playlist.prototype._calculatePlaylist = function() {
+                if(this._playlist) {
+                    var duration = 0;
+                    this._playlist.forEach(function(eachSegmentInfo) {
+                        duration += eachSegmentInfo.duration;
+                    });
+                    this._duration = duration;
+                }
+            };
+
+            M3U8Playlist.prototype.hasEnded = function() {
+                if(!this._playlist) {
+                    throw new Error("Not loaded yet.");
+                }
+            };
+
+            M3U8Playlist.prototype.getSegmentCount = function() {
+                if(!this._data) {
+                    throw new Error("Not loaded yet.");
+                }
+                return this._data.segments.length;
+            };
+
+            M3U8Playlist.prototype.getType = function() {
+                if(!this._data) {
+                    throw new Error("Not loaded yet.");
+                }
+                return this._data.type;
+            };
+
+            M3U8Playlist.prototype.getSegment = function(index) {
+                if(!this._data) {
+                    throw new Error("Not loaded yet.");
+                }
+                return this._data.segments[index];
+            };
+
+            M3U8Playlist.prototype.getSegmentByPosition = function(position) {
+                if(!this._data) {
+                    throw new Error("Not loaded yet.");
+                }
+                var index = null;
+                var segment = this._data.segments.find(function(segment, currentIndex){
+                    var timeRange = segment.timeRange;
+                    if(position >= timeRange.start && position <= timeRange.end) {
+                        index = currentIndex;
+                        return true;
+                    }
+                });
+                return segment ? {
+                    index: index,
+                    segment: segment
+                } : null;
+            };
+
+            M3U8Playlist.prototype.getDuration = function() {
+                return this._data.totalDuration;
+            };
+
+            M3U8Playlist.prototype.getEntireData = function() {
+                return this._data;
+            };
+
+            M3U8Playlist.prototype.merge = function(m3u8Parser) {
+                if(m3u8Parser instanceof M3U8Playlist) {
+
+                }
+            };
+
+            return M3U8Playlist;
+        }();
+
+        var M3U8Retriever = function() {
+            function M3U8Retriever(url) {
+                this._deferred = makeDeferred();
+                this._promise = this._deferred.promise;
+                this._request = getAudioBuffer(url);
+                this._aborted = false;
+                this._ended = false;
+                this._request();
+            }
+
+            M3U8Retriever.prototype._resolve = function(data) {
+                if(!this._ended) {
+                    this._deferred.resolve(data);
+                    this._ended = true;
+                }
+            };
+
+            M3U8Retriever.prototype._reject = function(err) {
+                if(!this._ended) {
+                    this._deferred.reject(err);
+                    this._ended = true;
+                }
+            };
+
+            M3U8Retriever.prototype._request = function() {
+                var that = this;
+                this._request.promise.then(function(result){
+                    if(result.data) {
+                        that._onLoad(String.fromCharCode.apply(null, result.data));
+                    } else {
+                        that._onFailure(result);
+                    }
+                });
+            };
+
+            M3U8Retriever.prototype._onLoad = function(playlist) {
+                try {
+                    var playlistParser = new M3U8Playlist(playlist);
+                    return this._resolve(playlistParser.getEntireData());
+                } catch(err) {
+                    return this._onFailure(err);
+                }
+            };
+
+            M3U8Retriever.prototype._onFailure = function(err) {
+                this._reject(err);
+            };
+
+            M3U8Retriever.prototype.getPromise = function() {
+                return this._promise;
+            };
+
+            M3U8Retriever.prototype.isEnded = function() {
+                return this._aborted || this._ended;
+            };
+
+            M3U8Retriever.prototype.abort = function() {
+                if(this._request && !this._request.isSettled()) {
+                    this._request.abort();
+                    this._aborted = true;
+                }
+            };
+
+            return M3U8Retriever;
+
+        };
+
+        var DestructError = new Error("Destructed");
+
+        function M3U8Data2OffsetList(M3U8Data) {
+            return M3U8Data.segments.reduce(function(data, segment){
+                var timeRange = segment.timeRange;
+                var encryptData = segment.encryptData;
+                var offset = {
+                    start: timeRange.start,
+                    end: timeRange.end,
+                    time: timeRange.duration
+                };
+                if(segment.url) {
+                    offset.url = segment.url;
+                }
+                if(encryptData && encryptData.method !== ENCRYPT_TYPE.NONE) {
+                    data.encrypted = true;
+                    offset.key = encryptData.keyUrl;
+                    offset.iv = encryptData.iv;
+                }
+
+                data.offsets.push(offset);
+
+                return data;
+            }, {
+                encrypted: false,
+                duration: M3U8Data.totalDuration / 1000,
+                offsets: []
+            })
+        }
+
+        // Adapter
+        function SimpleHLS(audioNode, m3u8URL, file_srl, bufferSize){
+            var that = this;
+            this._audioNode = audioNode;
+            this._m3u8URL = m3u8URL;
+            this._file_srl = file_srl;
+            this._bufferSize = bufferSize;
+            this._retreiver = new M3U8Retriever(m3u8URL);
+            this._MSE = null;
+            this._destructed = false;
+            this._playlist = null;
+            this._offsetList = null;
+            this._retreiver.getPromise().then(function(playlist) {
+                that._playlist = playlist;
+                that._onPlaylistLoad(playlist);
+            })['catch'](function(err){
+                console.error(err);
+                that.destruct();
+            });
+            this._cacheManager = null;
+        }
+
+
+        SimpleHLS.prototype._initMSE = function(offsetList) {
+            this._MSE = new MSE(this._audioNode, offsetList, {
+                file_srl: this._file_srl,
+                bufferSize: this._bufferSize
+            });
+            if(this._cacheManager) {
+                this._MSE.provideCacheManager(this._cacheManager);
+            }
+        };
+
+        SimpleHLS.prototype._onPlaylistLoad = function(playlist) {
+            this._offsetList = M3U8Data2OffsetList(playlist);
+            this._initMSE(this._offsetList);
+        };
+
+        SimpleHLS.prototype.provideCacheManager = function(cacheManager) {
+            if(this._MSE) {
+                this._MSE.provideCacheManager(cacheManager);
+            } else {
+                this._cacheManager = cacheManager;
+            }
+        };
+
+        SimpleHLS.prototype.destruct = function() {
+            if(!this._destructed) {
+                if(this._retreiver && !this._retreiver.isSettled()) {
+                    this._retreiver.abort();
+                    this._retreiver = null;
+                }
+                if(this._MSE) {
+                    this._MSE.destruct();
+                    this._MSE = null;
+                }
+
+                this._destructed = true;
+            }
+        };
+        
+        return SimpleHLS;
+    };
 
     var PlayerObserver = function() {
         function PlayerObserver(player) {
