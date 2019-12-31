@@ -503,15 +503,38 @@
     }
 
     var MSE = $SimpleMP3Player.MSE;
+    var SimpleHLS = $SimpleMP3Player.SimpleHLS;
     var lastMSE = null;
     function handlePlaybackLoading(audioElement, trackItem) {
         if(trackItem) {
             var description = trackItem.description;
             if(lastMSE) {
                 lastMSE.destruct();
+                lastMSE = null;
+            }
+            if(enableRealtimeStreaming && MSE && MSE.isSupported() && description) {
+                if(description.offsetInfo) {
+                    lastMSE = new MSE(audioElement, description.offsetInfo, {
+                        mp3url: trackItem.url,
+                        file_srl: description.file_srl,
+                        bufferSize: bufferSize
+                    });
+                } else if(description.m3u8link) {
+                    lastMSE = new SimpleHLS(audioElement, description.m3u8link, description.file_srl, bufferSize);
+                }
+                if(lastMSE) {
+                    lastMSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
+                }
+            } else {
+                audioElement.src = trackItem.url;
+                audioElement.load()
             }
             if(enableRealtimeStreaming && MSE && MSE.isSupported() && description && description.offsetInfo) {
-                lastMSE = new MSE(audioElement, trackItem.url, description.offsetInfo, description.file_srl, bufferSize);
+                lastMSE = new MSE(audioElement, description.offsetInfo, {
+                    mp3url: trackItem.url,
+                    file_srl: description.file_srl,
+                    bufferSize: bufferSize
+                });
                 lastMSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
             } else {
                 audioElement.src = trackItem.url;

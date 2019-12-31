@@ -69,6 +69,49 @@ function addCacheControlHeader() {
     }
 }
 
+
+function id3TimestampRepresentation($timestamp) {
+    $chars = array();
+    $mpeg2Timestamp = floor((int)$timestamp * 90000);
+    $mpeg2Timestamp = str_pad(dechex($mpeg2Timestamp), 16, "0", STR_PAD_LEFT);    $header_name = "A";
+    for($i=0; $i<16; $i+=2) {
+        $chars[] = hexdec(substr($mpeg2Timestamp, $i, 2));
+    }
+
+    return implode(array_map("chr", $chars));
+}
+
+function buildID3Header($timestampOffset) {
+    $owner = "com.apple.streaming.transportStreamTimestamp";
+    $buffer = array(
+        "ID3",
+        chr(0x04), chr(0),
+        chr(0),
+        chr(0), chr(0), chr(0), chr(63),
+        "PRIV",
+        chr(0), chr(0), chr(0), chr(53),
+        chr(0), chr(0),
+        $owner,
+        chr(0),
+        id3TimestampRepresentation($timestampOffset)
+    );
+
+    return implode($buffer);
+}
+
+function int2IV($num) {
+    $iv = array(0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0);
+    for($i=12; $i<16; $i++) {
+        $iv[$i] = $num >> 8 * (15 - $i) & 255;
+    }
+
+    return implode(array_map("chr", $iv));
+}
+
+
 // ============================= 요청 시작 부분
 if(!determineValidParameter(isKeyRequest())) {
     header('HTTP/1.1 403 Forbidden');
@@ -106,6 +149,7 @@ $timestamp = isset($_GET['timestamp']) && $_GET['timestamp'] ? (string)$_GET['ti
 $document_srl = isset($_GET['document_srl']) && $_GET['document_srl'] ? (string)$_GET['document_srl'] : null;
 $file_srl = isset($_GET['file_srl']) && $_GET['file_srl'] ? (string)$_GET['file_srl'] : null;
 $ip = isset($_GET['ip']) && $_GET['ip'] ? $_GET['ip'] : null;
+$seq = isset($_GET['seq']) ? (int)$_GET['seq'] : null;
 
 $bufferEncryptionKey = $isBufferEncrypt ? SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip) : null;
 
@@ -137,10 +181,28 @@ if($isSegment) {
     $size = $endOffset-$startOffset+1;
     fseek($file, $startOffset);
     $data = fread($file, $size);
-    if($bufferEncryptionKey) {
-        $data = SimpleEncrypt::getEncrypt($data, $bufferEncryptionKey, false);
-        $size = strlen($data);
+
+    $offset = isset($_GET['offset']) ? (double)$_GET['offset'] : null;
+    if($offset !== null && $seq !== null) {
+        $timestampOffset = $offset;
+        $data = buildID3Header($timestampOffset).$data;
     }
+
+
+    $keyStr = array();
+
+
+    if($bufferEncryptionKey) {
+        $iv = $seq !== null ? int2IV((int)$seq) : null;
+        if($iv) {
+            $encData = SimpleEncrypt::getEncryptDetail($data, $bufferEncryptionKey, $iv);
+            $data = $encData->cipher;
+        } else {
+            $data = SimpleEncrypt::getEncrypt($data, $bufferEncryptionKey, false);
+        }
+    }
+
+    $size = strlen($data);
 
     addCacheControlHeader();
     header('Content-Type: '.$mimeType);

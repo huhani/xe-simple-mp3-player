@@ -276,6 +276,7 @@
                     endOffset: each.endOffset,
                     url: each.url ? each.url : null,
                     key: lastKey,
+                    iv: each.iv ? each.iv : null,
                     TimeRange: {
                         start: duration,
                         end: duration+each.time
@@ -356,6 +357,31 @@
                 throw new Error("There was no output.");
             }
             return audioBufferArr;
+        }
+
+        function getID3v2TagLength(block) {
+            if(String.fromCharCode.apply(null, block.slice(0, 3)) === 'ID3') {
+                var id3v2Flag = block[5];
+                var flagFooterPresent = id3v2Flag & 0x10 ? 1 : 0;
+                var z0 = block[6];
+                var z1 = block[7];
+                var z2 = block[8];
+                var z3 = block[9];
+                if((z0 & 0x80) === 0 && (z1 & 0x80) === 0 && (z2 & 0x80)=== 0 && (z3 & 0x80)=== 0) {
+                    var headerSize = 10;
+                    var tagSize = ((z0&0x7f) * 0x200000) + ((z1&0x7f) * 0x4000) + ((z2&0x7f) * 0x80) + (z3&0x7f);
+                    var footerSize = flagFooterPresent ? 10 : 0;
+
+                    return headerSize + tagSize + footerSize;
+                }
+            }
+
+            return 0;
+        }
+
+        function removdID3Tag(data) {
+            var tagSize = getID3v2TagLength(data);
+            return data.slice(tagSize);
         }
 
         var AESDecrypter = function() {
@@ -1438,7 +1464,7 @@
                 var start = timeRange.start;
                 var end = timeRange.end;
                 var duration = end-start;
-                var buffer = new Uint8Array(result.data);
+                var buffer = removdID3Tag(new Uint8Array(result.data));
                 if(this._mimeCodec !== mp3) {
                     var mux = MP3Muxer(buffer);
                     var muxedBuffer = mux[1];
@@ -1578,6 +1604,7 @@
                     this._lastSegmentIndex++;
                     if(this._lastSegmentIndex < this._offsets.length) {
                         var idxData = this.getSegmentIndex(this._lastSegmentIndex);
+                        console.log()
                         var cachedData = this.getCache(idxData.startOffset, idxData.endOffset);
                         if(cachedData) {
                             this._request = getCachedAudioBuffer(cachedData);
@@ -1605,7 +1632,7 @@
         };
 
         MSE.prototype.getCache = function(start, end) {
-            if(this._CacheManager && this._file_srl) {
+            if(this._CacheManager && this._file_srl && start && end) {
                 return this._CacheManager.getCache(this._file_srl, start, end);
             }
 
@@ -1909,7 +1936,7 @@
                 var parseIndex = 0;
                 var mapStr = null;
                 var encryptData = {
-                    method: ENCRYPT_TYPE.NONE
+                    method: ENCRYPT_TYPE.NONE,
                 };
                 var segmentSequence = 0;
                 while((tmpParse = regex.exec(m3u8)) !== null) {
@@ -2003,9 +2030,6 @@
                                     if(method !== "none" && !keyURL) {
                                         throw new Error("Missing key url.");
                                     }
-                                    if(keyURL && !iv) {
-                                        iv = sequenceToIV(segmentSequence);
-                                    }
                                     switch (method) {
                                         case "none":
                                             if(keyURL !== null) {
@@ -2075,8 +2099,14 @@
                                     segmentIndexes.push({
                                         url: copyLine[0],
                                         timeRange: new TimeRange(info.totalDuration, tmpDuration),
-                                        encryptData: encryptData
+                                        encryptData: {
+                                            method: encryptData.method,
+                                            keyUrl: encryptData.keyUrl ? encryptData.keyUrl : null,
+                                            iv: encryptData.iv ?  encryptData.iv :
+                                                encryptData.keyUrl ? sequenceToIV(segmentSequence) : null
+                                        }
                                     });
+
                                     info.totalDuration += tmpDuration;
                                     tmpDuration = null;
                                     segmentSequence++;
@@ -2222,12 +2252,19 @@
 
         var M3U8Retriever = function() {
             function M3U8Retriever(url) {
+                var that = this;
                 this._deferred = makeDeferred();
                 this._promise = this._deferred.promise;
                 this._request = getAudioBuffer(url);
                 this._aborted = false;
                 this._ended = false;
-                this._request();
+                this._request.promise.then(function(result){
+                    if(result.data) {
+                        that._onLoad(String.fromCharCode.apply(null, new Uint8Array(result.data)));
+                    } else {
+                        that._onFailure(result);
+                    }
+                });
             }
 
             M3U8Retriever.prototype._resolve = function(data) {
@@ -2242,17 +2279,6 @@
                     this._deferred.reject(err);
                     this._ended = true;
                 }
-            };
-
-            M3U8Retriever.prototype._request = function() {
-                var that = this;
-                this._request.promise.then(function(result){
-                    if(result.data) {
-                        that._onLoad(String.fromCharCode.apply(null, result.data));
-                    } else {
-                        that._onFailure(result);
-                    }
-                });
             };
 
             M3U8Retriever.prototype._onLoad = function(playlist) {
@@ -2285,18 +2311,61 @@
 
             return M3U8Retriever;
 
-        };
+        }();
 
         var DestructError = new Error("Destructed");
+
+        function getParameterByName(name, url) {
+            if (!url) {
+                url = window.location.href;
+            }
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+            var results = regex.exec(url);
+            if (!results) {
+                return null;
+            }
+            if (!results[2]) {
+                return '';
+            }
+
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+        function getByteOffsetByPlaybackURL(url) {
+            var offsetParams = {
+                startOffset: null,
+                endOffset: null
+            };
+            if(url) {
+                try {
+                    var startOffset = parseInt(getParameterByName('start', url), 10);
+                    var endOffset = parseInt(getParameterByName('end', url), 10);
+                    if(!isNaN(startOffset)) {
+                        offsetParams.startOffset = startOffset;
+                    }
+                    if(!isNaN(endOffset)) {
+                        offsetParams.endOffset = endOffset;
+                    }
+                } catch(e){
+                    console.error(e);
+                }
+            }
+
+            return offsetParams;
+        }
 
         function M3U8Data2OffsetList(M3U8Data) {
             return M3U8Data.segments.reduce(function(data, segment){
                 var timeRange = segment.timeRange;
                 var encryptData = segment.encryptData;
+                var offsetParams = getByteOffsetByPlaybackURL(segment.url);
                 var offset = {
                     start: timeRange.start,
                     end: timeRange.end,
-                    time: timeRange.duration
+                    time: timeRange.duration / 1000,
+                    startOffset: offsetParams.startOffset,
+                    endOffset: offsetParams.endOffset
                 };
                 if(segment.url) {
                     offset.url = segment.url;
@@ -2365,7 +2434,7 @@
 
         SimpleHLS.prototype.destruct = function() {
             if(!this._destructed) {
-                if(this._retreiver && !this._retreiver.isSettled()) {
+                if(this._retreiver && !this._retreiver.isEnded()) {
                     this._retreiver.abort();
                     this._retreiver = null;
                 }
@@ -2377,9 +2446,9 @@
                 this._destructed = true;
             }
         };
-        
+
         return SimpleHLS;
-    };
+    }();
 
     var PlayerObserver = function() {
         function PlayerObserver(player) {
@@ -2956,5 +3025,6 @@
     $SimpleMP3Player.descriptionDecorator = descriptionDecorator;
     $SimpleMP3Player.EventDispatcher = EventDispatcher;
     $SimpleMP3Player.MSE = MSE;
+    $SimpleMP3Player.SimpleHLS = SimpleHLS;
 
 })(window.$SimpleMP3Player || (window.$SimpleMP3Player = {}));
