@@ -809,7 +809,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
             if($description && (!isset($description->version) || $description->version !== self::getDescriptionVersion())) {
                 $description = null;
             }
-            $description = null;
             if($description && isset($description->offsetInfo) && $description->offsetInfo && is_array($segmentDuration) && count($segmentDuration) > 0) {
                 $offsetInfo = $description->offsetInfo;
                 if(isset($offsetInfo->segmentDuration) && is_array($offsetInfo->segmentDuration) && count($offsetInfo->segmentDuration) === count($segmentDuration)) {
