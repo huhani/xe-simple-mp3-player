@@ -6,6 +6,7 @@
 
 
 	var MSE = $SimpleMP3Player.MSE;
+	var SimpleHLS = $SimpleMP3Player.SimpleHLS;
 	var PlayerManager = $SimpleMP3Player.PlayerManager;
 	var PlayerObserver = $SimpleMP3Player.PlayerObserver;
 	var SimplePlayerObserver = PlayerObserver.SimplePlayerObserver;
@@ -18,7 +19,7 @@
 
 		function SimplePlayer(targetDOM, description, useMediaSession) {
 			if(!description ||
-				!(MSE.isSupported() && description.offsetInfo || description.filePath)
+				!(MSE.isSupported() && (description.offsetInfo || description.m3u8link) || description.filePath)
 			) {
 				throw new Error("No source found.");
 			}
@@ -56,7 +57,14 @@
 
 			this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
 			if(enableRealtimeStreaming && MSE.isSupported()) {
-				this._MSE = new MSE(this._audio, this._description.filePath, this._description.offsetInfo, this._description.file_srl, bufferSize);
+				this._MSE = this._description.m3u8link ?
+					new SimpleHLS(this._audio, this._description.m3u8link, this._description.file_srl, bufferSize) :
+					new MSE(this._audio, this._description.offsetInfo, {
+						mp3url: this._description.filePath,
+						file_srl: this._description.file_srl,
+						bufferSize: bufferSize
+					});
+
 				this._MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
 			} else {
 				this._audio.src = this._description.filePath;
