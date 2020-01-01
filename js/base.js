@@ -1604,7 +1604,6 @@
                     this._lastSegmentIndex++;
                     if(this._lastSegmentIndex < this._offsets.length) {
                         var idxData = this.getSegmentIndex(this._lastSegmentIndex);
-                        console.log()
                         var cachedData = this.getCache(idxData.startOffset, idxData.endOffset);
                         if(cachedData) {
                             this._request = getCachedAudioBuffer(cachedData);

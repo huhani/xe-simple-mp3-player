@@ -415,10 +415,14 @@ class PHPMP3
         
         return $offsetData;
     }
-    
-    
-    //!!!S
-    public function getSplitPosition($partDuration = 10, $start = 0, $startOffset = null, $endOffset = null) {
+
+
+    private function calcDuration($frameCount, $sampleRate, $samplePerFrame) {
+        return $frameCount * $samplePerFrame / $sampleRate;
+    }
+
+
+    public function getSplitPosition($partDuration = 10) {
         $aDurations = null;
         $durationsLength = 0;
         $durationPosition = 0;
@@ -433,39 +437,19 @@ class PHPMP3
                 }
             }
         }
-        
+
         $arrPositions = array();
-        $skipFrameKeywords = array('Xing', 'Info');
-        
-        $maxStrLen     = $endOffset ? $endOffset : strlen($this->str);
-        $currentStrPos = $startOffset ? $startOffset : $this->getStart();
-        $hasFrontInfoRemoved = false;
-        if($startOffset !== null) {
-            $paddingData = $this->getPaddingData();
-            $frequency = $this->getMP3Frequency();
-            $sampleRatePerSec = 1/$frequency;
-        } else {
-            $hasFrontInfoRemoved = null;
-        }
-        if($paddingData) {
-            $frontSkipTime = $paddingData->frontPadding * $sampleRatePerSec;
-            $endSkipTime = $paddingData->endPadding * $sampleRatePerSec;
-        }
-        
-        $frontSkipTime = 0;
-        $endSkipTime = 0;
-        
-        $prevPos = $currentStrPos;
-        $framesCount   = 0;
-        $totalTime     = 0;
-        
-        $prevTime      = 0;
-        $prevFrameCount = 0;
-        
-        $time          = 0;
-        $startCount    = - 1;
-        $endCount      = - 1;
-        
+        $maxStrLen     = strlen($this->str);
+        $currentStrPos = $this->getStart();
+        $isBrokenFlag = false;
+        $lastSampleRate = null;
+        $lastSamplePerFrame= null;
+
+        $lastFrameOffset = 0;
+        $lastFrameCount = 0;
+
+        $currentSegmentInfo = null;
+
         while ($currentStrPos < $maxStrLen) {
             $str    = substr($this->str, $currentStrPos, 4);
             $strlen = strlen($str);
@@ -473,78 +457,64 @@ class PHPMP3
             for ($i = 0; $i < $strlen; $i ++) {
                 $parts[] = $this->binaryTable[$str[$i]];
             }
-            
-            $isBreak = false;
-            if ($startCount == - 1) {
-                $startCount = $currentStrPos;
-            }
             if ($parts[0] == '11111111') {
+
+                if(!$currentSegmentInfo) {
+                    $currentSegmentInfo = new stdClass;
+                    $currentSegmentInfo->timestampOffset = $lastFrameOffset ? $this->calcDuration($lastFrameOffset, $lastSampleRate, $lastSamplePerFrame) : 0;
+                    $currentSegmentInfo->startOffset = $currentStrPos;
+                    $currentSegmentInfo->endOffset = 0;
+                    $arrPositions[] = $currentSegmentInfo;
+                }
+
                 $a = $this->doFrameStuff($parts);
-                if($frontSkipTime > 0) {
-                    $frontSkipTime -= $a[1];
-                    $startCount = -1;
-                    continue;
-                } else if($hasFrontInfoRemoved === false) {
-                    $thisStr = substr($this->str, $currentStrPos, 512);
-                    foreach($skipFrameKeywords as $key=>$value) {
-                        if(strpos($thisStr, $value) !== false) {
-                            $hasFrontInfoRemoved = true;
-                            break;
+                if($lastSampleRate === null) {
+                    $lastSampleRate = $a[1];
+                }
+                if($lastSamplePerFrame === null) {
+                    $lastSamplePerFrame = $a[2];
+                }
+                if($lastSampleRate !== $a[1] || $lastSamplePerFrame !== $a[2]) {
+                    $isBrokenFlag = true;
+                    break;
+                }
+                $lastFrameCount++;
+                $lastFrameOffset++;
+                if($this->calcDuration($lastFrameCount+1, $lastSampleRate, $lastSamplePerFrame) > $partDuration) {
+
+
+                    //flush
+                    $currentSegmentInfo->endOffset = $currentStrPos+$a[0]-1;
+                    $currentSegmentInfo->time = $this->calcDuration($lastFrameCount, $lastSampleRate, $lastSamplePerFrame);
+                    $currentSegmentInfo = null;
+                    $lastFrameCount = 0;
+
+                    if($aDurations !== null) {
+                        $partDuration = $aDurations[++$durationPosition];
+                        if($durationPosition >= $durationsLength-1) {
+                            $aDurations = null;
                         }
                     }
-                    if($hasFrontInfoRemoved === true) {
-                        $frontSkipTime -= $a[1];
-                        $startCount = -1;
-                        $currentStrPos += $a[0];
-                        continue;
-                    }
-                    $hasFrontInfoRemoved = null;
                 }
-                $currentStrPos += $a[0];
-                $totalTime += $a[1];
-                $time += $a[1];
-                $framesCount ++;
             } else {
-                $isBreak = true;
+                break;
             }
-            $isOverredStrPos = $currentStrPos >= $maxStrLen;
-            if( ($endCount == - 1 && $time >= $partDuration) || $isOverredStrPos || $isBreak) {
-                $isOverredDuration = $time >= $partDuration;
-                $endCount = ($isOverredDuration || $isOverredStrPos ? $prevPos :  $currentStrPos) - $startCount;
-                $oPosition = new stdClass;
-                $oPosition->startOffset = $startCount;
-                $oPosition->endOffset = $startCount+$endCount-1;
-                $oPosition->time = $isOverredDuration ? $prevTime : $time;
-                $arrPositions[] = $oPosition;
-                if($isBreak) {
-                    break;
-                }
-                if($isOverredDuration) {
-                    $currentStrPos = $prevPos;
-                }
-                if($currentStrPos < $maxStrLen) {
-                    $startCount = $oPosition->endOffset+1;
-                    $framesCount = $prevFrameCount;
-                    $endCount = -1;
-                    $time = 0;
-                    $prevTime = 0;
-                } else {
-                    break;
-                }
-                if($aDurations !== null) {
-                    $partDuration = $aDurations[++$durationPosition];
-                    if($durationPosition >= $durationsLength-1) {
-                        $aDurations = null;
-                    }
-                }
-            }
-            $prevFrameCount = $framesCount;
-            $prevPos = $currentStrPos;
-            $prevTime = $time;
+
+            $currentStrPos += $a[0];
         }
-        
+
+        if($currentSegmentInfo) {
+            $currentSegmentInfo->endOffset = $currentStrPos;
+            $currentSegmentInfo->time = $this->calcDuration($lastFrameCount, $lastSampleRate, $lastSamplePerFrame);
+            $currentSegmentInfo = null;
+        }
+
         return $arrPositions;
     }
+
+
+    //!!!S
+
     
     public function getMP3Range($startOffset = 0, $endOffset = 0) {
         $mp3 = new static();
@@ -754,8 +724,10 @@ class PHPMP3
         if ($frameLength == 0) {
             return false;
         }
-        $seconds += ($frameLength << 3) / ($bitRate * 1000);
-        return array($frameLength, $seconds);
+
+        $samplePerFrame = ($audio === 1 ? 144 : 72) << 3;
+
+        return array($frameLength, $freq, $samplePerFrame);
     }
 
     /**

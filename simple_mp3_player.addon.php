@@ -721,7 +721,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
                         }
                         if($this->is_hls_mode) {
                             if(!$this->use_hls_standard || $preserveOffsetList) {
-                                $currentOffset = 0;
                                 $rotationCount = 0;
                                 $lastHandshake = null;
                                 foreach ($offsets as $idx=>$eachOffset) {
@@ -735,7 +734,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                         array('key'=>'end', 'value'=>$eachOffset->endOffset),
                                         array('key'=>'duration', 'value'=> floor($duration*100000) / 100000),
                                         array('key'=>'ip', 'value'=>$ip),
-                                        array('key'=>'offset', 'value'=>$currentOffset),
+                                        array('key'=>'offset', 'value'=> floor($eachOffset->timestampOffset * 100000) / 100000),
                                         array('key'=>'timestamp', 'value'=>$timestamp),
                                         array('key'=>'type', 'value'=>'realtime')
                                     );
@@ -769,7 +768,6 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                     }
 
                                     $eachOffset->url = $this->createMP3URL($filepath, $urlParamArr);
-                                    $currentOffset += $eachOffset->time;
                                 }
                             } else {
                                 $mid = Context::get('mid');
@@ -811,6 +809,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
             if($description && (!isset($description->version) || $description->version !== self::getDescriptionVersion())) {
                 $description = null;
             }
+            $description = null;
             if($description && isset($description->offsetInfo) && $description->offsetInfo && is_array($segmentDuration) && count($segmentDuration) > 0) {
                 $offsetInfo = $description->offsetInfo;
                 if(isset($offsetInfo->segmentDuration) && is_array($offsetInfo->segmentDuration) && count($offsetInfo->segmentDuration) === count($segmentDuration)) {
@@ -869,7 +868,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
         }
 
         static function getDescriptionVersion() {
-            return '0.0.2';
+            return '0.0.3';
         }
 
         static function getM3U8Playlist ($description) {
