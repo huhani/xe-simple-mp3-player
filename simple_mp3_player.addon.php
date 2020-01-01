@@ -883,7 +883,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                     if($offset->key) {
                         $m3u8[] = '#EXT-X-KEY:METHOD=AES-128,URI="' . $offset->key . '"';
                     }
-                    $m3u8[] = '#EXTINF:' . $offset->time . ",";
+                    $m3u8[] = '#EXTINF:' . (floor($offset->time*1000)/1000) . ",";
                     $m3u8[] = $offset->url;
                 }
 

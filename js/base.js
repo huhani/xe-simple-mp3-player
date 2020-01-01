@@ -1249,9 +1249,9 @@
             this._audio = audioNode;
             this._file_srl = config.file_srl;
             this._playlist = playlist;
-            this._duration = this._playlist.duration;
-            this._BufferRetriever = this._playlist.encrypted ? new BufferRetriever.EncryptedBufferRetriever : new BufferRetriever.BufferRetriever;
-            this._offsets = normalizeOffsetList(this._playlist.offsets);
+            this._duration = this._playlist ? this._playlist.duration : 0;
+            this._BufferRetriever = this._playlist && this._playlist.encrypted ? new BufferRetriever.EncryptedBufferRetriever : new BufferRetriever.BufferRetriever;
+            this._offsets = this._playlist ? normalizeOffsetList(this._playlist.offsets) : null;
             this._mp3URL = config.mp3url;
             this._MediaSource = new window.MediaSource;
             this._sourceBuffer = null;
@@ -1280,6 +1280,8 @@
             this._eosSignalled = false;
             this._lastSegmentIndex = -1;
             this._playingObserverTimerID = null;
+
+            this._MSEInitialized = false;
 
             this._init();
         }
@@ -1316,7 +1318,12 @@
                 this._audio.addEventListener('seeking', this._onAudioSeekingHandler, false);
                 this._audio.addEventListener('timeupdate', this._onAudioTimeUpdateHandler, false);
                 this._audio.src = this.getURL();
-                this._audio.load();
+                try {
+                    this._audio.load();
+                } catch(e){
+                    console.error(e);
+                }
+
                 if(this._bufferSize > 180) {
                     this._bufferSize = 180;
                 }
@@ -1378,6 +1385,18 @@
             }
 
             return false;
+        };
+
+        MSE.prototype._provideOffsetList = function(playlist) {
+            if(!this.isClosed()) {
+                this._playlist = playlist;
+                this._offsets = normalizeOffsetList(this._playlist.offsets);
+                this._duration = this._playlist.duration;
+                this._BufferRetriever = this._playlist.encrypted ? new BufferRetriever.EncryptedBufferRetriever : new BufferRetriever.BufferRetriever;
+                if(this._MSEInitialized && !this._initialized) {
+                    this._onMediaSourceInit();
+                }
+            }
         };
 
         MSE.prototype.getSegmentOffset = function(position) {
@@ -1484,7 +1503,8 @@
         };
 
         MSE.prototype._onMediaSourceInit = function(evt) {
-            if(!this.isClosed()) {
+            this._MSEInitialized = true;
+            if(!this.isClosed() && !this._initialized && this._offsets) {
                 this._initialized = true;
                 this._MediaSource.duration = this._duration || Infinity;
                 this._MediaSource.removeEventListener("sourceopen", this._onMediaSourceInitHandler, false);
@@ -1494,7 +1514,6 @@
                 this._sourceBuffer.addEventListener('error', this._onSourceBufferErrorHandler, false);
                 this.performNextAction();
             }
-
         };
 
         MSE.prototype._onMediaSourceEnded = function(evt) {
@@ -2393,7 +2412,10 @@
             this._file_srl = file_srl;
             this._bufferSize = bufferSize;
             this._retreiver = new M3U8Retriever(m3u8URL);
-            this._MSE = null;
+            this._MSE = new MSE(this._audioNode, null, {
+                file_srl: this._file_srl,
+                bufferSize: this._bufferSize
+            });
             this._destructed = false;
             this._playlist = null;
             this._offsetList = null;
@@ -2409,10 +2431,7 @@
 
 
         SimpleHLS.prototype._initMSE = function(offsetList) {
-            this._MSE = new MSE(this._audioNode, offsetList, {
-                file_srl: this._file_srl,
-                bufferSize: this._bufferSize
-            });
+            this._MSE._provideOffsetList(offsetList);
             if(this._cacheManager) {
                 this._MSE.provideCacheManager(this._cacheManager);
             }

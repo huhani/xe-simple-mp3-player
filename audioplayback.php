@@ -72,8 +72,8 @@ function addCacheControlHeader() {
 
 function id3TimestampRepresentation($timestamp) {
     $chars = array();
-    $mpeg2Timestamp = floor((int)$timestamp * 90000);
-    $mpeg2Timestamp = str_pad(dechex($mpeg2Timestamp), 16, "0", STR_PAD_LEFT);    $header_name = "A";
+    $mpeg2Timestamp = (int)floor($timestamp * 90000);
+    $mpeg2Timestamp = str_pad(dechex($mpeg2Timestamp), 16, "0", STR_PAD_LEFT);
     for($i=0; $i<16; $i+=2) {
         $chars[] = hexdec(substr($mpeg2Timestamp, $i, 2));
     }
