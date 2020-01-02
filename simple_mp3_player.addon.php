@@ -1568,6 +1568,8 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                 $description = $describer->getDescription($oFile->file_srl, $oFile->uploaded_filename, $oFile->source_filename, $oFile->document_srl, $oFile->sid, $oFile->module_srl, $config->mp3_realtime_segment_duration);
                 $describer->normalizeDescription($description, $document_srl, $oFile->file_srl, true);
 
+                header("Content-Type: application/x-mpegURL");
+
                 echo SimpleMP3Describer::getM3U8Playlist($description);
             }
 
