@@ -1940,7 +1940,7 @@
                 var data = this._data;
                 var info = {
                     version: null,
-                    type: PLAYER_TYPE.VOD,
+                    type: PLAYER_TYPE.LIVE,
                     mediaSequence: null,
                     targetDuration: null,
                     totalDuration: 0,
