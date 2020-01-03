@@ -120,10 +120,18 @@ function int2IV($num) {
 }
 
 
+
 // ============================= 요청 시작 부분
 if(!determineValidParameter(isKeyRequest())) {
     header('HTTP/1.1 403 Forbidden');
     return;
+}
+$cors = isset($_GET['cors']) ? (int)$_GET['cors'] : null;
+if($cors >= 1) {
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin');
+    header('Access-Control-Allow-Methods: GET');
+    header('Access-Control-Allow-Origin: *');
+    header('Allow: GET');
 }
 $password = SimpleEncrypt::getPassword();
 if(isKeyRequest()) {
@@ -159,7 +167,6 @@ $file_srl = isset($_GET['file_srl']) && $_GET['file_srl'] ? (string)$_GET['file_
 $ip = isset($_GET['ip']) && $_GET['ip'] ? $_GET['ip'] : null;
 $seq = isset($_GET['seq']) ? (int)$_GET['seq'] : null;
 $id3 = isset($_GET['id3']) ? (int)$_GET['id3'] : null;
-$cors = isset($_GET['cors']) ? (int)$_GET['cors'] : null;
 
 $bufferEncryptionKey = $isBufferEncrypt ? SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip) : null;
 
@@ -188,14 +195,6 @@ header('Accept-Ranges: bytes');
 header('Expires: '.gmdate('D, d M Y H:i:s \G\M\T', time()));
 //$bufferEncryptionKey = false;
 if($isSegment) {
-
-    if($cors > 1) {
-        header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin');
-        header('Access-Control-Allow-Methods: GET');
-        header('Access-Control-Allow-Origin: *');
-        header('Allow: GET');
-    }
-
     $size = $endOffset-$startOffset+1;
     fseek($file, $startOffset);
     $data = fread($file, $size);
