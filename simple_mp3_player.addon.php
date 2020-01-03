@@ -520,7 +520,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 $config->password = false;
                 $config->encryption_key_update_period = 0;
                 $config->is_hls_mode = false;
+                $config->allow_m3u8_cors = false;
                 $config->use_hls_standard = false;
+                $config->use_hls_id3_tag = false;
+                $config->use_hls_same_segnature = true;
                 $config->include_uploaded_filename = false;
                 $config->video_thumbnail = false;
                 $config->video_thumbnail_format = 'jpg';
@@ -533,6 +536,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $this->buffer_encrypt = false;
 
             $this->use_hls_standard = false;
+            $this->use_hls_same_segnature = $config->use_hls_same_segnature;
+            $this->allow_m3u8_cors = $config->allow_m3u8_cors;
+
+            $this->use_hls_id3_tag = $config->use_hls_id3_tag;
             $this->encryption_key_update_period = 0;
             $this->is_hls_mode = $config->is_hls_mode;
             $this->include_uploaded_filename = $config->include_uploaded_filename;
@@ -554,6 +561,9 @@ if(!class_exists('SimpleMP3Describer', false)) {
             if(!$this->use_encrypt) {
                 $this->buffer_encrypt = false;
             }
+
+            $this->lastCreatedURL = null;
+            $this->lastEncryptedURL = null;
         }
 
         public function getURLEncrypt($uploaded_filename) {
@@ -589,7 +599,17 @@ if(!class_exists('SimpleMP3Describer', false)) {
                 }
 
                 if($this->use_encrypt) {
-                    $argsArr[] = array('key'=> 'Signature', 'value' => $this->getURLEncrypt($uploaded_filename));
+                    if($this->use_hls_same_segnature) {
+                        if ($this->lastCreatedURL !== $uploaded_filename) {
+                            $this->lastCreatedURL = $uploaded_filename;
+                            $this->lastEncryptedURL = $this->getURLEncrypt($uploaded_filename);
+                        }
+
+                        $argsArr[] = array('key' => 'Signature', 'value' => $this->lastEncryptedURL);
+                    } else {
+                        $argsArr[] = array('key'=> 'Signature', 'value' => $this->getURLEncrypt($uploaded_filename));
+                    }
+
                 } else {
                     $argsArr[] = array('key'=> 'file', 'value' => $uploaded_filename);
                 }
@@ -738,8 +758,15 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                         array('key'=>'timestamp', 'value'=>$timestamp),
                                         array('key'=>'type', 'value'=>'realtime')
                                     );
+
                                     if($this->use_hls_standard) {
                                         $urlParamArr[] = array('key'=>'seq', 'value'=>$idx);
+                                    }
+                                    if(!$this->use_hls_id3_tag) {
+                                        $urlParamArr[] = array('key'=>'id3', 'value'=>0);
+                                    }
+                                    if($this->allow_m3u8_cors) {
+                                        $urlParamArr[] = array('key'=>'cors', 'value'=>1);
                                     }
 
                                     if($this->buffer_encrypt) {
@@ -1370,6 +1397,10 @@ $config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration)
 
 $config->use_mp3_realtime_streaming = !(isset($addon_info->use_mp3_realtime_streaming) && $addon_info->use_mp3_realtime_streaming === "N");
 $config->use_hls_standard = !(isset($addon_info->use_hls_standard) && $addon_info->use_hls_standard === "N");
+$config->m3u8_gzip_compress = !(isset($addon_info->m3u8_gzip_compress) && $addon_info->m3u8_gzip_compress === "N");
+$config->use_hls_id3_tag = !(isset($addon_info->use_hls_id3_tag) && $addon_info->use_hls_id3_tag === "N");
+$config->use_hls_same_segnature = !(isset($addon_info->use_hls_same_segnature) && $addon_info->use_hls_same_segnature === "N");
+$config->allow_m3u8_cors = (isset($addon_info->allow_m3u8_cors) && $addon_info->allow_m3u8_cors === "Y");
 $config->mp3_realtime_buffer_size = isset($addon_info->mp3_realtime_buffer_size) && $addon_info->mp3_realtime_buffer_size ? (int)$addon_info->mp3_realtime_buffer_size : 50;
 $config->mp3_realtime_segment_duration = isset($addon_info->mp3_realtime_segment_duration) && $addon_info->mp3_realtime_segment_duration ? $addon_info->mp3_realtime_segment_duration : null;
 $config->mp3_realtime_buffer_cache_size = isset($addon_info->mp3_realtime_buffer_cache_size) ? (int)$addon_info->mp3_realtime_buffer_cache_size : 150000000;
@@ -1457,6 +1488,10 @@ $SimpleMP3DescriberConfig = new stdClass;
 $SimpleMP3DescriberConfig->use_encrypt = $config->use_url_encrypt;
 $SimpleMP3DescriberConfig->buffer_encrypt = $config->mp3_realtime_encrypt;
 $SimpleMP3DescriberConfig->use_hls_standard = $config->use_hls_standard;
+$SimpleMP3DescriberConfig->use_hls_id3_tag = $config->use_hls_id3_tag;
+$SimpleMP3DescriberConfig->use_hls_same_segnature = $config->use_hls_same_segnature;
+$SimpleMP3DescriberConfig->allow_m3u8_cors =$config->allow_m3u8_cors;
+
 $SimpleMP3DescriberConfig->password = $password;
 $SimpleMP3DescriberConfig->encryption_key_update_period = $config->mp3_realtime_encryption_key_rotation_period;
 $SimpleMP3DescriberConfig->is_hls_mode = !(isset($_GET['hls']) && $_GET['hls'] === 'false');
@@ -1557,6 +1592,12 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             }
             exit();
         } else if($act === 'getSimpleMP3M3U8') {
+            if($config->allow_m3u8_cors) {
+                header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin, Cache-Control, Range');
+                header('Access-Control-Allow-Methods: GET');
+                header('Access-Control-Allow-Origin: *');
+                header('Access-Control-Expose-Headers: Content-Length, Content-Range');
+            }
             $m3u8text = null;
             if($password && $config->use_hls_standard) {
                 $file_srl = Context::get('file_srl');
@@ -1568,12 +1609,20 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                     $description = $describer->getDescription($oFile->file_srl, $oFile->uploaded_filename, $oFile->source_filename, $oFile->document_srl, $oFile->sid, $oFile->module_srl, $config->mp3_realtime_segment_duration);
                     $describer->normalizeDescription($description, $document_srl, $oFile->file_srl, true);
                     $m3u8text = SimpleMP3Describer::getM3U8Playlist($description);
+                } else {
+                    header('HTTP/1.0 403 Forbidden');
+                    exit("403 Forbidden");
                 }
             }
 
             if($m3u8text) {
+                if($config->m3u8_gzip_compress && function_exists("gzencode") && strpos( $_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip' ) !== false) {
+                    header('Content-Encoding: gzip');
+                    $m3u8text = gzencode($m3u8text, 6);
+                }
                 header("Content-Type: audio/mpegurl");
                 header("Content-Length: ".strlen($m3u8text));
+
                 echo $m3u8text;
             } else {
                 exit("Cannot read HLS playlist.");

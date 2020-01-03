@@ -9,6 +9,7 @@ function isEncrypted() {
 }
 
 function determineValidParameter($isKeyRequest = false) {
+    $validParams = array('seq', 'id3', 'cors');
     $arguments = isset($_GET['arguments']) ? $_GET['arguments'] : null;
     $hash = isset($_GET['SN']) ? $_GET['SN'] : null;
     $text = '';
@@ -22,6 +23,13 @@ function determineValidParameter($isKeyRequest = false) {
             return false;
         }
     }
+
+    foreach($validParams as $param) {
+        if(!in_array($param, $arguments_split) && isset($_GET[$param])) {
+            return false;
+        }
+    }
+
 
     foreach($arguments_split as $eachArgument) {
         $argType = gettype($eachArgument);
@@ -150,6 +158,8 @@ $document_srl = isset($_GET['document_srl']) && $_GET['document_srl'] ? (string)
 $file_srl = isset($_GET['file_srl']) && $_GET['file_srl'] ? (string)$_GET['file_srl'] : null;
 $ip = isset($_GET['ip']) && $_GET['ip'] ? $_GET['ip'] : null;
 $seq = isset($_GET['seq']) ? (int)$_GET['seq'] : null;
+$id3 = isset($_GET['id3']) ? (int)$_GET['id3'] : null;
+$cors = isset($_GET['cors']) ? (int)$_GET['cors'] : null;
 
 $bufferEncryptionKey = $isBufferEncrypt ? SimpleEncrypt::getBufferEncryptionKey($password, $handshake, $timestamp, $document_srl, $file_srl, $ip) : null;
 
@@ -178,19 +188,23 @@ header('Accept-Ranges: bytes');
 header('Expires: '.gmdate('D, d M Y H:i:s \G\M\T', time()));
 //$bufferEncryptionKey = false;
 if($isSegment) {
+
+    if($cors > 1) {
+        header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin');
+        header('Access-Control-Allow-Methods: GET');
+        header('Access-Control-Allow-Origin: *');
+        header('Allow: GET');
+    }
+
     $size = $endOffset-$startOffset+1;
     fseek($file, $startOffset);
     $data = fread($file, $size);
 
     $offset = isset($_GET['offset']) ? (double)$_GET['offset'] : null;
-    if($offset !== null && $seq !== null) {
+    if($offset !== null && $seq !== null && $id3 !== 0) {
         $timestampOffset = $offset;
         $data = buildID3Header($timestampOffset).$data;
     }
-
-
-    $keyStr = array();
-
 
     if($bufferEncryptionKey) {
         $iv = $seq !== null ? int2IV((int)$seq) : null;
