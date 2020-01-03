@@ -789,7 +789,7 @@ if(!class_exists('SimpleMP3Describer', false)) {
                                                 array('key'=>'handshake', 'value' => $lastHandshake)
                                             );
                                             if($this->use_hls_standard && $this->allow_m3u8_cors) {
-                                                $urlParamArr[] = array('key'=>'cors', 'value'=>1);
+                                                $keyUrlParamArr[] = array('key'=>'cors', 'value'=>1);
                                             }
                                             $eachOffset->key = $this->createMP3URL(null, $keyUrlParamArr);
                                         }
