@@ -1606,15 +1606,17 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
                 $file_srl = Context::get('file_srl');
                 $oFileModel = getModel('file');
                 $oFile = $oFileModel->getFile($file_srl);
-                if($oFile && SimpleMP3Describer::isAccessibleDocument($oFile->upload_target_srl)) {
-                    $document_srl = (string)$oFile->upload_target_srl;
-                    $describer = new SimpleMP3Describer($SimpleMP3DescriberConfig);
-                    $description = $describer->getDescription($oFile->file_srl, $oFile->uploaded_filename, $oFile->source_filename, $oFile->document_srl, $oFile->sid, $oFile->module_srl, $config->mp3_realtime_segment_duration);
-                    $describer->normalizeDescription($description, $document_srl, $oFile->file_srl, true);
-                    $m3u8text = SimpleMP3Describer::getM3U8Playlist($description);
-                } else {
-                    header('HTTP/1.0 403 Forbidden');
-                    exit("403 Forbidden");
+                if($oFile) {
+                    if(SimpleMP3Describer::isAccessibleDocument($oFile->upload_target_srl)) {
+                        $document_srl = (string)$oFile->upload_target_srl;
+                        $describer = new SimpleMP3Describer($SimpleMP3DescriberConfig);
+                        $description = $describer->getDescription($oFile->file_srl, $oFile->uploaded_filename, $oFile->source_filename, $oFile->document_srl, $oFile->sid, $oFile->module_srl, $config->mp3_realtime_segment_duration);
+                        $describer->normalizeDescription($description, $document_srl, $oFile->file_srl, true);
+                        $m3u8text = SimpleMP3Describer::getM3U8Playlist($description);
+                    } else {
+                        header('HTTP/1.0 403 Forbidden');
+                        exit("403 Forbidden");
+                    }
                 }
             }
 
