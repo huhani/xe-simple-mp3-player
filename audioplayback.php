@@ -127,7 +127,7 @@ if(!determineValidParameter(isKeyRequest())) {
     return;
 }
 $cors = isset($_GET['cors']) ? (int)$_GET['cors'] : null;
-if($cors >= 1) {
+if($cors > 0) {
     header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin');
     header('Access-Control-Allow-Methods: GET');
     header('Access-Control-Allow-Origin: *');
