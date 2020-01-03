@@ -14,6 +14,7 @@
     var mediaSessionForwardTime = 20;
     var mediaSessionBackwardTime = 20;
     var enableRealtimeStreaming = true;
+    var enableDownload = true;
     var TrackRandomForce = false;
     var bufferSize = 12;
     var AutoStationSearchFilter = true;
@@ -35,6 +36,7 @@
             mediaSessionBackwardTime = config.mediasession_backward_time;
             mediaSessionForwardTime = config.mediasession_forward_time;
             enableRealtimeStreaming = config.use_mp3_realtime_streaming;
+            enableDownload = config.BluePlayer_enable_download;
             TrackRandomForce = config.BluePlayer__track_random_force;
             bufferSize = config.mp3_realtime_buffer_size;
             AutoStationSearchFilter = config.BluePlayer__autostation_search_filter;
@@ -529,17 +531,6 @@
                 audioElement.src = trackItem.url;
                 audioElement.load()
             }
-            if(enableRealtimeStreaming && MSE && MSE.isSupported() && description && description.offsetInfo) {
-                lastMSE = new MSE(audioElement, description.offsetInfo, {
-                    mp3url: trackItem.url,
-                    file_srl: description.file_srl,
-                    bufferSize: bufferSize
-                });
-                lastMSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
-            } else {
-                audioElement.src = trackItem.url;
-                audioElement.load()
-            }
         }
     }
 
@@ -624,7 +615,7 @@
             return;
         }
         var description = trackItem.description;
-        if(description.download_url) {
+        if(description.download_url && enableDownload) {
             menu.push({
                 name: "다운로드",
                 handler: getDownloadLinkHandler(trackItem)

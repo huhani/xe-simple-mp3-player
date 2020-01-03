@@ -216,7 +216,7 @@
 
     function convertURL2URI(url) {
         if(url && url.substring(0, 4) !== 'http' && window.request_uri) {
-            url = (window.request_uri + url).replace(/(\/.\/)/gi, '/');
+            url = (window.request_uri + url).replace(/(?:\/|\.)+index.php/, '/index.php');
         }
 
         return url;

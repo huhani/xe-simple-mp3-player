@@ -11,6 +11,7 @@
     var APlayerObserver = PlayerObserver.APlayerObserver;
     var convertURL2URI = $SimpleMP3Player.convertURL2URI;
     var MSE = $SimpleMP3Player.MSE;
+    var SimpleHLS = $SimpleMP3Player.SimpleHLS;
     var _MediaSession = typeof navigator !== "undefined" && "mediaSession" in navigator && navigator.mediaSession || null;
     var document_srl = null;
 
@@ -89,14 +90,27 @@
             listMaxHeight: '240px',
             customAudioType: {
                 customHls: function(audioElement, audio, player) {
+                    var description = audio && audio.description ? audio.description : null;
                     if(_MSE) {
                         _MSE.destruct();
+                        _MSE = null;
                     }
-                    if(enableRealtimeStreaming && MSE.isSupported() && audio && audio.description && audio.description.offsetInfo) {
-                        _MSE = new MSE(audioElement, audio.url, audio.description.offsetInfo, audio.description.file_srl, bufferSize);
-                        _MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
-                    } else {
-                        audioElement.src = audio.url;
+                    if(enableRealtimeStreaming && MSE.isSupported() && audio && description) {
+                        if(description.offsetInfo) {
+                            _MSE = new MSE(audioElement, description.offsetInfo,{
+                                mp3url: audio.url,
+                                file_srl: description.file_srl,
+                                bufferSize: bufferSize
+                            });
+                        } else if(description.m3u8link) {
+                            _MSE = new SimpleHLS(audioElement, description.m3u8link, description.file_srl, bufferSize);
+                        } else {
+                            audioElement.src = audio.url;
+                        }
+
+                        if(_MSE) {
+                            _MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
+                        }
                     }
                 }
             }

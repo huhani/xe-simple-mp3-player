@@ -1596,10 +1596,10 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             exit();
         } else if($act === 'getSimpleMP3M3U8') {
             if($config->allow_m3u8_cors) {
-                header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin, Cache-Control, Range');
+                header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Origin');
                 header('Access-Control-Allow-Methods: GET');
                 header('Access-Control-Allow-Origin: *');
-                header('Access-Control-Expose-Headers: Content-Length, Content-Range');
+                header('Allow: GET');
             }
             $m3u8text = null;
             if($password && $config->use_hls_standard) {
@@ -1628,6 +1628,7 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
 
                 echo $m3u8text;
             } else {
+                header('HTTP/1.0 404 Not Found');
                 exit("Cannot read HLS playlist.");
             }
 
