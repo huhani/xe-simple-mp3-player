@@ -889,9 +889,10 @@ if(!class_exists('SimpleMP3Describer', false)) {
 
                 $m3u8 = array_merge(
                     array('#EXTM3U',
-                        '#EXT-X-VERSION:3',
-                        '#EXT-X-MEDIA-SEQUENCE:0',
-                        '#EXT-X-TARGETDURATION:'.$targetduration
+                        '#EXT-X-VERSION:6',
+                        '#EXT-X-PLAYLIST-TYPE:VOD',
+                        '#EXT-X-TARGETDURATION:'.$targetduration,
+                        '#EXT-X-MEDIA-SEQUENCE:0'
                     ), $m3u8);
 
                 $m3u8[] = '#EXT-X-ENDLIST';
@@ -1362,6 +1363,7 @@ $config->BluePlayer__track_mode = isset($addon_info->BluePlayer__track_mode) && 
 $config->BluePlayer__track_random = (isset($addon_info->BluePlayer__track_random) && $addon_info->BluePlayer__track_random === "Y");
 $config->BluePlayer__track_random_force = (isset($addon_info->BluePlayer__track_random_force) && $addon_info->BluePlayer__track_random_force === "Y");
 $config->BluePlayer_show_album_name = (isset($addon_info->BluePlayer_show_album_name) && $addon_info->BluePlayer_show_album_name === "Y");
+$config->BluePlayer_enable_download = !(isset($addon_info->BluePlayer_enable_download) && $addon_info->BluePlayer_enable_download === "N");
 $config->BluePlayer_enable_thumbnail_button = !(isset($addon_info->BluePlayer_enable_thumbnail_button) && $addon_info->BluePlayer_enable_thumbnail_button === "N");
 $config->BluePlayer_enable_fade = (isset($addon_info->BluePlayer_enable_fade) && $addon_info->BluePlayer_enable_fade === "Y");
 $config->BluePlayer_fade_duration = isset($addon_info->BluePlayer_fade_duration) && $addon_info->BluePlayer_fade_duration ? (int)$addon_info->BluePlayer_fade_duration : 200;
@@ -1555,22 +1557,26 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             }
             exit();
         } else if($act === 'getSimpleMP3M3U8') {
-            if(!$password || !$config->use_hls_standard) {
-                exit("Cannot read HLS playlist.");
+            $m3u8text = null;
+            if($password && $config->use_hls_standard) {
+                $file_srl = Context::get('file_srl');
+                $oFileModel = getModel('file');
+                $oFile = $oFileModel->getFile($file_srl);
+                if($oFile && SimpleMP3Describer::isAccessibleDocument($oFile->upload_target_srl)) {
+                    $document_srl = (string)$oFile->upload_target_srl;
+                    $describer = new SimpleMP3Describer($SimpleMP3DescriberConfig);
+                    $description = $describer->getDescription($oFile->file_srl, $oFile->uploaded_filename, $oFile->source_filename, $oFile->document_srl, $oFile->sid, $oFile->module_srl, $config->mp3_realtime_segment_duration);
+                    $describer->normalizeDescription($description, $document_srl, $oFile->file_srl, true);
+                    $m3u8text = SimpleMP3Describer::getM3U8Playlist($description);
+                }
             }
 
-            $file_srl = Context::get('file_srl');
-            $oFileModel = getModel('file');
-            $oFile = $oFileModel->getFile($file_srl);
-            if($password && $oFile && SimpleMP3Describer::isAccessibleDocument($oFile->upload_target_srl)) {
-                $document_srl = (string)$oFile->upload_target_srl;
-                $describer = new SimpleMP3Describer($SimpleMP3DescriberConfig);
-                $description = $describer->getDescription($oFile->file_srl, $oFile->uploaded_filename, $oFile->source_filename, $oFile->document_srl, $oFile->sid, $oFile->module_srl, $config->mp3_realtime_segment_duration);
-                $describer->normalizeDescription($description, $document_srl, $oFile->file_srl, true);
-
-                header("Content-Type: application/x-mpegURL");
-
-                echo SimpleMP3Describer::getM3U8Playlist($description);
+            if($m3u8text) {
+                header("Content-Type: audio/mpegurl");
+                header("Content-Length: ".strlen($m3u8text));
+                echo $m3u8text;
+            } else {
+                exit("Cannot read HLS playlist.");
             }
 
             exit();
