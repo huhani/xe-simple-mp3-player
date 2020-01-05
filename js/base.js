@@ -2269,6 +2269,16 @@
         }();
 
         var M3U8Retriever = function() {
+
+            function abToString(uint8array) {
+                var CHUNK_SIZE = 0x8000;
+                var chunks = [];
+                for (var i=0; i < uint8array.length; i+=CHUNK_SIZE) {
+                    chunks.push(String.fromCharCode.apply(null, uint8array.subarray(i, i+CHUNK_SIZE)));
+                }
+                return chunks.join("");
+            }
+
             function M3U8Retriever(url) {
                 var that = this;
                 this._deferred = makeDeferred();
@@ -2278,7 +2288,7 @@
                 this._ended = false;
                 this._request.promise.then(function(result){
                     if(result.data) {
-                        that._onLoad(String.fromCharCode.apply(null, new Uint8Array(result.data)));
+                        that._onLoad(abToString(new Uint8Array(result.data)));
                     } else {
                         that._onFailure(result);
                     }
