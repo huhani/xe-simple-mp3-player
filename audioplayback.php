@@ -135,6 +135,7 @@ if($cors > 0) {
 }
 $password = SimpleEncrypt::getPassword();
 if(isKeyRequest()) {
+    header('Content-Type: application/octet-stream');
     echo getDecryptKey($password);
     exit();
 }
