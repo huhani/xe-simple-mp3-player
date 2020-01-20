@@ -1,4 +1,4 @@
-(function($SimpleMP3Player){
+(function($SimpleMP3Player, $){
 
     var __extend = function() {
         var setProperty = Object.setPrototypeOf || {
@@ -2479,12 +2479,14 @@
     }();
 
     var PlayerObserver = function() {
-        function PlayerObserver(player) {
+        function PlayerObserver(player, disableEndedHandler) {
             this.onPlaying = new EventDispatcher;
             this.onDestructed = new EventDispatcher;
+            this.onEnded = new EventDispatcher;
             this._player = player;
             this._onAudioPlayingHandler = null;
             this._onDestructedHandler = null;
+            this._disableEndedHandler = !!disableEndedHandler;
         }
 
         PlayerObserver.prototype.getAutoplayPriority = function() {
@@ -2495,6 +2497,10 @@
             this.onPlaying.dispatch(this);
         };
 
+        PlayerObserver.prototype.onAudioEnded = function() {
+            this.onEnded.dispatch(this);
+        };
+
         PlayerObserver.prototype.onAudioDestructed = function() {
             this.onDestructed.dispatch(this);
         };
@@ -2503,8 +2509,20 @@
             return null;
         };
 
+        PlayerObserver.prototype.provideMediaSessionTrackHandler = function() {
+            return null;
+        };
+
         PlayerObserver.prototype.getType = function() {
             return "DEFAULT_PLAYER";
+        };
+
+        PlayerObserver.prototype.seek = function(position) {
+            return null;
+        };
+
+        PlayerObserver.prototype.getPosition = function() {
+            return null;
         };
 
         PlayerObserver.prototype.play = function() {
@@ -2519,13 +2537,17 @@
     }();
 
     var HTML5PlayerObserver = function() {
-        function HTML5PlayerObserver(player) {
-            var that = PlayerObserver.call(this, player) || this;
+        function HTML5PlayerObserver(player, disableEndedHandler) {
+            var that = PlayerObserver.call(this, player, disableEndedHandler) || this;
             that._autoplayFlag = false;
             that._onLoadedDataHandler = that._onLoadedData.bind(that);
             that._onAudioPlayingHandler = that.onAudioPlaying.bind(that);
+            that._onAudioEndedHandler = that.onAudioEnded.bind(that);
             player.addEventListener('loadeddata', that._onLoadedDataHandler, false);
             player.addEventListener('playing', that._onAudioPlayingHandler, false);
+            if(!this._disableEndedHandler) {
+                player.addEventListener('ended', that._onAudioEndedHandler, false);
+            }
         }
 
         __extend(HTML5PlayerObserver, PlayerObserver);
@@ -2570,6 +2592,16 @@
             return false;
         };
 
+        HTML5PlayerObserver.prototype.seek = function(position) {
+            if(this._player && !isNaN(this._player.currentTime) && this._player.duration) {
+                this._player.currentTime = position;
+            }
+        };
+
+        HTML5PlayerObserver.prototype.getPosition = function() {
+            return this._player && !isNaN(this._player.currentTime) && this._player.duration ? this._player.currentTime : 0;
+        };
+
         HTML5PlayerObserver.prototype.pause = function() {
             this._autoplayFlag = false;
             if(this.isPlaying()) {
@@ -2581,13 +2613,23 @@
     }();
 
     var SimplePlayerObserver = function() {
-        function SimplePlayerObserver(simplePlayer) {
+        function SimplePlayerObserver(simplePlayer, priority) {
             var player = simplePlayer._audio;
             var that = HTML5PlayerObserver.call(this, player) || this;
             that._SimplePlayer = simplePlayer;
+            that._priority = priority !== void 0 ? priority : null;
+            if(that._priority !== null) {
+                that.getAutoplayPriority = function() {
+                    return that._priority;
+                };
+            }
         }
 
         __extend(SimplePlayerObserver, HTML5PlayerObserver);
+
+        SimplePlayerObserver.prototype.provideMediaSessionTrackHandler = function(handlers) {
+            return this._SimplePlayer.provideMediaSessionTrackHandler(handlers);
+        };
 
         SimplePlayerObserver.prototype.getAutoplayPriority = function() {
             return 85;
@@ -2603,7 +2645,7 @@
     var APlayerObserver = function() {
         function APlayerObserver(APlayer) {
             var player = APlayer.audio;
-            var that = HTML5PlayerObserver.call(this, player) || this;
+            var that = HTML5PlayerObserver.call(this, player, true) || this;
             that._APlayer = APlayer;
         }
 
@@ -2624,7 +2666,7 @@
         function BluePlayerObserver(bluePlayer) {
             var tools = bluePlayer.constructor.Tools;
             var makeDeferred = tools.makeDeferred;
-            var that = PlayerObserver.call(this, bluePlayer) || this;
+            var that = PlayerObserver.call(this, bluePlayer, true) || this;
 
             that.makeDeferred = makeDeferred;
             that._initializingDeferred = makeDeferred();
@@ -2720,20 +2762,28 @@
     }();
 
     var SimpleVideoPlayerObserver = function() {
-        function SimpleVideoPlayerObserver(player) {
+        function SimpleVideoPlayerObserver(player, priority, disableEndedHandler) {
             var playerNode = player.getVideoNode();
-            var that = PlayerObserver.call(this, playerNode) || this;
+            var that = HTML5PlayerObserver.call(this, playerNode, disableEndedHandler) || this;
             that._autoplayFlag = false;
-            that._onLoadedDataHandler = that._onLoadedData.bind(that);
-            that._onVideoPlayingHandler = that.onAudioPlaying.bind(that);
-            playerNode.addEventListener('loadeddata', that._onLoadedDataHandler, false);
-            playerNode.addEventListener('playing', that._onVideoPlayingHandler, false);
+            that._SimpleVideoPlayer = player;
+            that._priority = priority !== void 0 ? priority : null;
+            if(that._priority !== null) {
+                that.getAutoplayPriority = function() {
+                    return that._priority;
+                };
+            }
         }
 
         __extend(SimpleVideoPlayerObserver, HTML5PlayerObserver);
 
+        SimpleVideoPlayerObserver.prototype.provideMediaSessionTrackHandler = function(handlers) {
+            console.log(3);
+            return this._SimpleVideoPlayer.provideMediaSessionTrackHandler(handlers);
+        };
+
         SimpleVideoPlayerObserver.prototype.getAutoplayPriority = function() {
-            return 80;
+            return 85;
         };
 
         return SimpleVideoPlayerObserver;
@@ -2756,11 +2806,15 @@
         PlayerManager.prototype.registerPlayer = function(playerObserver) {
             if(playerObserver && !this.findObserver(playerObserver)) {
                 var that = this;
-                var listener = playerObserver.onPlaying.subscribe(function(){
-                    that._onPlaying(playerObserver);
-                });
                 this._observers.push(playerObserver);
-                this._listeners.push(listener);
+                this._listeners.push(playerObserver.onPlaying.subscribe(function(){
+                    that._onPlaying(playerObserver);
+                }));
+                if(!playerObserver._disableEndedHandler) {
+                    this._listeners.push(playerObserver.onEnded.subscribe(function(){
+                        that._onEnded(playerObserver);
+                    }));
+                }
             }
         };
 
@@ -2769,7 +2823,99 @@
                 this._currentPlayer.pause();
             }
 
+            this._resetMediaSessionHandler(this._currentPlayer);
+            this._provideMediaSessionHandler(playerObserver);
             this._currentPlayer = playerObserver;
+        };
+
+        PlayerManager.prototype._resetMediaSessionHandler = function(playerObserver) {
+            if(playerObserver) {
+                playerObserver.provideMediaSessionTrackHandler(null);
+            }
+        };
+
+        PlayerManager.prototype._provideMediaSessionHandler = function(playerObserver) {
+            if(playerObserver) {
+                var handler = this._buildMediaSessionHandler(playerObserver);
+                playerObserver.provideMediaSessionTrackHandler({
+                    prev: handler.prev,
+                    next: handler.next
+                });
+            }
+        };
+
+        PlayerManager.prototype._buildMediaSessionHandler = function(playerObserver) {
+            var that = this;
+            return {
+                prev: function() {
+                    return that._onMediaSessionPrevTrack(playerObserver);
+                },
+                next: function() {
+                    return that._onMediaSessionNextTrack(playerObserver);
+                }
+            };
+        };
+
+        PlayerManager.prototype._onMediaSessionPrevTrack = function(playerObserver) {
+            if(playerObserver.getPosition() > 10) {
+                playerObserver.seek(0);
+                if(!playerObserver.isPlaying()) {
+                    playerObserver.play();
+                }
+            } else {
+                var targetObserver = this.getPrevTrack(playerObserver) || this.getPrevTrack();
+                if(targetObserver) {
+                    targetObserver.seek(0);
+                    targetObserver.play();
+                }
+            }
+
+        };
+
+        PlayerManager.prototype._onMediaSessionNextTrack = function(playerObserver) {
+            var targetObserver = this.getNextTrack(playerObserver) || this.getNextTrack();
+            if(targetObserver) {
+                targetObserver.seek(0);
+                targetObserver.play();
+            }
+        };
+
+        PlayerManager.prototype._onEnded = function(playerObserver) {
+            var targetObserver = this.getNextTrack(playerObserver);
+            if(targetObserver) {
+                targetObserver.seek(0);
+                targetObserver.play();
+            }
+        };
+
+        PlayerManager.prototype.getPrevTrack = function(playerObserver) {
+            var observerSize = this._observers.length;
+            var idx = playerObserver ? (this._observers.indexOf(playerObserver) - 1) : observerSize-1;
+            var targetObserver = null;
+            while(idx > -1) {
+                if(!this._observers[idx]._disableEndedHandler) {
+                    targetObserver = this._observers[idx];
+                    break;
+                }
+                idx--;
+            }
+
+            return targetObserver;
+        };
+
+        PlayerManager.prototype.getNextTrack = function(playerObserver) {
+            var observerSize = this._observers.length;
+            var idx = playerObserver ? (this._observers.indexOf(playerObserver) + 1) : 0;
+            var targetObserver = null;
+            while(idx < observerSize) {
+                if(!this._observers[idx]._disableEndedHandler) {
+                    targetObserver = this._observers[idx];
+                    break;
+                }
+                idx++;
+            }
+
+            return targetObserver;
         };
 
         PlayerManager.prototype.performAutoplay = function() {
@@ -2843,6 +2989,745 @@
             }, false);
         });
     }
+
+    //Singleton
+    var ContentLoader = function() {
+        var initialized = false;
+        var config = null;
+        var _MediaSession = typeof navigator !== "undefined" && "mediaSession" in navigator && navigator.mediaSession || null;
+        var allowExtension = ['mp3', 'mp4', 'webm', 'm4a', 'flac', 'wav', 'ogg'];
+        var resizeObserver = null;
+
+        function isPlayableLink(extensions, url) {
+            url = url.toLowerCase();
+            return extensions.some(function(extension){
+                return url.indexOf("."+extension) > -1;
+            });
+        }
+
+        var SimplePlayer = function() {
+
+            var PLAYER_ID = 0;
+            var SEEK_TIME = 20;
+
+            function isMediaNode(node) {
+                return ['audio', 'video'].indexOf(node.tagName.toLowerCase()) > -1;
+            }
+
+            function SimplePlayer(targetDOM, description, useMediaSession) {
+                if(!description ||
+                    !(MSE.isSupported() && (description.offsetInfo || description.m3u8link) || description.filePath)
+                ) {
+                    throw new Error("No source found.");
+                }
+
+                this._targetDOM = targetDOM;
+                this._id = PLAYER_ID++;
+                this._audio = isMediaNode(this._targetDOM) ? this._targetDOM : document.createElement('audio');
+                this._description = description;
+                this._MSE = null;
+                this._useMediaSession = useMediaSession !== void 0 ? useMediaSession : true;
+                this._mediaSessionForwardTime = SEEK_TIME;
+                this._mediaSessionBackwardTime = SEEK_TIME;
+                this._destruct = false;
+                this._audio.preload = "metadata";
+                this._audio.controls = true;
+                this._audio.setAttribute('controlslist',["nodownload"]);
+                this._onAudioPlayingHandler = this._onAudioPlaying.bind(this);
+                this._prevMediaSessionTrackHandler = null;
+                this._nextMediaSessionTrackHandler = null;
+                this._init();
+            }
+
+            SimplePlayer.prototype._init = function() {
+                var enableRealtimeStreaming = true;
+                var bufferSize = 12;
+                if($SimpleMP3Player && $SimpleMP3Player.config) {
+                    var config = $SimpleMP3Player.config;
+                    var enableRealtimeStreaming = config.use_mp3_realtime_streaming;
+                    var bufferSize = config.mp3_realtime_buffer_size;
+                    if(config.mediaSessionForwardTime !== void 0) {
+                        this._mediaSessionForwardTime = config.mediaSessionForwardTime;
+                    }
+                    if(config.mediaSessionBackwardTime !== void 0) {
+                        this._mediaSessionBackwardTime = config.mediaSessionBackwardTime;
+                    }
+                }
+
+                if(!isMediaNode(this._targetDOM)){
+                    this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
+                }
+                if(this._audio.hasAttribute('data-src')) {
+                    this._audio.removeAttribute('data-src');
+                }
+
+                if(enableRealtimeStreaming && MSE.isSupported() && (this._description.offsetInfo || this._description.m3u8link)) {
+                    this._MSE = this._description.m3u8link ?
+                        new SimpleHLS(this._audio, this._description.m3u8link, this._description.file_srl, bufferSize) :
+                        new MSE(this._audio, this._description.offsetInfo, {
+                            mp3url: this._description.filePath,
+                            file_srl: this._description.file_srl,
+                            bufferSize: bufferSize
+                        });
+
+                    this._MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
+                } else {
+                    this._audio.src = this._description.filePath;
+                    this._audio.load();
+                }
+                this._audio.addEventListener('playing', this._onAudioPlayingHandler, false);
+            };
+
+            SimplePlayer.prototype._updateMediaSessionMetadata = function() {
+                if(_MediaSession) {
+                    if(this._description.tags !== void 0) {
+                        var config = $SimpleMP3Player.config;
+                        var defaultCover = config.default_cover;
+                        var useThumbnail = config.use_thumbnail;
+                        if(defaultCover) {
+                            defaultCover = $SimpleMP3Player.convertURL2URI(defaultCover);
+                        }
+                        var tags = this._description.tags;
+                        var albumArt = tags.albumArt;
+                        if(!albumArt) {
+                            if(useThumbnail && this._description.thumbnail) {
+                                albumArt = this._description.thumbnail;
+                            } else if(defaultCover) {
+                                albumArt = defaultCover;
+                            }
+                        }
+
+                        _MediaSession.metadata = new window.MediaMetadata({
+                            title: tags.title ? tags.title : void 0,
+                            artist: tags.artist ? tags.artist : void 0,
+                            album: tags.album ? tags.album : void 0,
+                            artwork: albumArt ? [{src : albumArt, sizes: "255x255"}] : void 0
+                        });
+                    } else {
+                        _MediaSession.metadata = void 0;
+                    }
+                }
+            };
+
+            SimplePlayer.prototype._registerMediaSessionHandlers = function() {
+                if(_MediaSession) {
+                    var that = this;
+                    _MediaSession.setActionHandler("play", function() {
+                        that._audio.play();
+                    });
+
+                    _MediaSession.setActionHandler("pause", function() {
+                        that._audio.pause();
+                    });
+
+                    _MediaSession.setActionHandler("seekbackward", function() {
+                        that._audio.currentTime = Math.max(0, that._audio.currentTime - that._mediaSessionBackwardTime);
+                    });
+
+                    _MediaSession.setActionHandler("seekforward", function() {
+                        that._audio.currentTime = Math.min(that._audio.duration || 0, that._audio.currentTime + that._mediaSessionForwardTime);
+                    });
+
+                    _MediaSession.setActionHandler("previoustrack", this._prevMediaSessionTrackHandler);
+
+                    _MediaSession.setActionHandler("nexttrack", this._nextMediaSessionTrackHandler);
+                }
+            };
+
+            SimplePlayer.prototype._onAudioPlaying = function() {
+                if(this._useMediaSession) {
+                    this._updateMediaSessionMetadata();
+                    this._registerMediaSessionHandlers();
+                }
+            };
+
+            SimplePlayer.prototype.provideMediaSessionTrackHandler = function(handler) {
+                this._prevMediaSessionTrackHandler = handler && handler.prev ? handler.prev : null;
+                this._nextMediaSessionTrackHandler = handler && handler.next ? handler.next : null;
+                if(handler && this._useMediaSession) {
+                    this._registerMediaSessionHandlers();
+                }
+            };
+
+            SimplePlayer.prototype.getAudioNode = function() {
+                return this._audio;
+            };
+
+            SimplePlayer.prototype.destruct = function() {
+                if(!this._destruct) {
+                    this._audio.removeEventListener('playing', this._onAudioPlayingHandler, false);
+                    if(this._playingObserverTimerID !== null) {
+                        window.clearTimeout(this._playingObserverTimerID);
+                        this._playingObserverTimerID = null;
+                    }
+
+                    if(this._MSE) {
+                        this._MSE.destruct();
+                    }
+                }
+            };
+
+            return SimplePlayer;
+        }();
+
+        var VideoResizeObserver = function() {
+            function getVideoSize(video_x, video_y, wrapper_x) {
+                var ratio = wrapper_x/video_x;
+                return {
+                    width: Math.min(video_x, parseInt(video_x * ratio, 10)),
+                    height: Math.min(video_y, parseInt( video_y * ratio, 10))
+                };
+            }
+
+            function VideoResizeObserver($wrapper) {
+                this._$wrapper = $wrapper;
+                this._player = [];
+                this._destructed = false;
+                this._onResizeHandler = this._onResize.bind(this);
+
+                $(window).on('resize', this._onResizeHandler);
+            }
+
+            VideoResizeObserver.prototype._onResize = function(evt) {
+                var innerWidth = this._$wrapper.innerWidth();
+                if(innerWidth) {
+                    this._resizeAllPlayer(innerWidth);
+                }
+            };
+
+            VideoResizeObserver.prototype._resizeAllPlayer = function(wrapperWidth) {
+                if(!wrapperWidth) {
+                    wrapperWidth = this._$wrapper.innerWidth();
+                }
+                var that = this;
+                this._player.forEach(function(player){
+                    that._resizePlayer(player, wrapperWidth);
+                });
+            };
+
+            VideoResizeObserver.prototype._resizePlayer = function(player, targetWidth) {
+                if(targetWidth === void 0) {
+                    targetWidth = this._$wrapper.innerWidth();
+                }
+                var playerResolution = player.getResolution();
+                var playerNode = player.getPlayer();
+                if(targetWidth && playerResolution && playerNode) {
+                    var resizedResolution = getVideoSize(playerResolution.width, playerResolution.height, targetWidth);
+                    $(playerNode).css({
+                        width: resizedResolution.width,
+                        height: resizedResolution.height
+                    });
+                }
+            };
+
+            VideoResizeObserver.prototype.registerPlayer = function(player) {
+                if(this._player.indexOf(player) === -1) {
+                    this._player.push(player);
+                    this._resizePlayer(player);
+                    if(!player._streamData) {
+                        $(player.getPlayer()).css({
+                            maxWidth: "100%",
+                            height: "auto"
+                        });
+                    }
+                }
+            };
+
+            VideoResizeObserver.prototype.unregisterPlayer = function(player) {
+                var idx = this._player.indexOf(player);
+                if(idx > -1) {
+                    this._player.splice(idx ,1);
+                }
+            };
+
+            VideoResizeObserver.prototype.destruct = function() {
+                if(!this._destructed) {
+                    $(window).off('resize', this._onResizeHandler);
+                    this._player = [];
+                    this._destructed = true;
+                }
+
+            };
+
+            return VideoResizeObserver;
+        }();
+
+        var SimpleVideoPlayer = function() {
+
+            var PLAYER_ID = 0;
+            var SEEK_TIME = 10;
+
+            function SimpleVideoPlayer(description, config) {
+                this._id = PLAYER_ID++;
+                this._description = description;
+                this._video = config.element || document.createElement('video');
+                this._loop = config.loop;
+                this._mute = config.mute;
+                this._gifMode = config.gifMode;
+                this._onVideoPlayingHandler = this._onVideoPlaying.bind(this);
+                this._onVideoEndedHandler = this._onVideoEnded.bind(this);
+                this._onVideoClickHandler = this._onVideoClick.bind(this);
+                this._autoplay = config.autoplay;
+                this._preload = config.preload;
+                this._enableMediaSession = config.enableMediaSession;
+                this._mediaSessionForwardTime = config.mediaSessionForwardTime !== void 0 ? config.mediaSessionForwardTime : SEEK_TIME;
+                this._mediaSessionBackwardTime = config.mediaSessionBackwardTime !== void 0 ? config.mediaSessionBackwardTime : SEEK_TIME;
+                this._playsinline = config.playsinline;
+                this._src = config.src;
+                this._title = config.title;
+                this._artist = config.artist;
+                this._album = config.album;
+                this._albumArt = config.albumArt;
+                this._poster = config.poster || null;
+                this._width = config.width;
+                this._height = config.height;
+                this._hasAudio = config.hasAudio;
+                this._ifClickToShowControls = config.ifClickToShowControls;
+                this._streamData = config.streamData || null;
+                this._prevMediaSessionTrackHandler = null;
+                this._nextMediaSessionTrackHandler = null;
+
+                this._init();
+            }
+
+            SimpleVideoPlayer.prototype._init = function() {
+                this._video.addEventListener('playing', this._onVideoPlayingHandler, false);
+                this._video.addEventListener('ended', this._onVideoEndedHandler, false);
+                this._video.addEventListener('click', this._onVideoClickHandler, false);
+                this._video.preload = this._gifMode ? 'auto' : this._preload;
+                this._video.controls = true;
+                this._video.setAttribute('controlslist',["nodownload"]);
+                if(this._video.hasAttribute('data-src')) {
+                    this._video.removeAttribute('data-src');
+                }
+                if(this._playsinline || this._gifMode) {
+                    this._video.setAttribute('playsinline', '');
+                    this._video.setAttribute('webkit-playsinline', '');
+                }
+                if(this._poster) {
+                    this._video.setAttribute('poster', this._poster);
+                }
+                if(this._gifMode) {
+                    if(this._video.hasAttribute('controls')) {
+                        this._video.removeAttribute('controls');
+                    }
+                }
+                if(this._mute || this._gifMode) {
+                    this._video.muted = true;
+                }
+                if(!this._gifMode) {
+                    this._video.setAttribute('controls', 'controls');
+                }
+                this._video.src = this._src;
+                this._video.load();
+                if(this._autoplay) {
+                    this.play();
+                }
+            };
+
+            SimpleVideoPlayer.prototype._onVideoPlaying = function() {
+                if(!this._gifMode && this._enableMediaSession) {
+                    this._registerMediaSessionHandlers();
+                    this._updateMediaSessionMetadata();
+                }
+            };
+
+            SimpleVideoPlayer.prototype._onVideoEnded = function() {
+                if(this._loop && !isNaN(this._video.duration) && this._video.duration) {
+                    this.seek(0);
+                    this.play();
+                }
+            };
+
+            SimpleVideoPlayer.prototype._onVideoClick = function() {
+                if(this._ifClickToShowControls && this._video && !this._video.hasAttribute('controls')) {
+                    this._video.setAttribute('controls' ,'');
+                }
+            };
+
+            SimpleVideoPlayer.prototype.seek = function() {
+                if(!isNaN(this._video.duration) && this._video.duration) {
+                    this._video.currentTime = 0;
+                }
+            };
+
+            SimpleVideoPlayer.prototype.play = function() {
+                if(!isNaN(this._video.duration) && this._video.duration) {
+                    var promise = this._video.play();
+                    if(promise) {
+                        promise['catch'](function(e) {
+                            console.error(e);
+                        });
+                    }
+                } else {
+                    this._video.setAttribute('autoplay', 'autoplay');
+                }
+            };
+
+            SimpleVideoPlayer.prototype._updateMediaSessionMetadata = function() {
+                if(_MediaSession) {
+                    _MediaSession.metadata = new window.MediaMetadata({
+                        title: this._title ? this._title : void 0,
+                        artist: this._artist ? this._artist : void 0,
+                        album: this._album ? this._album : void 0,
+                        artwork: this._poster ? [{src: this._poster, sizes: "255x255"}] : (this._albumArt ? [{src : this._albumArt, sizes: "255x255"}] : void 0)
+                    });
+                }
+            };
+
+            SimpleVideoPlayer.prototype._registerMediaSessionHandlers = function() {
+                if(_MediaSession) {
+                    var that = this;
+                    _MediaSession.setActionHandler("play", function() {
+                        that._video.play();
+                    });
+
+                    _MediaSession.setActionHandler("pause", function() {
+                        that._video.pause();
+                    });
+
+                    _MediaSession.setActionHandler("seekbackward", function() {
+                        that._video.currentTime = Math.max(0, that._video.currentTime - that._mediaSessionBackwardTime);
+                    });
+
+                    _MediaSession.setActionHandler("seekforward", function() {
+                        that._video.currentTime = Math.min(that._video.duration || 0, that._video.currentTime + that._mediaSessionForwardTime);
+                    });
+
+                    _MediaSession.setActionHandler("previoustrack", this._prevMediaSessionTrackHandler);
+
+                    _MediaSession.setActionHandler("nexttrack", this._nextMediaSessionTrackHandler);
+                }
+            };
+
+            SimpleVideoPlayer.prototype.provideMediaSessionTrackHandler = function(handler) {
+                this._prevMediaSessionTrackHandler = handler && handler.prev ? handler.prev : null;
+                this._nextMediaSessionTrackHandler = handler && handler.next ? handler.next : null;
+                if(handler && this._enableMediaSession) {
+                    this._registerMediaSessionHandlers();
+                }
+            };
+
+            SimpleVideoPlayer.prototype.getVideoNode = function() {
+                return this._video;
+            };
+
+            SimpleVideoPlayer.prototype.getPlayer = function() {
+                return this._video;
+            };
+
+            SimpleVideoPlayer.prototype.getResolution = function() {
+                if(this._width && this._height) {
+                    return {
+                        width: this._width,
+                        height: this._height
+                    };
+                }
+
+                return null;
+            };
+
+            SimpleVideoPlayer.prototype.destruct = function() {
+                if(!this._destruct) {
+                    this._video.removeEventListener('playing', this._onVideoPlayingHandler, false);
+                    this._video.removeEventListener('ended', this._onVideoEndedHandler, false);
+                    this._video.removeEventListener('click', this._onVideoClickHandler, false);
+                    this._destruct = true;
+                }
+            };
+
+            return SimpleVideoPlayer;
+        }();
+
+        function isNotBlobURL(url) {
+            return url && url.indexOf("blob:") !== 0 && url.indexOf("mediasource:") !== 0;
+        }
+
+        function getMediaURL($targetDOM) {
+            var urls = [];
+            var tagName = $targetDOM[0].tagName.toLowerCase();
+            if(tagName === 'audio' || tagName === 'video') {
+                var src = $targetDOM.attr('src') || $targetDOM.attr('data-src');
+                if(isNotBlobURL(src)) {
+                    urls.push(src);
+                }
+                var sources = $targetDOM.find('source');
+                sources.each(function(idx, each){
+                    var sourceURL = sources.attr('src') || sources.attr('data-src');
+                    if(isNotBlobURL(sourceURL)) {
+                        urls.push(sourceURL);
+                    }
+                });
+            } else if(tagName === 'a') {
+                var href = $targetDOM.attr("href");
+                if(href && !/^(?:javascript|mailto):/.test(href)) {
+                    urls.push(href);
+                }
+            }
+
+            return urls;
+        }
+
+        function getMediaType($targetDOM){
+            var element = $targetDOM[0];
+            var tagName = element.tagName.toLowerCase();
+            var muted = null;
+            var autoplay = null;
+            var playsinline = null;
+            var loop = false;
+            if(tagName === 'audio' || tagName === 'video') {
+                muted = element.getAttribute('muted') !== null;
+                autoplay = element.getAttribute('autoplay') !== null || element.getAttribute('data-autoplay') !== null;
+                playsinline = element.getAttribute('playsinline') !== null || element.getAttribute('webkit-playsinline');
+            }
+
+            return {
+                isAudio: !muted,
+                isVideo: tagName === 'video',
+                playsinline: playsinline,
+                autoplay: autoplay
+            }
+        }
+
+        function getMatchedDescriptionByURLs(urls, descriptionList) {
+            return descriptionList.find(function(eachDescription){
+                var description = eachDescription.description;
+                var uploaded_filename = description && description.uploaded_filename ? description.uploaded_filename.replace(/^.\/files/i, "/files") : null;
+                return urls.find(function(url){
+                    return url && (url.indexOf(uploaded_filename) > -1 || uploaded_filename.indexOf(url) > -1);
+                });
+            });
+        }
+
+        function getMatchedDescription($targetDOM, descriptionList, isForce) {
+            var urls = getMediaURL($targetDOM).map(function(url){
+                return url ? url.replace(/^.\/files/i, "/files") : null;
+            }).filter(function(url){
+                return url !== null;
+            });
+
+            return autoplayDecoratorFromDescription(getMatchedDescriptionByURLs(urls, descriptionList) || (isForce && urls.length > 0 ? buildEmptyDescription(urls[0]) : null), $targetDOM);
+        }
+
+        function autoplayDecoratorFromDescription(targetDescription, $targetDOM) {
+            if(targetDescription && targetDescription.description) {
+                var mediaType = getMediaType($targetDOM);
+                var description = targetDescription.description;
+                if(!description.stream) {
+                    description.stream = {
+                        isAudio: mediaType.isAudio,
+                        isVideo: mediaType.isVideo,
+                    };
+                }
+                description.autoplay = mediaType.autoplay;
+
+                return targetDescription;
+            }
+
+            return null;
+        }
+
+        function buildEmptyDescription(url, $targetDOM) {
+            var mediaType = getMediaType($targetDOM);
+            return {
+                description: {
+                    offsetInfo: null,
+                    version: '0.0.3',
+                    poster: null,
+                    download_url: null,
+                    filePath: url,
+                    uploaded_filename: null,
+                    m3u8link: null,
+                    thumbnail: null,
+                    editable: false,
+                    tags: {
+                        title: null,
+                        album: null,
+                        artist: null,
+                        albumArt: null
+                    },
+                    stream: null,
+                    filename: null,
+                    file_srl: null,
+                    document_srl: null,
+                    autoplay: false
+                }
+            };
+        }
+
+        function buildAudioPlayer($targetDOM, config, description) {
+            return $targetDOM && $targetDOM.length > 0 && config && description ? new SimplePlayer($targetDOM[0], description, !!(config && config.use_mediasession)) : null;
+        }
+
+        function buildVideoPlayer($targetDOM, config, description) {
+            if(!config || !description) {
+                return null;
+            }
+
+            // video config
+            var defaultCover = config.default_cover;
+            var useThumbnail = config.use_thumbnail;
+            var linkToMedia = config.link_to_media;
+            var enableMediaSession = config.use_mediasession;
+            var mediaSessionBackwardTime = config.mediasession_backward_time;
+            var mediaSessionForwardTime = config.mediasession_forward_time;
+            var enableVideo = config.enable_video;
+            var enableWebM = config.enable_webm;
+            var videoAutoplay = config.video_autoplay;
+            var videoAutoplayWithoutAudio = config.video_autoplay_without_audio;
+            var videoPlaysinline = config.video_playsinline;
+            var videoLoop = config.video_loop;
+            var videoLoopWithoutAudio = config.video_loop_without_audio;
+            var enableVideoGIFMode = config.video_gif_without_audio;
+            var videoGifModeIfClick = config.video_gif_mode_if_click;
+            var videoPreload = config.video_preload;
+            var videoResize = config.video_resize;
+            var videoAutoAttach = config.video_auto_attach;
+            var videoThumgnailPoster = config.video_thumbnail_poster;
+
+
+            var stream = description.stream;
+            var video = stream && stream.video ? stream.video : null;
+            var isGIFMode = stream && !stream.isAudio && enableVideoGIFMode;
+            var autoplay = stream && stream.isAudio ? videoAutoplay : videoAutoplayWithoutAudio;
+            var loop = stream && stream.isAudio ? videoLoop : videoLoopWithoutAudio;
+            var preload = videoPreload;
+            var src = description.filePath;
+            var tags = description.tags ? description.tags : null;
+            //var title = tags && tags.title ? tags.title : description.filename;
+            //var artist = tags && tags.artist ? tags.artist : null;
+            //var album = tags && tags.album ? tags.album : null;
+            var title = document.title;
+            var artist = null;
+            var album = null;
+            var albumArt = tags && tags.albumArt ? tags.albumArt : null;
+            var poster = videoThumgnailPoster && description.poster ? description.poster : null;
+            var width = video && video.resolution_x ? video.resolution_x : null;
+            var height = video && video.resolution_y ? video.resolution_y : null;
+            var hasAudio =  stream ? stream.isAudio : false;
+            var fileformat = stream ? stream.fileformat : null;
+            if(!albumArt && useThumbnail && description.thumbnail) {
+                albumArt = description.thumbnail;
+            }
+            if(!albumArt && defaultCover) {
+                albumArt = defaultCover;
+            }
+            if(isGIFMode) {
+                preload = 'auto';
+                autoplay = true;
+                loop = true;
+            }
+
+            // 외부 링크에서 가져온 경우 일단 오디오가 있는 것으로 가정.
+            if(!description.stream) {
+                hasAudio = true;
+            }
+            var player = new SimpleVideoPlayer(description, {
+                loop: loop,
+                autoplay: hasAudio ? false : autoplay,
+                preload: preload,
+                gifMode: isGIFMode,
+                playsinline: videoPlaysinline,
+                enableMediaSession: hasAudio && enableMediaSession,
+                mediaSessionBackwardTime: mediaSessionBackwardTime,
+                mediaSessionForwardTime: mediaSessionForwardTime,
+                element: $targetDOM ? $targetDOM[0] : null,
+                title: title,
+                artist: artist,
+                album: album,
+                albumArt: albumArt,
+                poster: poster,
+                width: width,
+                height: height,
+                hasAudio: hasAudio,
+                ifClickToShowControls: videoGifModeIfClick,
+                src: src,
+                streamData: stream
+            });
+
+            return player;
+        }
+
+        return {
+            init: function(conf, descriptionList) {
+                if(!initialized) {
+                    config = conf;
+                    initialized = true;
+                    var displayedDescription = [];
+                    var $xe_content = $('.xe_content[class*=document_]');
+                    var targetDescription;
+                    var player, priority;
+                    var playerObservers = [];
+
+                    var linkToMedia = config.link_to_media;
+                    var enableVideo = config.enable_video;
+                    var enableWebM = config.enable_webm;
+                    var videoResize = config.video_resize;
+                    resizeObserver = videoResize ? new VideoResizeObserver($xe_content) : null;
+
+                    $xe_content.find("audio, video, a").each(function(idx, each) {
+                        var $this = $(this);
+                        var tagName = this.tagName.toLowerCase();
+                        var observer = null;
+                        if(tagName === 'audio') {
+                            targetDescription = getMatchedDescription($this, descriptionList, true);
+                            if(targetDescription) {
+                                priority = !!(targetDescription.description && targetDescription.description.autoplay);
+                                player = buildAudioPlayer($this, config, targetDescription.description);
+                                if(player) {
+                                    playerObservers.push(new SimplePlayerObserver(player, priority ? (SimplePlayerObserver.prototype.getAutoplayPriority() - 1) : void 0));
+                                }
+                            }
+                        } else if(tagName === 'video') {
+                            targetDescription = getMatchedDescription($this, descriptionList, true);
+                            if(targetDescription) {
+                                priority = !!(targetDescription.description && targetDescription.description.autoplay);
+                                player = buildVideoPlayer($this, config, targetDescription.description);
+                                if(player) {
+                                    resizeObserver.registerPlayer(player);
+                                    if(!player._gifMode && player._hasAudio || !player._streamData) {
+                                        playerObservers.push(new SimpleVideoPlayerObserver(player, priority ? (SimpleVideoPlayerObserver.prototype.getAutoplayPriority() - 1) : void 0));
+                                    }
+                                }
+
+                            }
+                        } else {
+                            var href = $this.attr('href');
+                            var data_file_srl = $this.attr('data-file-srl') || null;
+                            var file_srl = data_file_srl ? parseInt(data_file_srl, 10) : NaN;
+                            if(isPlayableLink(allowExtension, href)) {
+                                targetDescription = getMatchedDescription($this, descriptionList);
+                                var description = targetDescription && targetDescription.description ? targetDescription.description : null;
+                                var stream = description && description.stream ? description.stream : null;
+                                if(stream) {
+                                    if(stream.isVideo) {
+                                        player = buildVideoPlayer(null, config, description);
+                                        if(player && !player._gifMode && player._hasAudio) {
+                                            $this.replaceWith(player.getPlayer());
+                                            resizeObserver.registerPlayer(player);
+                                            playerObservers.push(new SimpleVideoPlayerObserver(player));
+                                        }
+                                    } else {
+                                        player = buildAudioPlayer($this, config, description);
+                                        if(player) {
+                                            playerObservers.push(new SimplePlayerObserver(player));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    });
+
+                    if($SimpleMP3Player.PlayerManager) {
+                        playerObservers.forEach(function(eachObserver){
+                            $SimpleMP3Player.PlayerManager.registerPlayer(eachObserver);
+                        });
+                    }
+                }
+            }
+        };
+    }();
 
     var document_srl = null;
 
@@ -2998,6 +3883,10 @@
                     var filterEmptyDescription = data.descriptions ? data.descriptions.filter(function(each) {
                         return !!(each && each.description);
                     }) : null;
+
+
+                    ContentLoader.init(config, data.descriptions);
+
                     var audioDescriptions = [];
                     var videoDescriptions = [];
                     filterEmptyDescription.forEach(function(each){
@@ -3041,6 +3930,7 @@
         BluePlayerObserver: BluePlayerObserver,
         SimpleVideoPlayerObserver: SimpleVideoPlayerObserver
     };
+
     $SimpleMP3Player.descriptionLoadError = [];
     $SimpleMP3Player.descriptions = [];
     $SimpleMP3Player.audioDescriptions = null;
@@ -3055,4 +3945,4 @@
     $SimpleMP3Player.MSE = MSE;
     $SimpleMP3Player.SimpleHLS = SimpleHLS;
 
-})(window.$SimpleMP3Player || (window.$SimpleMP3Player = {}));
+})(window.$SimpleMP3Player || (window.$SimpleMP3Player = {}), window.jQuery);

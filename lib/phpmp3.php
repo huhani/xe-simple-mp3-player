@@ -480,7 +480,7 @@ class PHPMP3
                 }
                 $lastFrameCount++;
                 $lastFrameOffset++;
-                if($this->calcDuration($lastFrameCount+1, $lastSampleRate, $lastSamplePerFrame) > $partDuration) {
+                if($this->calcDuration($lastFrameCount, $lastSampleRate, $lastSamplePerFrame) > $partDuration) {
 
 
                     //flush

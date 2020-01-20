@@ -170,6 +170,18 @@
                 </options>
             </var>
 
+            <var name="if_ended_nextplay" type="select">
+                <title xml:lang="ko">자동으로 다음 곡 재생</title>
+                <description xml:lang="ko">첨부된 audio 혹은 video 태그가 재생이 끝났을 경우 본문에 첨부된 다음 순서의 미디어를 재생합니다.
+                </description>
+                <options value="">
+                    <title xml:lang="ko">사용</title>
+                </options>
+                <options value="N">
+                    <title xml:lang="ko">사용 안 함</title>
+                </options>
+            </var>
+
             <var name="remove_extension_in_title" type="select">
                 <title xml:lang="ko">파일명을 표시할 경우 확장자 삭제</title>
                 <description xml:lang="ko">만약 태그가 없어 제목 부분에 파일명을 보여주게 될 경우 확장자를 제거합니다.</description>
@@ -390,16 +402,6 @@
             <var name="enable_video" type="select">
                 <title xml:lang="ko">동영상 사용</title>
                 <description xml:lang="ko">첨부된 mp4 비디오 파일에 대한 추가 기능을 활성화합니다.</description>
-                <options value="">
-                    <title xml:lang="ko">사용 안 함</title>
-                </options>
-                <options value="Y">
-                    <title xml:lang="ko">사용</title>
-                </options>
-            </var>
-            <var name="enable_webm" type="select">
-                <title xml:lang="ko">WebM 활성화</title>
-                <description xml:lang="ko">동영상 사용 설정 활성화시 WebM파일도 추가 활성화합니다. WebM 파일의 경우 일부 브라우저에서는 재생이 되지 않습니다.(Safari, IE 등)</description>
                 <options value="">
                     <title xml:lang="ko">사용 안 함</title>
                 </options>

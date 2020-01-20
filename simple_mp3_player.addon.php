@@ -542,7 +542,8 @@ if(!class_exists('SimpleMP3Describer', false)) {
             $this->use_hls_id3_tag = $config->use_hls_id3_tag;
             $this->encryption_key_update_period = 0;
             $this->is_hls_mode = $config->is_hls_mode;
-            $this->include_uploaded_filename = $config->include_uploaded_filename;
+            //$this->include_uploaded_filename = $config->include_uploaded_filename;
+            $this->include_uploaded_filename = true;
 
             $this->video_thumbnail = $config->video_thumbnail;
             $this->video_thumbnail_format = $config->video_thumbnail_format;
@@ -1412,7 +1413,8 @@ $config->mp3_realtime_encryption_key_rotation_period = isset($addon_info->mp3_re
 $config->remove_extension_in_title = !(isset($addon_info->remove_extension_in_title) && $addon_info->remove_extension_in_title === "N");
 
 $config->enable_video = (isset($addon_info->enable_video) && $addon_info->enable_video === "Y");
-$config->enable_webm = (isset($addon_info->enable_webm) && $addon_info->enable_webm === "Y");
+//$config->enable_webm = (isset($addon_info->enable_webm) && $addon_info->enable_webm === "Y");
+$config->enable_webm = true;
 $config->video_autoplay = !(isset($addon_info->video_autoplay) && $addon_info->video_autoplay === "N");
 $config->video_autoplay_without_audio = !(isset($addon_info->video_autoplay_without_audio) && $addon_info->video_autoplay_without_audio === "N");
 $config->video_loop = (isset($addon_info->video_loop) && $addon_info->video_loop === "Y");
@@ -1702,11 +1704,28 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
         Context::loadFile(array('./addons/simple_mp3_player/js/BluePlayer.js', 'body', '', null), true);
         Context::loadFile(array('./addons/simple_mp3_player/js/blueplayer_loader.js', 'body', '', null), true);
     }
-    if(isset($addon_info->link_to_media) && $addon_info->link_to_media === "Y") {
-        Context::loadFile(array('./addons/simple_mp3_player/js/mp3link_to_player.js', 'body', '', null), true);
-    }
-    if(isset($addon_info->enable_video) && $addon_info->enable_video === "Y") {
-        Context::loadFile(array('./addons/simple_mp3_player/js/video_loader.js', 'body', '', null), true);
+} else if($called_position == "before_display_content" && $act != 'dispPageAdminContentModify'&& Context::getResponseMethod() == 'HTML' && !isCrawler()
+    && !in_array($act, array('dispBoardWrite', 'dispBoardDelete', 'dispBoardWriteComment', 'dispBoardReplyComment', 'dispBoardModifyComment', 'dispBoardDeleteComment'))
+) {
+    $document_srl = Context::get('document_srl');
+    if($document_srl) {
+        $output = preg_replace_callback('/<!--BeforeDocument\(\d+,\d+\)-->(.*?)<!--AfterDocument\(\d+,\d+\)-->/is', function($callback){
+            return preg_replace_callback('/<\s*(?:audio|video|source)\s*[^>]+(?:\/?>?)/is', function($callback) {
+                return preg_replace_callback('/(?:((?:\w|-)+)(?:=\"([^\">]+)?\")?)/is', function($callback) {
+                    $attr = strtolower($callback[1]);
+                    switch($attr) {
+                        case 'autoplay':
+                            return 'data-'.$callback[1];
+                        case 'src':
+                            return 'data-'.$callback[0];
+                        case 'loop':
+                            return "";
+                        default:
+                            return $callback[0];
+                    }
+                }, $callback[0]);
+            }, $callback[0]);
+        }, $output);
     }
 }
 
