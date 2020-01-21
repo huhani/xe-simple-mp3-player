@@ -3809,7 +3809,7 @@
                     title: trackItem.title ? trackItem.title : void 0,
                     artist: trackItem.artist ? trackItem.artist : void 0,
                     album: trackItem.album ? trackItem.album : void 0,
-                    artwork: trackItem.albumArt ? [{src : trackItem.albumArt}] : void 0
+                    artwork: trackItem.albumArt ? [{src : trackItem.albumArt, sizes: '255x255'}] : void 0
                 });
             }
         };
