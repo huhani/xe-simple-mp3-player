@@ -1513,6 +1513,10 @@ unset($config->mp3_realtime_encrypt);
 unset($config->mp3_realtime_encryption_key_rotation_period);
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
     if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription', 'updateSimpleMP3Thumbnail', 'getSimpleMP3EncryptionKey', 'getSimpleMP3M3U8'))) {
+        if(function_exists('header_remove')) {
+            header_remove('Set-Cookie');
+        }
+
         $result = new stdClass();
         if($act === 'getSimpleMP3Descriptions') {
             ini_set('max_execution_time', 15);
