@@ -1436,6 +1436,7 @@ $config->ffmpeg_pathname = isset($addon_info->ffmpeg_pathname) && $addon_info->f
 $config->document_thumbnail = !(isset($addon_info->document_thumbnail) && $addon_info->document_thumbnail === "N");
 $config->document_thumbnail_insert_type = isset($addon_info->document_thumbnail_insert_type) && $addon_info->document_thumbnail_insert_type ? $addon_info->document_thumbnail_insert_type : 'insert_image_hide';
 $config->is_supported_to_set_thumbnail = SimpleMP3Tools::isSupportedToSetThumbnail();
+$config->library_mode = (isset($addon_info->library_mode) && $addon_info->library_mode === "Y");
 
 //이전 코드 호환용
 $config->use_lyric = false;
@@ -1505,7 +1506,6 @@ $SimpleMP3DescriberConfig->video_thumbnail = $config->video_thumbnail;
 $SimpleMP3DescriberConfig->ffmpeg_pathname = $config->ffmpeg_pathname;
 $SimpleMP3DescriberConfig->video_thumbnail_format = $config->video_thumbnail_format;
 $SimpleMP3DescriberConfig->video_thumbnail_timestamp_offset = $config->video_thumbnail_timestamp_offset;
-$config->SimpleMP3DescriberConfig = $SimpleMP3DescriberConfig;
 if(!$config->use_mp3_realtime_streaming) {
     $SimpleMP3DescriberConfig->is_hls_mode = false;
 }
@@ -1711,6 +1711,17 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
 } else if($called_position == "before_display_content" && $act != 'dispPageAdminContentModify'&& Context::getResponseMethod() == 'HTML' && !isCrawler()
     && !in_array($act, array('dispBoardWrite', 'dispBoardDelete', 'dispBoardWriteComment', 'dispBoardReplyComment', 'dispBoardModifyComment', 'dispBoardDeleteComment'))
 ) {
+
+    $script .= "\n\n<script>\n";
+    $script .= "//<![CDATA[\n";
+    $script .= '(function($SimpleMP3Player){
+    $SimpleMP3Player.mode = '.($config->library_mode ? '"lib"' : '"default"').';
+})(window.$SimpleMP3Player || (window.$SimpleMP3Player = {}))';
+    $script .= "\n//]]>\n";
+    $script .= "</script>\n";
+    $output = $script.$output;
+
+
     $document_srl = Context::get('document_srl');
     if($document_srl) {
         $output = preg_replace_callback('/<!--BeforeDocument\(\d+,\d+\)-->(.*?)<!--AfterDocument\(\d+,\d+\)-->/is', function($callback){
