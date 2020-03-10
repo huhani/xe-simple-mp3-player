@@ -3703,7 +3703,6 @@
                                     if(stream.isVideo) {
                                         player = buildVideoPlayer(null, config, description);
                                         if(player && !player._gifMode && player._hasAudio) {
-                                            $this.replaceWith(player.getPlayer());
                                             resizeObserver.registerPlayer(player);
                                             playerObservers.push(new SimpleVideoPlayerObserver(player));
                                         }
@@ -3712,6 +3711,10 @@
                                         if(player) {
                                             playerObservers.push(new SimplePlayerObserver(player));
                                         }
+                                    }
+
+                                    if(player) {
+                                        $this.replaceWith(player.getPlayer());
                                     }
                                 }
                             }
