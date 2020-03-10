@@ -3011,7 +3011,7 @@
             var SEEK_TIME = 20;
 
             function isMediaNode(node) {
-                return ['audio', 'video'].indexOf(node.tagName.toLowerCase()) > -1;
+                return node && ['audio', 'video'].indexOf(node.tagName.toLowerCase()) > -1;
             }
 
             function SimplePlayer(targetDOM, description, useMediaSession) {
@@ -3054,7 +3054,7 @@
                     }
                 }
 
-                if(!isMediaNode(this._targetDOM)){
+                if(this._targetDOM && !isMediaNode(this._targetDOM)){
                     this._targetDOM.parentNode.replaceChild(this._audio, this._targetDOM);
                 }
                 if(this._audio.hasAttribute('data-src')) {
@@ -3147,6 +3147,10 @@
                 if(handler && this._useMediaSession) {
                     this._registerMediaSessionHandlers();
                 }
+            };
+
+            SimplePlayer.prototype.getPlayer = function() {
+                return this._audio;
             };
 
             SimplePlayer.prototype.getAudioNode = function() {
@@ -3556,7 +3560,7 @@
         }
 
         function buildAudioPlayer($targetDOM, config, description) {
-            return $targetDOM && $targetDOM.length > 0 && config && description ? new SimplePlayer($targetDOM[0], description, !!(config && config.use_mediasession)) : null;
+            return config && description ? new SimplePlayer($targetDOM && $targetDOM.length > 0 ? $targetDOM[0] : void 0, description, !!(config && config.use_mediasession)) : null;
         }
 
         function buildVideoPlayer($targetDOM, config, description) {
@@ -3707,7 +3711,7 @@
                                             playerObservers.push(new SimpleVideoPlayerObserver(player));
                                         }
                                     } else {
-                                        player = buildAudioPlayer($this, config, description);
+                                        player = buildAudioPlayer(null, config, description);
                                         if(player) {
                                             playerObservers.push(new SimplePlayerObserver(player));
                                         }
