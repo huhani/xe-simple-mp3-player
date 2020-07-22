@@ -2778,7 +2778,6 @@
         __extend(SimpleVideoPlayerObserver, HTML5PlayerObserver);
 
         SimpleVideoPlayerObserver.prototype.provideMediaSessionTrackHandler = function(handlers) {
-            console.log(3);
             return this._SimpleVideoPlayer.provideMediaSessionTrackHandler(handlers);
         };
 
@@ -3183,6 +3182,21 @@
                 };
             }
 
+            function getTargetWidth($target) {
+                var innerWidth = $target.innerWidth();
+                var paddingLeftPX = $target.css('paddingLeft');
+                var paddingRightPX = $target.css('paddingRight');
+                if(paddingLeftPX && paddingRightPX) {
+                    var paddingLeft = parseInt(paddingLeftPX.replace(/([0-9]+)px/g, '$1'), 10);
+                    var paddingRight = parseInt(paddingRightPX.replace(/([0-9]+)px/g, '$1'), 10);
+                    if(!isNaN(paddingLeft) && !isNaN(paddingRight)) {
+                        innerWidth -= paddingLeft+paddingRight;
+                    }
+                }
+
+                return innerWidth;
+            }
+
             function VideoResizeObserver($wrapper) {
                 this._$wrapper = $wrapper;
                 this._player = [];
@@ -3193,7 +3207,7 @@
             }
 
             VideoResizeObserver.prototype._onResize = function(evt) {
-                var innerWidth = this._$wrapper.innerWidth();
+                var innerWidth = getTargetWidth(this._$wrapper);
                 if(innerWidth) {
                     this._resizeAllPlayer(innerWidth);
                 }
@@ -3201,7 +3215,7 @@
 
             VideoResizeObserver.prototype._resizeAllPlayer = function(wrapperWidth) {
                 if(!wrapperWidth) {
-                    wrapperWidth = this._$wrapper.innerWidth();
+                    wrapperWidth = getTargetWidth(this._$wrapper);
                 }
                 var that = this;
                 this._player.forEach(function(player){
@@ -3211,7 +3225,7 @@
 
             VideoResizeObserver.prototype._resizePlayer = function(player, targetWidth) {
                 if(targetWidth === void 0) {
-                    targetWidth = this._$wrapper.innerWidth();
+                    targetWidth = getTargetWidth(this._$wrapper);
                 }
                 var playerResolution = player.getResolution();
                 var playerNode = player.getPlayer();
