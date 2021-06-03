@@ -776,6 +776,7 @@
                     var $img = $each.find('.albumCover__img');
                     var aborted = false;
                     var loaded = false;
+                    var deferred = makeDeferred();
                     var abort = function() {
                         if(!aborted && !loaded && job) {
                             aborted = true;
@@ -788,9 +789,9 @@
                         if(idx > -1) {
                             that._ListClusterizeJobList.splice(idx, 1);
                         }
+                        deferred.resolve();
                     };
                     var job = (new AbortableJob(function() {
-                        var deferred = makeDeferred();
                         var img = $img.length ? $img[0] : null;
                         if(!img || ($img.src && $img.complete && $img.naturalHeight > 0)) {
                             loaded = true;
@@ -805,6 +806,7 @@
                             abort: abort
                         };
                     }).run());
+                    job.promise['catch'](function(e){});
                     that._ListClusterizeJobList.push(job);
                 });
                 this._ListClusterizeTimerJob = (new AbortableJob(function() {
@@ -816,6 +818,11 @@
                             deferred.reject(void 0);
                         }
                     };
+                    Promise.all(that._ListClusterizeJobList.map(function(each){
+                        return always(each.promise);
+                    })).then(function() {
+                        deferred.resolve();
+                    });
                     var timer = new Promise(function (resolve) {
                         setTimeout(resolve, 300);
                     });
