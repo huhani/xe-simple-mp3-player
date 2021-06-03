@@ -2,6 +2,7 @@
 
 if(!defined("__ZBXE__")) exit();
 
+require_once('./addons/simple_mp3_player/lib/HttpClient.class.php');
 require_once('./addons/simple_mp3_player/lib/phpmp3.php');
 require_once('./addons/simple_mp3_player/lib/getid3/getid3.php');
 require_once('./addons/simple_mp3_player/simple_encrypt.module.php');
@@ -197,7 +198,7 @@ if(!class_exists('SimpleMP3Tools', false)) {
             return $returnObj;
         }
 
-        public static function setDocumentThumbnail($document_srl = null, $file_srl = null, $addon_config) {
+        public static function setDocumentThumbnail($document_srl = null, $file_srl = null, $_addon_config) {
             if(!self::isSupportedToSetThumbnail()) {
                 return null;
             }
@@ -217,8 +218,8 @@ if(!class_exists('SimpleMP3Tools', false)) {
             $firstDescriptionImage = null;
 
 
-            $simpleMP3Describer = new SimpleMP3Describer($addon_config->SimpleMP3DescriberConfig);
-            $descriptions = $simpleMP3Describer->getDescriptionsByDocumentSrl($document_srl, $addon_config->thumbnail_type, $addon_config->thumbnail_width, $addon_config->thumbnail_height, $addon_config->mp3_realtime_segment_duration, true);
+            $simpleMP3Describer = new SimpleMP3Describer($_addon_config);
+            $descriptions = $simpleMP3Describer->getDescriptionsByDocumentSrl($document_srl, $_addon_config->thumbnail_type, $_addon_config->thumbnail_width, $_addon_config->thumbnail_height, $_addon_config->mp3_realtime_segment_duration, true);
 
              if(!$module_srl || !$descriptions || count($descriptions) < 1) {
                  return null;
@@ -239,7 +240,7 @@ if(!class_exists('SimpleMP3Tools', false)) {
                 $tags = $description && isset($description->tags) && $description->tags ? $description->tags : null;
                 $albumArt = $tags && isset($tags->albumArt) && $tags->albumArt ? $tags->albumArt : null;
                 $poster = $description->poster;
-                if($albumArt || ($poster && $addon_config->video_thumbnail)) {
+                if($albumArt || ($poster && $_addon_config->video_thumbnail)) {
                     if($useFirstImage && !$firstDescriptionImage) {
                         $firstDescriptionImage = $description;
                     }
@@ -267,7 +268,7 @@ if(!class_exists('SimpleMP3Tools', false)) {
                     $type = 'poster';
                 }
                 if($image) {
-                    $documentThumbnailInsertType = $addon_config->document_thumbnail_insert_type;
+                    $documentThumbnailInsertType = $_addon_config->document_thumbnail_insert_type;
                     self::removeDocumentThumbnailFromAddons($oDocument);
                     if($documentThumbnailInsertType === 'insert_file' && self::isSupportedToSetThumbnail()) {
                         $file_srl = $targetDescription->file_srl;
@@ -321,10 +322,12 @@ if(!class_exists('SimpleMP3Tools', false)) {
                             $documentContent = $requestVars->content;
                         }
                         if($documentContent) {
-                            $documentContent = preg_replace("/<!--DocumentThumbnailStart-->.*?<!--DocumentThumbnailEnd-->/", "", $documentContent);
+                            $documentContent = preg_replace("/<!--DocumentThumbnailStart-->(?:.*|\n)+?<!--DocumentThumbnailEnd-->/", "", $documentContent);
                             $imgTag = sprintf('<img src="%s">', $image);
+                            $imgTag = preg_replace('/\/.\//', "/", $imgTag);
                             if($documentThumbnailInsertType === 'insert_image_hide') {
-                                $imgTag = '<!-- '.$imgTag.' -->';
+                                //$imgTag = '<!-- '.$imgTag.' -->';
+                                $imgTag = '<p style="display:none;">' . $imgTag . '</p>';
                             }
                             $imgTag = sprintf('<!--DocumentThumbnailStart-->%s<!--DocumentThumbnailEnd-->', $imgTag);
                             $targetDocumentContent = $imgTag.$documentContent;
@@ -1363,6 +1366,144 @@ if(!class_exists('SimpleMP3Describer', false)) {
             return false;
         }
 
+
+        public static function getALSongLyric($file_srl, $expire = 72, $renewDuration = 30) {
+            $oFileModel = getModel('file');
+            $oFile = $oFileModel->getFile($file_srl);
+            if($oFile) {
+                $upload_target_srl = $oFile->upload_target_srl;
+                $isAccessableDocument = self::isAccessibleDocument($upload_target_srl);
+                if(!$isAccessableDocument) {
+                    return null;
+                }
+                $description = self::getDescription($file_srl, $oFile->uploaded_filename, $oFile->source_filename, $upload_target_srl);
+                if($description) {
+                    $lyricFromFile = self::getALSongLyricFromFile($file_srl, $oFile->uploaded_filename);
+                    $lyricFileExists = false;
+                    $requireRenew = false;
+                    if($lyricFromFile) {
+                        $lyricFileExists = true;
+                        if($lyricFromFile->lyric) {
+                            if($lyricFromFile->birthtime + $expire*60*60 > time()) {
+                                return $lyricFromFile->lyric;
+                            } else {
+                                $requireRenew = true;
+                            }
+                        } else if($lyricFromFile->lyric === null && $lyricFromFile->birthtime + $renewDuration * 60 > time()) {
+                            return null;
+                        }
+                    }
+
+                    $startOffset = null;
+                    $stream = isset($description->stream) && $description->stream ? $description->stream : null;
+                    $offsetInfo = isset($description->offsetInfo) && $description->offsetInfo ? $description->offsetInfo : null;
+                    if($offsetInfo !== null) {
+                        $offsets = isset($offsetInfo->offsets) && $offsetInfo->offsets ? $offsetInfo->offsets : null;
+                        if($offsets && is_array($offsets) && count($offsets) > 10) {
+                            $startOffset = $offsets[0]->startOffset;
+                        }
+                    }
+                    if(!$startOffset && $stream !== null && $stream->fileformat === "mp4" && isset($stream->startoffset) && $stream->startoffset > 8) {
+                        $startOffset = $stream->startoffset - 8;
+                    }
+                    if($startOffset !== null) {
+                        $md5 = self::getALSongLyricHash($oFile->uploaded_filename, $startOffset);
+                        if($md5) {
+                            $lyric = self::getALSongLyricFromServer($md5);
+                            if(!lyric && $requireRenew) {
+                                $lyric = $lyricFromFile->lyric;
+                            }
+
+                            self::createALSongLyricFile($file_srl, $oFile->uploaded_filename, $lyric);
+
+                            if($lyric) {
+                                return $lyric;
+                            } else if($lyricFileExists && isset($lyricFromFile->lyric)) {
+                                return $lyricFromFile->lyric;
+                            } else {
+                                return null;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public static function getALSongLyricHash($filepath, $startOffset) {
+            if(file_exists($filepath)) {
+                $filesize = filesize($filepath);
+                if($filesize-$startOffset < 163840) {
+                    return null;
+                }
+
+                $fd = fopen($filepath, "rb");
+                fseek($fd, $startOffset, SEEK_SET);
+                $hash = md5(fread($fd, 163840));
+                fclose($fd);
+
+                return $hash;
+            }
+
+            return null;
+        }
+
+        public static function createALSongLyricFile($file_srl, $uploaded_filename, $lyric = null) {
+            $basepath = self::getDescriptionFilePath($file_srl, $uploaded_filename);
+            $lrcFilename = $basepath.'lyric.json';
+            if($basepath) {
+                if(file_exists($lrcFilename)) {
+                    FileHandler::removeFile($lrcFilename);
+                }
+                $obj = new stdClass;
+                $obj->file_srl = $file_srl;
+                $obj->lyric = $lyric;
+                $obj->birthtime = time();
+                $json = json_encode($obj);
+                FileHandler::writeFile($lrcFilename, $json);
+            }
+        }
+
+        public static function getALSongLyricFromFile($file_srl, $uploaded_filename) {
+            $basepath = self::getDescriptionFilePath($file_srl, $uploaded_filename);
+            $lrcFilename = $basepath.'lyric.json';
+            if($basepath) {
+                if (file_exists($lrcFilename)) {
+                    $lrcJSON = FileHandler::readFile($lrcFilename);
+                    if($lrcJSON) {
+                        try {
+                            return json_decode($lrcJSON);
+                        } catch(Exception $e) {}
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public static function getALSongLyricFromServer($md5) {
+            $url = '/alsongwebservice/service1.asmx';
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://www.w3.org/2003/05/soap-envelope" xmlns:SOAP-ENC="http://www.w3.org/2003/05/soap-encoding" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:ns2="ALSongWebServer/Service1Soap" xmlns:ns1="ALSongWebServer" xmlns:ns3="ALSongWebServer/Service1Soap12">
+<SOAP-ENV:Body>
+<ns1:GetLyric7>
+<ns1:encData>7c2d15b8f51ac2f3b2a37d7a445c3158455defb8a58d621eb77a3ff8ae4921318e49cefe24e515f79892a4c29c9a3e204358698c1cfe79c151c04f9561e945096ccd1d1c0a8d8f265a2f3fa7995939b21d8f663b246bbc433c7589da7e68047524b80e16f9671b6ea0faaf9d6cde1b7dbcf1b89aa8a1d67a8bbc566664342e12</ns1:encData>
+<ns1:stQuery><ns1:strChecksum>'.$md5.'</ns1:strChecksum><ns1:strVersion></ns1:strVersion><ns1:strMACAddress></ns1:strMACAddress><ns1:strIPAddress>192.168.1.5</ns1:strIPAddress></ns1:stQuery></ns1:GetLyric7></SOAP-ENV:Body></SOAP-ENV:Envelope>';
+
+            $client = new HttpClient('lyrics.alsong.co.kr');
+            $client->post($url, $xml);
+            $content = $client->getContent();
+            preg_match('/<strLyric>(.*)?<\/strLyric>/i', $content, $lyricHTML);
+            if($lyricHTML && is_array($lyricHTML) && count($lyricHTML) === 2 && $lyricHTML[1]) {
+                $lrc = $lyricHTML[1];
+                $lrc = str_replace('&lt;br&gt;',"\n",$lrc);
+                return $lrc;
+            }
+
+            return null;
+        }
+
     }
 }
 
@@ -1439,8 +1580,10 @@ $config->is_supported_to_set_thumbnail = SimpleMP3Tools::isSupportedToSetThumbna
 $config->library_mode = (isset($addon_info->library_mode) && $addon_info->library_mode === "Y");
 
 //이전 코드 호환용
-$config->use_lyric = false;
-$config->use_m_lyric = false;
+$config->use_lyric = true;
+$config->use_m_lyric = true;
+$config->lyric_cache_expire = isset($addon_info->lyric_cache_expire) && $addon_info->lyric_cache_expire ? $addon_info->lyric_cache_expire : 0;
+$config->lyric_cache_retry_duration = isset($addon_info->lyric_cache_retry_duration) && $addon_info->lyric_cache_retry_duration ? $addon_info->lyric_cache_retry_duration : 0;
 $config->isMobile = Mobile::isFromMobilePhone();
 if(!$config->default_cover) {
     $config->default_cover = './addons/simple_mp3_player/img/no_cover.png';
@@ -1512,7 +1655,7 @@ if(!$config->use_mp3_realtime_streaming) {
 unset($config->mp3_realtime_encrypt);
 unset($config->mp3_realtime_encryption_key_rotation_period);
 if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHOD'], array('GET', 'POST'))){
-    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription', 'updateSimpleMP3Thumbnail', 'getSimpleMP3EncryptionKey', 'getSimpleMP3M3U8'))) {
+    if(in_array($act, array('getSimpleMP3Descriptions', 'getFileCount', 'getFileDescription', 'updateSimpleMP3Thumbnail', 'getSimpleMP3EncryptionKey', 'getSimpleMP3M3U8', 'getSimpleMP3Lyric'))) {
         if(function_exists('header_remove')) {
             header_remove('Set-Cookie');
         }
@@ -1528,6 +1671,18 @@ if($called_position === 'before_module_init' && in_array($_SERVER['REQUEST_METHO
             unset($config->ffmpeg_pathname);
             $result->descriptions = $descriptions;
             $result->config = $config;
+        } else if($act === 'getSimpleMP3Lyric') {
+            $type = Context::get('type');
+            $file_srl = Context::get('file_srl');
+            $lyric = $file_srl ? SimpleMP3Describer::getALSongLyric($file_srl, $config->lyric_cache_expire, $config->lyric_cache_retry_duration) : null;
+            if($type === 'text') {
+                if($lyric) {
+                    echo $lyric;
+                }
+                exit();
+            } else {
+                $result->lyric = $lyric;
+            }
         } else if($act === 'getFileCount') {
             $mid = Context::get('mid');
             $document_srl = Context::get('document_srl');

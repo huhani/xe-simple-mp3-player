@@ -524,10 +524,11 @@
                 } else if(description.m3u8link) {
                     lastMSE = new SimpleHLS(audioElement, description.m3u8link, description.file_srl, bufferSize);
                 }
-                if(lastMSE) {
-                    lastMSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
-                }
-            } else {
+
+            }
+            if(lastMSE) {
+                lastMSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
+            }else {
                 audioElement.src = trackItem.url;
                 audioElement.load()
             }
@@ -573,6 +574,9 @@
                 } else if(defaultCover) {
                     albumArt = defaultCover;
                 }
+            }
+            if(url && url.substring(0,2) === './') {
+                url = (window.default_url + url).replace(/(\/.\/)/, '/');
             }
 
             playlist.push({

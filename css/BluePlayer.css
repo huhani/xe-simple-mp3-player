@@ -100,7 +100,7 @@ body {margin: 0; padding: 0;}
 #BluePlayer .ui-widget, #BluePlayer ui-widget-content {border: 0;}
 
 #BluePlayer .controls-Icon, #BluePlayer a.controls-Icon { display: inline-block; padding: 0px; margin: 0 3px;}
-#BluePlayer .ControlBtns__Main {position:relative; top: -20px;text-align: center;}
+#BluePlayer .ControlBtns__Main {position:relative; top: -10px;text-align: center;}
 #BluePlayer .ControlBtns__Main .controls-Icon {width: 18px ;height: 18px;}
 #BluePlayer .controls-Icon.play {width: 24px ;height: 24px; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgZmlsbD0iIzYwN2Q4YiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InBsYXktYXJyb3ciPg0KCQk8cG9seWdvbiBwb2ludHM9IjM4LjI1LDAgMzguMjUsMzU3IDMxOC43NSwxNzguNSAJCSIvPg0KCTwvZz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjwvc3ZnPg0K') no-repeat;background-size: cover;}
 #BluePlayer .controls-Icon.pause {width: 24px ;height: 24px; background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDE2LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgZmlsbD0iIzYwN2Q4YiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9InBhdXNlIj4NCgkJPHBhdGggZD0iTTI1LjUsMzU3aDEwMlYwaC0xMDJWMzU3eiBNMjI5LjUsMHYzNTdoMTAyVjBIMjI5LjV6Ii8+DQoJPC9nPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPC9zdmc+DQo=') no-repeat;background-size: cover;}
@@ -129,8 +129,8 @@ body {margin: 0; padding: 0;}
 #BluePlayer .controls-Icon.volume-mute.active, #BluePlayer .controls-Icon.volume-mute:hover { background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJDYXBhXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgNTA4LjUyOCA1MDguNTI4IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA1MDguNTI4IDUwOC41Mjg7IiBmaWxsPSIjMDBhMGZmIiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxnPg0KCTxnPg0KCQk8Zz4NCgkJCTxwYXRoIGQ9Ik0yNjMuNTQsMC4xMTZjLTUuNzg0LTAuNTQtMTIuNTU0LDAuODU4LTIwLjUzMSw1LjY4OWMwLDAtMTMyLjUzMywxMTUuNjI1LTEzOC4zMTcsMTIxLjMxNEgzMS43ODINCgkJCQlDMTQuMjM5LDEyNy4xNSwwLDE0MS4zODksMCwxNTguOTMzdjE5NC43MzFjMCwxNy42MDcsMTQuMjM5LDMxLjc4MiwzMS43ODIsMzEuNzgyaDcyLjk0MQ0KCQkJCWM1Ljc4NCw1Ljc1MywxMzguMzE3LDExNy4yNzcsMTM4LjMxNywxMTcuMjc3YzcuOTc3LDQuNzk5LDE0Ljc0Nyw2LjIyOSwyMC41MzEsNS42ODljMTEuNzYtMS4xMTIsMjAuMDIzLTEwLjk2NSwyMi41MzQtMjEuMzU4DQoJCQkJYzAuMDk1LTEuMDE3LDAuMDk1LTQ2NC41MzMtMC4wNjQtNDY1LjU1QzI4My41NjMsMTEuMDgxLDI3NS4yNjgsMS4yMjgsMjYzLjU0LDAuMTE2eiIvPg0KCQkJPHBhdGggZD0iTTQ0Ny45NzQsMjU0LjI4bDU0Ljg1Ny01NC44NTdjNy41OTYtNy41NjQsNy41OTYtMTkuODY0LDAtMjcuNDI4DQoJCQkJYy03LjU2NC03LjU2NC0xOS44NjQtNy41NjQtMjcuNDI4LDBsLTU0Ljg1Nyw1NC44ODhsLTU0Ljg4OC01NC44ODhjLTcuNTMyLTcuNTY0LTE5Ljg2NC03LjU2NC0yNy4zOTcsMA0KCQkJCWMtNy41NjQsNy41NjQtNy41NjQsMTkuODY0LDAsMjcuNDI4bDU0Ljg1Nyw1NC44NTdsLTU0Ljg1Nyw1NC44ODhjLTcuNTY0LDcuNTMyLTcuNTY0LDE5Ljg2NCwwLDI3LjM5Ng0KCQkJCWM3LjUzMiw3LjU2NCwxOS44NjQsNy41NjQsMjcuMzk2LDBsNTQuODg4LTU0Ljg1N2w1NC44NTcsNTQuODU3YzcuNTY0LDcuNTY0LDE5Ljg2NCw3LjU2NCwyNy40MjgsMA0KCQkJCWM3LjU2NC03LjUzMiw3LjU2NC0xOS44NjQsMC0yNy4zOTZMNDQ3Ljk3NCwyNTQuMjh6Ii8+DQoJCTwvZz4NCgk8L2c+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
 
 #BluePlayer .Controls__ControlBtns__container {display: block; min-height: 62px;}
-#BluePlayer .ControlBtns__Left {position: relative; top: 8px; padding: 5px 10px 5px 20px; float: left; height: 20px; z-index: 1; }
-#BluePlayer .ControlBtns__Right {float: right; width: 78px; height: 20px; z-index: 1; position: relative;top: 7px;}
+#BluePlayer .ControlBtns__Left {position: relative; top: 8px; padding: 5px 10px 5px 20px; float: left; height: 20px; z-index: 1; box-sizing: border-box; }
+#BluePlayer .ControlBtns__Right {float: right; width: 78px; height: 20px; z-index: 1; position: relative;top: 7px; box-sizing: border-box; }
 
 #BluePlayer .ControlBtns__Volume {position:relative; right: 10px;}
 
@@ -154,13 +154,29 @@ body {margin: 0; padding: 0;}
 
 
 #BluePlayer .TrackList {background-color: #FFFFFF; -webkit-user-select: none;  -moz-user-select: none; -ms-user-select: none; user-select: none; line-height: 1.5; outline: none; }
+
+
 #BluePlayer .TrackItem {width: 100%; height: 48px; cursor:pointer; transition: all 0.15s ease; overflow: hidden; line-height: 1.2;}
 #BluePlayer .TrackItem:hover, #BluePlayer .TrackItem.rightClick {background-color: #EFEFEF;}
 #BluePlayer .TrackItem:active {background-color: #E0E0E0;}
 #BluePlayer .TrackItem.current {background-color: #EAEAEA;}
 #BluePlayer .TrackItem .artist {line-height: 1.2; padding: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+
+#BluePlayer .TrackItem .loadingBox {display: none;}
+#BluePlayer .TrackItem.loading .loadingBox, #BluePlayer .TrackList.loading .loadingBox {display: block;height: 100%;}
+#BluePlayer .TrackItem.current.loading, #BluePlayer .TrackList.loading .TrackItem.current {background-color: inherit;}
+
+#BluePlayer .TrackItem.loading .loadingBox .artist, #BluePlayer .TrackList.loading .TrackItem .loadingBox .artist {width: 45px; height: 9px; background-color: #e4e4e473; margin: 0 0 6px;}
+#BluePlayer .TrackItem.loading .loadingBox .artist span, #BluePlayer .TrackList.loading .TrackItem .loadingBox .artist span {display: none;}
 #BluePlayer .TrackItem .title {line-height: 1.2;  padding: 0;}
-#BluePlayer .TrackItemDescription {height:100%; }
+#BluePlayer .TrackItem.loading .loadingBox .title, #BluePlayer .TrackList.loading .TrackItem .loadingBox .title{width: 130px; height: 9px; background-color: #e4e4e473;}
+#BluePlayer .TrackItem.loading .loadingBox .title span, #BluePlayer .TrackList.loading .TrackItem .loadingBox .title span {display: none;}
+#BluePlayer .TrackItem.loading .loadingBox .albumCover, #BluePlayer .TrackList.loading .loadingBox .albumCover {background-color: #e4e4e473;}
+#BluePlayer .TrackItem.loading .loadingBox .albumCover__img,  #BluePlayer .TrackList.loading .loadingBox .albumCover__img {display: none;}
+
+
+#BluePlayer .TrackItemDescription {height:100%; animation: fadein 0.4s;}
+#BluePlayer .TrackItem.loading .TrackItemDescription, #BluePlayer .TrackList.loading .TrackItemDescription {display: none;}
 #BluePlayer .TrackItemDescription__left {float:left; display: table; height: 100%;}
 #BluePlayer .TrackItemDescription__left .albumCover__wrapper {display: table-cell; vertical-align: middle; padding: 0 4px 0 8px; }
 #BluePlayer .TrackItemDescription__left .albumCover {width: 32px; height: 32px; background-color: #E0E0E0; display: block;}
@@ -220,3 +236,32 @@ body {margin: 0; padding: 0;}
 #BluePlayer.mobile .AlbumCover__image__container {width: 40px; height: 40px;}
 #BluePlayer.mobile .TrackInfo__AlbumCover .AlbumCover__image__container .AlbumCover__image {width: 40px; height: 40px;}
 #BluePlayer.mobile .TrackInfo__Tags { position: relative; padding: 0 5px; box-sizing: border-box;}
+
+@keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Firefox < 16 */
+@-moz-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Safari, Chrome and Opera > 12.1 */
+@-webkit-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Internet Explorer */
+@-ms-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Opera < 12.1 */
+@-o-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}

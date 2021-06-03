@@ -792,6 +792,7 @@
                     var fetch = window.fetch(this._url, {
                         method: 'GET',
                         signal: this._AbortController.signal,
+                        referrer: "",
                         credentials: 'omit',
                         headers: headers
                     });
@@ -3033,6 +3034,7 @@
                 this._audio.controls = true;
                 this._audio.setAttribute('controlslist',["nodownload"]);
                 this._onAudioPlayingHandler = this._onAudioPlaying.bind(this);
+                this._onAudioPauseHandler = this._onAudioPause.bind(this);
                 this._prevMediaSessionTrackHandler = null;
                 this._nextMediaSessionTrackHandler = null;
                 this._init();
@@ -3075,6 +3077,17 @@
                     this._audio.load();
                 }
                 this._audio.addEventListener('playing', this._onAudioPlayingHandler, false);
+                this._audio.addEventListener('pause', this._onAudioPauseHandler, false);
+            };
+
+            SimplePlayer.prototype._updateMediaSessionPositionState = function() {
+                if(_MediaSession && 'setPositionState' in _MediaSession) {
+                    _MediaSession.setPositionState({
+                        duration: this._audio.duration,
+                        playbackRate: this._audio.playbackRate,
+                        position: this._audio.currentTime
+                    });
+                }
             };
 
             SimplePlayer.prototype._updateMediaSessionMetadata = function() {
@@ -3105,6 +3118,7 @@
                     } else {
                         _MediaSession.metadata = void 0;
                     }
+                    this._updateMediaSessionPositionState();
                 }
             };
 
@@ -3127,6 +3141,15 @@
                         that._audio.currentTime = Math.min(that._audio.duration || 0, that._audio.currentTime + that._mediaSessionForwardTime);
                     });
 
+                    _MediaSession.setActionHandler("seekto", function(event) {
+                        if (event.fastSeek && ('fastSeek' in that._audio)) {
+                            that._audio.fastSeek(event.seekTime);
+                            return;
+                        }
+                        that._audio.currentTime = event.seekTime;
+                        that._updateMediaSessionPositionState();
+                    });
+
                     _MediaSession.setActionHandler("previoustrack", this._prevMediaSessionTrackHandler);
 
                     _MediaSession.setActionHandler("nexttrack", this._nextMediaSessionTrackHandler);
@@ -3135,8 +3158,15 @@
 
             SimplePlayer.prototype._onAudioPlaying = function() {
                 if(this._useMediaSession) {
+                    _MediaSession.playbackState = "playing";
                     this._updateMediaSessionMetadata();
                     this._registerMediaSessionHandlers();
+                }
+            };
+
+            SimplePlayer.prototype._onAudioPause = function() {
+                if(this._useMediaSession) {
+                    _MediaSession.playbackState = "paused";
                 }
             };
 
@@ -3159,11 +3189,7 @@
             SimplePlayer.prototype.destruct = function() {
                 if(!this._destruct) {
                     this._audio.removeEventListener('playing', this._onAudioPlayingHandler, false);
-                    if(this._playingObserverTimerID !== null) {
-                        window.clearTimeout(this._playingObserverTimerID);
-                        this._playingObserverTimerID = null;
-                    }
-
+                    this._audio.removeEventListener('pause', this._onAudioPauseHandler, false);
                     if(this._MSE) {
                         this._MSE.destruct();
                     }
@@ -3824,7 +3850,11 @@
                             albumArt: null
                         };
                     }
+
                     var tags = description.tags;
+                    if(tags.albumArt) {
+                        tags.albumArt = tags.albumArt.replace('./', '/');
+                    }
                     if(description.download_url) {
                         description.download_url = window.default_url + "index.php" + ampToAmp(description.download_url);
                     }

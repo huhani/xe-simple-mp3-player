@@ -90,6 +90,113 @@
         };
     };
 
+    var always = function(promise) {
+        return new Promise(function(resolve) {
+            promise.then(function(data){
+                resolve(data);
+            })['catch'](function(e){
+                resolve(e);
+            });
+        });
+    };
+
+    var AbortableJob = function AbortableJob() {
+
+        var Job = function Job() {
+            function Job(fn) {
+                this._aborted = false;
+                this._done = false;
+                this._fn = fn;
+                this._deferred = makeDeferred();
+                this._currentJob = null;
+                this._errors = [];
+                this._run();
+            }
+
+            Job.prototype._resolve = function(result) {
+                if(!this._done) {
+                    this._done = true;
+                    this._deferred.resolve(result);
+                }
+            };
+
+            Job.prototype._reject = function(e) {
+                if(!this._done) {
+                    this._done = true;
+                    this._deferred.reject(e);
+                }
+            };
+
+            Job.prototype._run = function() {
+                try {
+                    var that = this;
+                    this._currentJob = this._fn();
+                    this._currentJob.promise.then(function(result){
+                        that._resolve(result);
+                    })['catch'](function(e){
+                        that._reject(e);
+                    });
+                } catch(e) {
+                    this._reject(e);
+                }
+            };
+
+            Job.prototype.getPromise = function() {
+                return this._deferred.promise;
+            };
+
+            Job.prototype.abort = function() {
+                if(!this._done) {
+                    this._aborted = true;
+                    if(this._currentJob && this._currentJob.abort) {
+                        this._currentJob.abort();
+                    }
+                    this._reject(new Error("Aborted"));
+                }
+            };
+
+            Job.prototype.isDone = function() {
+                return this._done;
+            };
+
+            Job.prototype.isAborted = function() {
+                return this._aborted;
+            };
+
+            return Job;
+        }();
+
+        function AbortableJob(fn) {
+            this._fn = fn;
+            this._currentJob = null;
+            this._count = 0;
+        }
+
+        AbortableJob.AbortError = new Error("Aborted");
+
+        AbortableJob.prototype.run = function() {
+            this._count++;
+            if(!this._currentJob || this._currentJob.isDone()) {
+                this._currentJob = new Job(this._fn);
+            }
+            var that = this;
+            var job = this._currentJob;
+            return {
+                promise: Job.prototype.getPromise.call(job),
+                abort: function() {
+                    if(!Job.prototype.isAborted.call(job)) {
+                        that._count--;
+                        Job.prototype.abort.call(job)
+                    }
+                },
+                isDone: Job.prototype.isDone.bind(job)
+            };
+        };
+
+        return AbortableJob;
+
+    }();
+
     var __extend = function() {
         var setProperty = Object.setPrototypeOf || {
                 __proto__: []
@@ -233,6 +340,8 @@
                 this.onPlaybackTimelineChange = new EventDispatcher;
 
                 this._TrackListTemplates = [];
+                this._ListClusterizeJobList = [];
+                this._ListClusterizeTimerJob = null;
                 this._ListClusterize = null;
 
                 this._playLabel = labels.play || "Play";
@@ -482,7 +591,7 @@
                     album = null;
                 }
 
-                var html = '<div class="TrackItem" data-id="'+id+'">\n' +
+                var html = '<div class="TrackItem loading" data-id="'+id+'">\n' +
                     '<div class="TrackItemDescription">\n' +
                     '<div class="TrackItemDescription__left">\n' +
                     '<div class="albumCover__wrapper">\n' +
@@ -514,6 +623,14 @@
                     ' </div>' +
                     ' <div class="clear"></div>' +
                     ' </div>' +
+                        '<div class="loadingBox">' +
+                        '<div class="TrackItemDescription__left">\n' +
+                        '<div class="albumCover__wrapper">\n' +
+                        '<div class="albumCover"></div>' +
+                        '</div>' +
+                        '<div class="info"><div class="artist"></div><div class="title"></div></div>' +
+                        '</div>' +
+                        '</div>' +
                     '</div>';
 
                 return html;
@@ -635,8 +752,83 @@
                     if($currentTrackItem.length && !$currentTrackItem.hasClass('current')) {
                         $currentTrackItem.addClass('current');
                     }
+
                 }
                 this._focusTrackItemOnRightClick();
+                this._onTrackListLazyLoad();
+            };
+
+            UI.prototype._onTrackListLazyLoad = function() {
+                var that = this;
+                this._ListClusterizeJobList.forEach(function(each){
+                    each.abort();
+                });
+                this._ListClusterizeJobList = [];
+                if(this._ListClusterizeTimerJob) {
+                    this._ListClusterizeTimerJob.abort();
+                }
+                if(!this._$TrackList.hasClass('loading')) {
+                    this._$TrackList.addClass('loading');
+                }
+                this._$TrackList.find('.TrackItem.loading').each(function(idx, each) {
+                    var $each = $(each);
+
+                    var $img = $each.find('.albumCover__img');
+                    var aborted = false;
+                    var loaded = false;
+                    var abort = function() {
+                        if(!aborted && !loaded && job) {
+                            aborted = true;
+                            loadHandler();
+                        }
+                    };
+                    var loadHandler = function(e) {
+                        $each.removeClass('loading');
+                        var idx = that._ListClusterizeJobList.indexOf(job);
+                        if(idx > -1) {
+                            that._ListClusterizeJobList.splice(idx, 1);
+                        }
+                    };
+                    var job = (new AbortableJob(function() {
+                        var deferred = makeDeferred();
+                        var img = $img.length ? $img[0] : null;
+                        if(!img || ($img.src && $img.complete && $img.naturalHeight > 0)) {
+                            loaded = true;
+                            loadHandler();
+                            deferred.resolve();
+                        } else {
+                            img.addEventListener('load', loadHandler, false);
+                        }
+
+                        return {
+                            promise: deferred.promise,
+                            abort: abort
+                        };
+                    }).run());
+                    that._ListClusterizeJobList.push(job);
+                });
+                this._ListClusterizeTimerJob = (new AbortableJob(function() {
+                    var deferred = makeDeferred();
+                    var aborted = false;
+                    var abort = function() {
+                        if(!aborted) {
+                            aborted = true;
+                            deferred.reject(void 0);
+                        }
+                    };
+                    var timer = new Promise(function (resolve) {
+                        setTimeout(resolve, 300);
+                    });
+
+                    return {
+                        promise: Promise.race([deferred.promise, timer]),
+                        abort: abort
+                    }
+                })).run();
+                this._ListClusterizeTimerJob.promise.then(function() {
+                    that._ListClusterizeTimerJob = null;
+                    that._$TrackList.removeClass('loading');
+                })['catch'](function(e){});
             };
 
             UI.prototype._onResize = function() {
