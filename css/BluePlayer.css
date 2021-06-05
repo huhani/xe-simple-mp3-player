@@ -161,22 +161,24 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackItem:active {background-color: #E0E0E0;}
 #BluePlayer .TrackItem.current {background-color: #EAEAEA;}
 #BluePlayer .TrackItem .artist {line-height: 1.2; padding: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+#BluePlayer .TrackItem .trackItem_content { height: 48px;}
 
 #BluePlayer .TrackItem .loadingBox {display: none;}
-#BluePlayer .TrackItem.loading .loadingBox, #BluePlayer .TrackList.loading .loadingBox {display: block;height: 100%;}
-#BluePlayer .TrackItem.current.loading, #BluePlayer .TrackList.loading .TrackItem.current {background-color: inherit;}
+#BluePlayer .TrackItem .trackItem_content.loading .loadingBox, #BluePlayer .TrackList.loading .loadingBox {display: block;height: 100%;}
+#BluePlayer .TrackItem.current .trackItem_content.loading, #BluePlayer .TrackList.loading .TrackItem.current {background-color: inherit;}
 
-#BluePlayer .TrackItem.loading .loadingBox .artist, #BluePlayer .TrackList.loading .TrackItem .loadingBox .artist {width: 45px; height: 9px; background-color: #e4e4e473; margin: 0 0 6px;}
-#BluePlayer .TrackItem.loading .loadingBox .artist span, #BluePlayer .TrackList.loading .TrackItem .loadingBox .artist span {display: none;}
+#BluePlayer .TrackItem .trackItem_content.loading .loadingBox .artist, #BluePlayer .TrackList.loading .TrackItem .loadingBox .artist {width: 45px; height: 9px; background-color: #e4e4e473; margin: 0 0 6px;}
+#BluePlayer .TrackItem .trackItem_content.loading .loadingBox .artist span, #BluePlayer .TrackList.loading .TrackItem .loadingBox .artist span {display: none;}
 #BluePlayer .TrackItem .title {line-height: 1.2;  padding: 0;}
-#BluePlayer .TrackItem.loading .loadingBox .title, #BluePlayer .TrackList.loading .TrackItem .loadingBox .title{width: 130px; height: 9px; background-color: #e4e4e473;}
-#BluePlayer .TrackItem.loading .loadingBox .title span, #BluePlayer .TrackList.loading .TrackItem .loadingBox .title span {display: none;}
-#BluePlayer .TrackItem.loading .loadingBox .albumCover, #BluePlayer .TrackList.loading .loadingBox .albumCover {background-color: #e4e4e473;}
-#BluePlayer .TrackItem.loading .loadingBox .albumCover__img,  #BluePlayer .TrackList.loading .loadingBox .albumCover__img {display: none;}
+#BluePlayer .TrackItem .trackItem_content.loading .loadingBox .title, #BluePlayer .TrackList.loading .TrackItem .loadingBox .title{width: 130px; height: 9px; background-color: #e4e4e473;}
+#BluePlayer .TrackItem .trackItem_content.loading .loadingBox .title span, #BluePlayer .TrackList.loading .TrackItem .loadingBox .title span {display: none;}
+#BluePlayer .TrackItem .trackItem_content.loading .loadingBox .albumCover, #BluePlayer .TrackList.loading .loadingBox .albumCover {background-color: #e4e4e473;}
+#BluePlayer .TrackItem. .trackItem_contentloading .loadingBox .albumCover__img,  #BluePlayer .TrackList.loading .loadingBox .albumCover__img {display: none;}
 
 
 #BluePlayer .TrackItemDescription {height:100%; animation: fadein 0.4s;}
-#BluePlayer .TrackItem.loading .TrackItemDescription, #BluePlayer .TrackList.loading .TrackItemDescription {display: none;}
+#BluePlayer .trackItem_content.loaded .TrackItemDescription {animation: inherit;}
+#BluePlayer .TrackItem .trackItem_content.loading .TrackItemDescription, #BluePlayer .TrackList.loading .TrackItemDescription {display: none;}
 #BluePlayer .TrackItemDescription__left {float:left; display: table; height: 100%;}
 #BluePlayer .TrackItemDescription__left .albumCover__wrapper {display: table-cell; vertical-align: middle; padding: 0 4px 0 8px; }
 #BluePlayer .TrackItemDescription__left .albumCover {width: 32px; height: 32px; background-color: #E0E0E0; display: block;}

@@ -267,6 +267,13 @@
 
         var UI = function() {
 
+            function createElementFromHTML(htmlString) {
+                var div = document.createElement('div');
+                div.innerHTML = htmlString.trim();
+
+                return div.firstChild;
+            }
+
             function sliderStartHandler(event, ui) {
                 var $this = $(this);
                 if(!$this.hasClass('sliding')) {
@@ -340,8 +347,10 @@
                 this.onPlaybackTimelineChange = new EventDispatcher;
 
                 this._TrackListTemplates = [];
-                this._ListClusterizeJobList = [];
-                this._ListClusterizeTimerJob = null;
+                this._TrackListImageLoadList = [];
+                this._trackItemImageCacheList = [];
+                this._trackItemFadeAnimatioinTimerList = [];
+
                 this._ListClusterize = null;
 
                 this._playLabel = labels.play || "Play";
@@ -591,8 +600,8 @@
                     album = null;
                 }
 
-                var html = '<div class="TrackItem loading" data-id="'+id+'">\n' +
-                    '<div class="TrackItemDescription">\n' +
+                var container = '<div class="TrackItem" data-id="'+id+'"></div>';
+                var content = '<div class="TrackItemDescription">\n' +
                     '<div class="TrackItemDescription__left">\n' +
                     '<div class="albumCover__wrapper">\n' +
                     '<div class="albumCover">' +
@@ -616,7 +625,7 @@
                     controlsTemplate += '</div>';
                 }
 
-                    html += '<div class="TrackItemDescription__right'+(controlsTemplate ? ' enableControl' : '')+'">' +
+                    content += '<div class="TrackItemDescription__right'+(controlsTemplate ? ' enableControl' : '')+'">' +
                         (controlsTemplate ? controlsTemplate : '') +
                     '<div class="duration"><span>'+(duration ? UI.msecToTimeStr(duration) : '')+'</span>' +
                     '</div>' +
@@ -630,10 +639,12 @@
                         '</div>' +
                         '<div class="info"><div class="artist"></div><div class="title"></div></div>' +
                         '</div>' +
-                        '</div>' +
-                    '</div>';
+                        '</div>';
 
-                return html;
+                return {
+                    container: container,
+                    content: content
+                };
             };
 
             UI.prototype._ensureNotDestructed = function() {
@@ -760,82 +771,196 @@
 
             UI.prototype._onTrackListLazyLoad = function() {
                 var that = this;
-                this._ListClusterizeJobList.forEach(function(each){
-                    each.abort();
-                });
-                this._ListClusterizeJobList = [];
-                if(this._ListClusterizeTimerJob) {
-                    this._ListClusterizeTimerJob.abort();
+                var eachFadeAnimationTimer = null;
+                var eachTrackImageLoader = null;
+                if(this._trackItemImageCacheList.length > 1000) {
+                    this._resetTrackItemCache();
                 }
-                if(!this._$TrackList.hasClass('loading')) {
-                    this._$TrackList.addClass('loading');
+                while(this._TrackListImageLoadList.length > 0) {
+                    eachTrackImageLoader = this._TrackListImageLoadList.shift();
+                    if(eachTrackImageLoader && eachTrackImageLoader.imageLoader) {
+                        eachTrackImageLoader.element = null;
+                        eachTrackImageLoader.imageLoader.abort();
+                    }
                 }
-                this._$TrackList.find('.TrackItem.loading').each(function(idx, each) {
-                    var $each = $(each);
+                while(this._trackItemFadeAnimatioinTimerList.length > 0) {
+                    eachFadeAnimationTimer = this._trackItemFadeAnimatioinTimerList.shift();
+                    if(eachFadeAnimationTimer) {
+                        eachFadeAnimationTimer.abort();
+                    }
+                }
 
-                    var $img = $each.find('.albumCover__img');
-                    var aborted = false;
-                    var loaded = false;
-                    var deferred = makeDeferred();
-                    var abort = function() {
-                        if(!aborted && !loaded && job) {
-                            aborted = true;
-                            loadHandler();
+
+                var lastTrackItemIdx = -1;
+                this._$TrackList.find('.TrackItem').each(function(idx, each) {
+                    var $each = $(each);
+                    if(lastTrackItemIdx === -1) {
+                        var id = parseInt($each.attr('data-id'), 10);
+                        if(isNaN(id)){
+                            return;
                         }
-                    };
-                    var loadHandler = function(e) {
-                        $each.removeClass('loading');
-                        var idx = that._ListClusterizeJobList.indexOf(job);
-                        if(idx > -1) {
-                            that._ListClusterizeJobList.splice(idx, 1);
-                        }
-                        deferred.resolve();
-                    };
-                    var job = (new AbortableJob(function() {
-                        var img = $img.length ? $img[0] : null;
-                        if(!img || ($img.src && $img.complete && $img.naturalHeight > 0)) {
-                            loaded = true;
-                            loadHandler();
-                            deferred.resolve();
+                        lastTrackItemIdx = that._getTrackItemIndex(id);
+                    }
+                    if(lastTrackItemIdx === -1) {
+                        return;
+                    }
+                    var content = that._getTrackItemContentByIndex(lastTrackItemIdx, 0);
+                    $each.append(content);
+                    lastTrackItemIdx++;
+                });
+            };
+
+            UI.prototype._resetTrackItemCache = function() {
+                this._trackItemImageCacheList.forEach(function(each){
+                    each.element = null;
+                });
+                this._trackItemImageCacheList = [];
+            };
+
+            UI.prototype._getTrackItemIndex = function(trackID) {
+                return this._TrackListTemplates.findIndex(function(each){
+                    return each.id === trackID;
+                });
+            };
+
+            UI.prototype._getTrackItemContentByIndex = function(idx, minLoadingTime) {
+                if(minLoadingTime === void 0 || minLoadingTime < 0) {
+                    minLoadingTime = 0;
+                }
+
+                var that = this;
+                var element = null;
+                var size = this._TrackListTemplates.length;
+                var trackItemTemplate = idx >= 0 && idx < size ? this._TrackListTemplates[idx] : null;
+                if(trackItemTemplate) {
+                    if(!trackItemTemplate.element) {
+                        var div = document.createElement('div');
+                        div.classList.add('trackItem_content');
+                        div.innerHTML = trackItemTemplate.template.content;
+                        trackItemTemplate.element = div;
+                        this._trackItemImageCacheList.push(trackItemTemplate);
+                        var $div = $(div);
+                        var job = (new AbortableJob(function() {
+                            var $img = $div.find('.albumCover__img');
+                            var aborted = false;
+                            var loaded = false;
+                            var deferred = makeDeferred();
+                            var abort = function() {
+                                if(!aborted && !loaded && job) {
+                                    img.removeEventListener('load', loadHandler);
+                                    img.removeAttribute('src');
+                                    aborted = true;
+                                    loadHandler();
+                                }
+                            };
+                            var loadHandler = function(e) {
+                                deferred.resolve();
+                            };
+                            var img = $img.length ? $img[0] : null;
+                            if(!img || ($img.src && $img.complete && $img.naturalHeight > 0)) {
+                                loaded = true;
+                                loadHandler();
+                                deferred.resolve();
+                            } else {
+                                img.addEventListener('load', loadHandler, false);
+                            }
+
+                            return {
+                                promise: deferred.promise,
+                                abort: abort
+                            };
+                        }).run());
+                        job.promise['catch'](function() {
+                            trackItemTemplate.element = null;
+                            var idx = that._trackItemImageCacheList.indexOf(trackItemTemplate);
+                            if(idx > -1) {
+                                that._trackItemImageCacheList.splice(idx ,1);
+                            }
+                        }).then(function() {
+                            trackItemTemplate.imageLoader = null;
+                            var idx = that._TrackListImageLoadList.indexOf(trackItemTemplate);
+                            if(idx > -1) {
+                                that._TrackListImageLoadList.splice(idx, 1);
+                            }
+                        });
+                        this._TrackListImageLoadList.push(trackItemTemplate);
+                        trackItemTemplate.imageLoader = job;
+                    }
+
+                    element = trackItemTemplate.element;
+                }
+
+                if(element) {
+                    var animationJob = (new AbortableJob(function() {
+                        var $div = $(element);
+                        var loadingTimerID = null;
+                        var loadPromise = trackItemTemplate.imageLoader ? always(trackItemTemplate.imageLoader.promise) : Promise.resolve();
+                        var loadingTimerDeferred = makeDeferred();
+                        if(minLoadingTime > 0) {
+                            loadingTimerID = window.setTimeout(function() {
+                                loadingTimerDeferred.resolve();
+                            }, minLoadingTime);
                         } else {
-                            img.addEventListener('load', loadHandler, false);
+                            loadingTimerDeferred.resolve();
+                        }
+
+                        var aborted = false;
+                        var deferred = makeDeferred();
+                        var animationTimerID = null;
+                        var abort = function() {
+                            if(!aborted) {
+                                abort = true;
+                                loadingTimerDeferred.reject(void 0);
+                                if(loadingTimerID !== null) {
+                                    window.clearTimeout(loadingTimerID);
+                                    loadingTimerID = null;
+                                }
+                                if(animationTimerID !== null) {
+                                    window.clearTimeout(animationTimerID);
+                                    aborted = true;
+                                    deferred.reject();
+                                }
+                            }
+                        };
+
+                        if((trackItemTemplate.imageLoader || minLoadingTime > 0)) {
+                            if(!$div.hasClass('loading')) {
+                                $div.addClass('loading');
+                            }
+                            $div.removeClass('loaded');
                         }
 
                         return {
-                            promise: deferred.promise,
+                            promise: Promise.all([loadPromise, loadingTimerDeferred.promise]).then(function() {
+                                $div.removeClass('loading');
+                                animationTimerID = window.setTimeout(function() {
+                                    animationTimerID = null;
+                                    deferred.resolve();
+                                }, 400);
+
+                                return deferred.promise;
+                            }),
                             abort: abort
                         };
-                    }).run());
-                    job.promise['catch'](function(e){});
-                    that._ListClusterizeJobList.push(job);
-                });
-                this._ListClusterizeTimerJob = (new AbortableJob(function() {
-                    var deferred = makeDeferred();
-                    var aborted = false;
-                    var abort = function() {
-                        if(!aborted) {
-                            aborted = true;
-                            deferred.reject(void 0);
+                    })).run();
+                    that._trackItemFadeAnimatioinTimerList.push(animationJob);
+
+                    always(animationJob.promise).then(function() {
+                        if(element.classList.contains('loading')) {
+                            element.classList.remove('loading');
                         }
-                    };
-                    Promise.all(that._ListClusterizeJobList.map(function(each){
-                        return always(each.promise);
-                    })).then(function() {
-                        deferred.resolve();
-                    });
-                    var timer = new Promise(function (resolve) {
-                        setTimeout(resolve, 300);
+                        if(!element.classList.contains('loaded') && element.closest('.TrackList')) {
+                            element.classList.add('loaded');
+                        }
+                        var idx = that._trackItemFadeAnimatioinTimerList.indexOf(animationJob);
+                        if(idx > -1) {
+                            that._trackItemFadeAnimatioinTimerList.splice(idx, 1);
+                        }
                     });
 
-                    return {
-                        promise: Promise.race([deferred.promise, timer]),
-                        abort: abort
-                    }
-                })).run();
-                this._ListClusterizeTimerJob.promise.then(function() {
-                    that._ListClusterizeTimerJob = null;
-                    that._$TrackList.removeClass('loading');
-                })['catch'](function(e){});
+                }
+
+                return element;
             };
 
             UI.prototype._onResize = function() {
@@ -1593,17 +1718,20 @@
                         if(trackItem) {
                             var templateHTML = that.getTrackItemTemplate(trackItem);
                             templateDatas.push({
+                                id: trackItem.id,
                                 TrackItem: trackItem,
-                                template: templateHTML
+                                template: templateHTML,
+                                element: null,
+                                imageLoader: null
                             });
                         }
                     });
                     if(templateDatas.length) {
                         var templates = templateDatas.map(function(each){
-                            return each.template;
+                            return each.template.container;
                         });
-                        this._ListClusterize.append(templates);
                         this._TrackListTemplates = this._TrackListTemplates.concat(templateDatas);
+                        this._ListClusterize.append(templates);
                     }
                 }
             };
@@ -1616,7 +1744,7 @@
                     if(isTarget) {
                         return false;
                     } else {
-                        templates.push(each.template);
+                        templates.push(each.template.container);
                         return true;
                     }
                 });
