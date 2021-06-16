@@ -347,6 +347,7 @@
                 this.onPlaybackTimelineChange = new EventDispatcher;
 
                 this._TrackListTemplates = [];
+                this._TrackListLazyTimerID = null;
                 this._TrackListImageLoadList = [];
                 this._trackItemImageCacheList = [];
                 this._trackItemFadeAnimatioinTimerList = [];
@@ -766,13 +767,17 @@
 
                 }
                 this._focusTrackItemOnRightClick();
-                this._onTrackListLazyLoad();
+                if(this._TrackListLazyTimerID !== null) {
+                    window.clearTimeout(this._TrackListLazyTimerID);
+                }
+                this._TrackListLazyTimerID = window.setTimeout(this._onTrackListLazyLoad.bind(this), 0);
             };
 
             UI.prototype._onTrackListLazyLoad = function() {
                 var that = this;
                 var eachFadeAnimationTimer = null;
                 var eachTrackImageLoader = null;
+                this._TrackListLazyTimerID = null;
                 if(this._trackItemImageCacheList.length > 1000) {
                     this._resetTrackItemCache();
                 }
@@ -789,7 +794,6 @@
                         eachFadeAnimationTimer.abort();
                     }
                 }
-
 
                 var lastTrackItemIdx = -1;
                 this._$TrackList.find('.TrackItem').each(function(idx, each) {
