@@ -267,6 +267,487 @@
 
         var UI = function() {
 
+            var ua = window.navigator.userAgent;
+            var msie = ua.indexOf("MSIE ") > -1;
+            var mouseHandled = false;
+
+            function getMouseOffset(evt) {
+                evt = evt || window.event;
+                var originalEvent = evt.originalEvent;
+                var evtDoc = evt.target ? evt.target.ownerDocument : document;
+                var doc = evtDoc.documentElement;
+                var body = evtDoc.body;
+
+                var pageX = originalEvent.pageX;
+                var pageY = originalEvent.pageY;
+                if(!pageX && originalEvent.clientX !== null) {
+                    pageX = originalEvent.clientX +
+                        (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+                        (doc && doc.clientLeft || body && body.clientLeft || 0);
+                    pageY = originalEvent.clientY +
+                        (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
+                        (doc && doc.clientTop  || body && body.clientTop  || 0 );
+                }
+
+                return {
+                    x: pageX,
+                    y: pageY
+                };
+            }
+
+            function getDistance(offset1, offset2) {
+                var distanceX = Math.abs(offset1.x - offset2.x);
+                var distanceY = Math.abs(offset1.y - offset2.y);
+
+                return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+            }
+
+            function getBetween(num, min, max) {
+                return Math.max(min, Math.min(num, max));
+            }
+
+            var DragableClusterize = function() {
+                function DragableClusterize(config) {
+                    this._$scrollElem = $(config.scrollElem);
+                    this._$contentElem = $(config.contentElem);
+                    this._itemSelector = config.itemSelector;
+                    this._placeholdBefore = config.placeholdBeforeCallback;
+                    this._cursorContentBefore = config.cursorContentBeforeCallback;
+                    this._clusterChangedDispatcher = config.onClusterChanged;
+                    this._onSort = config.onSortCallback;
+
+                    this._initialized = false;
+                    this._clusterize = config.clusterize;
+                    this._distance = 1;
+                    this._delay = 0;
+                    this._cancel = "input, textarea, button, select, option";
+                    this._ignoreMissingWhich = false;
+
+                    this._selectedItem = {
+                        $element: null,
+                        elementOffset: null,
+                        elementHeight: null,
+                        index: null,
+                        mouseOffset: null,
+                        listOffset: null,
+                        lastMouseOffset: null
+                    };
+                    this._cursorContainer = null;
+
+                    this._placeholder = {
+                        $element: null,
+                        index: -1,
+                        isAbove: false
+                    };
+
+                    this._placeholder = null;
+                    this._placeholderContainer = null;
+                    this._cursorContentContainer = null;
+
+                    this.onMouseDrag = new EventDispatcher();
+                    this.onMouseDown = new EventDispatcher();
+                    this.onMouseUp = new EventDispatcher();
+                    this._destructed = false;
+                    this._mouseMoved = false;
+                    this._mouseStarted = false;
+                    this._mouseDownEvent = null;
+                    this._mouseDelayMet = false;
+                    this._clusterizeIndexCache = {
+                        clusterNum: -1,
+                        data: null
+                    };
+
+                    this._listeners = [];
+
+                    this._onMouseMoveHandler = this._onMouseMove.bind(this);
+                    this._onMouseUpHandler = this._onMouseUp.bind(this);
+                    this._onMouseDownHandler = this._onMouseDown.bind(this);
+                    this._onMouseClickHandler = this._onMouseClick.bind(this);
+                    this._onMouseDragHandler = this._onMouseDrag.bind(this);
+                    this._onMouseCaptureHandler = this._onMouseCapture.bind(this);
+                    this._onMouseStartHandler = this._onMouseStart.bind(this);
+                    this._onMouseStopHandler = this._onMouseStop.bind(this);
+                    this._onClusterizeChangedHandler = this._onClusterizeChanged.bind(this);
+
+                    this._init();
+                }
+
+                DragableClusterize.prototype._init = function() {
+                    if(!this._initialized) {
+                        var that = this;
+                        this._$contentElem.on("mousedown", this._onMouseDownHandler);
+                        this._$contentElem.on("click", this._onMouseClickHandler);
+                        this._listeners.push(this.onMouseDown.subscribe(function(evt) {
+                            var $target = that._getTrackItemElementByChild($(evt.target));
+                            var idx = that._getTrackItemIndex($target);
+                            if(idx > -1) {
+                                var mouseOffset = getMouseOffset(evt);
+                                var listOffset = that._$scrollElem.offset();
+                                var elementOffset = $target.offset();
+                                that._selectedItem = {
+                                    $element: $target,
+                                    elementOffset: {
+                                        x: elementOffset.left,
+                                        y: elementOffset.top
+                                    },
+                                    elementWidth: $target.width(),
+                                    elementHeight: $target.height(),
+                                    index: idx,
+                                    mouseOffset: mouseOffset,
+                                    listOffset: {
+                                        x: listOffset.left,
+                                        y: listOffset.top
+                                    },
+                                    lastMouseOffset : mouseOffset
+                                };
+                            }
+                            that._buildCursorContent();
+                        }));
+
+                        this._listeners.push(this.onMouseDrag.subscribe(function(evt) {
+                            that._selectedItem.$element.hide();
+                            that._moveCursorContent(evt);
+                            that._selectedItem.lastMouseOffset = getMouseOffset(evt);
+                            that._scrollAnimationFrameHandler();
+                        }));
+
+                        this._listeners.push(this.onMouseUp.subscribe(function(evt) {
+                            if(that._placeholder) {
+                                var beforeIdx = that._selectedItem.index;
+                                var afterIndex = getBetween(that._placeholder.index, 0, that._clusterize.getRowsAmount());
+                                if(that._onSort && beforeIdx !== afterIndex) {
+                                    that._onSort({
+                                        beforeIndex: beforeIdx,
+                                        afterIndex: afterIndex
+                                    });
+                                }
+                            }
+                            that._selectedItem.$element.show();
+                            that._selectedItem = null;
+                            that._removeCursorContent();
+                        }));
+
+                        this._listeners.push(this._clusterChangedDispatcher.subscribe(this._onClusterizeChangedHandler));
+                        this._initialized = true;
+                    }
+                };
+
+                DragableClusterize.prototype._onMouseMove = function (evt) {
+                    if(this._mouseMoved) {
+                        if(msie && (!document.documentMode || document.documentMode < 9) && !evt.button) {
+                            return this._onMouseUpHandler(evt);
+                        } else if(!event.which) {
+                            if(evt.originalEvent.altKey || evt.originalEvent.ctrlKey || evt.originalEvent.metaKey || evt.originalEvent.shiftKey) {
+                                this._ignoreMissingWhich = true;
+                            } else if(!this._ignoreMissingWhich) {
+                                return this._onMouseUpHandler(evt);
+                            }
+                        }
+                    }
+
+                    if (evt.which || evt.button) {
+                        this._mouseMoved = true;
+                    }
+                    if (this._mouseStarted) {
+                        this._onMouseDragHandler(evt);
+                        return evt.preventDefault();
+                    }
+                    if ( this._mouseDistanceMet(evt) && this._isMouseDelayMet(evt)) {
+                        this._mouseStarted = this._onMouseStartHandler(this._mouseDownEvent, evt) !== false;
+                        if(this._mouseStarted) {
+                            this._onMouseDrag(evt);
+                        } else {
+                            this._onMouseUpHandler(evt);
+                        }
+                    }
+
+                    console.log('mousemove', evt);
+
+                    return !this._mouseStarted;
+                };
+
+                DragableClusterize.prototype._onMouseUp = function(evt) {
+                    $(document).off('mousemove', this._onMouseMoveHandler);
+                    $(document).off('mouseup', this._onMouseUpHandler);
+                    var $target = $(evt.target);
+                    if (this._mouseStarted) {
+                        this._mouseStarted = false;
+                        if (evt.target === this._mouseDownEvent.target) {
+                            if(!$target.hasClass('preventClickEvent')) {
+                                $target.addClass('preventClickEvent');
+                            }
+                        }
+
+                        this._onMouseStop(evt);
+                    }
+                    if (this._mouseDelayTimer !== null) {
+                        window.clearTimeout(this._mouseDelayTimer);
+                        this._mouseDelayTimer = null;
+                    }
+                    this._ignoreMissingWhich = false;
+                    mouseHandled = false;
+                    evt.preventDefault();
+                    this.onMouseUp.dispatch(evt);
+                };
+
+                DragableClusterize.prototype._onMouseDown = function(evt) {
+                    if (mouseHandled) {
+                        return;
+                    }
+                    this._mouseMoved = false;
+                    if(this._mouseStarted) {
+                        this._onMouseUpHandler(evt);
+                    }
+                    this._mouseDownEvent = evt;
+                    var that = this;
+                    var btnIsLeft = evt.which === 1;
+                    var elIsCancel = typeof this.cancel === "string" && evt.target.nodeName ?
+                        $(evt.target).closest(this._cancel).length :
+                        false;
+
+                    if (!btnIsLeft || elIsCancel || !this._onMouseCaptureHandler(evt) ) {
+                        return true;
+                    }
+                    this._mouseDelayMet = !this._delay;
+                    if (!this._mouseDelayMet) {
+                        this._mouseDelayTimer = setTimeout( function() {
+                            that._mouseDelayMet = true;
+                        }, this._delay);
+                    }
+                    if (this._mouseDistanceMet(evt) && this._isMouseDelayMet(evt) ) {
+                        this._mouseStarted = this._mouseStart( event ) !== false;
+                        if (!this._mouseStarted) {
+                            evt.preventDefault();
+                            return true;
+                        }
+                    }
+                    var $target = $(evt.target);
+                    if($target.hasClass('preventClickEvent')) {
+                        $target.removeClass('preventClickEvent');
+                    }
+
+                    $(document).on('mousemove', this._onMouseMoveHandler);
+                    $(document).on('mouseup', this._onMouseUpHandler);
+                    evt.preventDefault();
+                    mouseHandled = true;
+                    this.onMouseDown.dispatch(evt);
+
+                    return true;
+                };
+
+                DragableClusterize.prototype._onMouseClick = function(evt) {
+                    var $target = $(evt.target);
+                    if($target.hasClass('preventClickEvent')) {
+                        $target.removeClass('preventClickEvent');
+                        evt.stopImmediatePropagation();
+                        return false;
+                    }
+                };
+
+                DragableClusterize.prototype._onMouseDrag = function(evt) {
+                    this.onMouseDrag.dispatch(evt);
+                };
+
+                DragableClusterize.prototype._onMouseCapture = function(evt) {
+                    return true;
+                };
+
+                DragableClusterize.prototype._onMouseStart = function(evt) {
+
+                };
+
+                DragableClusterize.prototype._onMouseStop = function(evt) {
+
+                };
+
+                DragableClusterize.prototype._mouseDistanceMet = function(evt) {
+                    return Math.max(
+                        Math.abs( this._mouseDownEvent.pageX - evt.pageX ),
+                        Math.abs( this._mouseDownEvent.pageY - evt.pageY )
+                    ) >= this._distance;
+                };
+
+                DragableClusterize.prototype._isMouseDelayMet = function() {
+                    return this._mouseDelayMet;
+                };
+
+                DragableClusterize.prototype._onClusterizeChanged = function(evt) {
+                    if(this._placeholder) {
+                        this._placeholder.$element.detach();
+                        this._placeholder = null;
+                    }
+                    if(this._selectedItem) {
+                        this._clusterizeIndexCache = null;
+                        this._scrollAnimationFrameHandler();
+                    }
+                };
+
+                DragableClusterize.prototype.getClusterizeData = function(update) {
+                    if(update || !this._clusterizeIndexCache || this._clusterizeIndexCache.clusterNum !== this._clusterize.getClusterNum()) {
+                        var clusterNum = this._clusterize.getClusterNum();
+                        var rows = this._clusterize.getRows();
+                        var data = this._clusterize.generate(rows, clusterNum);
+                        this._clusterizeIndexCache = {
+                            clusterNum: clusterNum,
+                            data: data
+                        };
+                    }
+
+                    return this._clusterizeIndexCache.data;
+                }
+
+                DragableClusterize.prototype._getTrackItemIndex = function($trackItem) {
+                    var data = this.getClusterizeData();
+                    var rowsAbove = data.rows_above <= 1 ? 0 : data.rows_above;
+
+                    return rowsAbove + this._$contentElem.find(this._itemSelector).index($trackItem);
+                };
+
+                DragableClusterize.prototype._getTrackItemElementByChild = function($child) {
+                    if($child && $child.length) {
+                        if($child.is(this._itemSelector)) {
+                            return child;
+                        }
+                        var $parents = $child.parents(this._itemSelector);
+                        if($parents.length) {
+                            return $parents;
+                        }
+                    }
+
+                    return null;
+                };
+
+                DragableClusterize.prototype._buildCursorContent = function() {
+                    var $body = $(document.body);
+                    if(!this._cursorContentContainer && this._selectedItem) {
+                        var mouseOffset = this._selectedItem.mouseOffset;
+                        var elementOffset = this._selectedItem.elementOffset;
+                        var $firstItem = this._$contentElem.find(this._itemSelector).first();
+                        var itemWidth = $firstItem.width();
+                        var itemHeight = $firstItem.height();
+                        var top = elementOffset.y - mouseOffset.y;
+                        var left = elementOffset.x -mouseOffset.x;
+                        this._cursorContentContainer = $('<div class="DragableClusterize__cursorContentWrapper" style="z-index: 10000; display: inline-block; position:relative">' +
+                            '<div class="DragableClusterize__cursorContent" style="position:absolute; top: '+ top +'px; left: '+ left +'px;"></div>' +
+                            '</div>');
+                        var cursorContent = null;
+                        if(this._cursorContentBefore) {
+                            cursorContent = this._cursorContentBefore(this._selectedItem.index);
+                        }
+                        if(!cursorContent) {
+                            cursorContent = $('<div class="" style="height: '+itemHeight+'px; width: '+itemWidth+'px; background-color: aliceblue; "></div>');
+                        }
+                        if(cursorContent) {
+                            this._cursorContentContainer.find('.DragableClusterize__cursorContent').append(cursorContent);
+                        }
+                        $body.append(this._cursorContentContainer);
+                    }
+                };
+
+                DragableClusterize.prototype._moveCursorContent = function(evt) {
+                    if(this._cursorContentContainer) {
+                        var offset = getMouseOffset(evt);
+                        this._selectedItem.lastMouseOffset = offset;
+                        this._cursorContentContainer.offset({
+                            top: offset.y,
+                            left: offset.x
+                        });
+                    }
+                };
+
+                DragableClusterize.prototype._removeCursorContent = function() {
+                    if(this._cursorContentContainer) {
+                        this._cursorContentContainer.remove();
+                    }
+                    if(this._placeholder) {
+                        this._placeholder.$element.detach();
+                        this._placeholder = null;
+                    }
+                    this._cursorContentContainer = null;
+                    this._selectedItem = null;
+                };
+
+                DragableClusterize.prototype._scrollAnimationFrameHandler = function() {
+                    if(this._cursorContentContainer && this._selectedItem) {
+                        var lastMouseOffset = this._selectedItem.lastMouseOffset;
+                        var mouseOffset = this._selectedItem.mouseOffset;
+                        var scrollElement = this._$scrollElem[0];
+                        var scrollElementHeight = this._$scrollElem.height();
+                        var quarter = scrollElementHeight / 4;
+                        var above = this._selectedItem.listOffset.y + quarter;
+                        var beyond = this._selectedItem.listOffset.y + scrollElementHeight - quarter;
+                        if(lastMouseOffset.y < above || lastMouseOffset.y > beyond) {
+                            var disatance = getDistance({
+                                x: this._selectedItem.lastMouseOffset.x,
+                                y: lastMouseOffset.y < above ? above : beyond
+                            }, this._selectedItem.lastMouseOffset);
+                            var speed = disatance / 40;
+                            var gotoTop = lastMouseOffset.y > beyond;
+                            scrollElement.scrollTop = Math.max(0,  scrollElement.scrollTop + speed * (gotoTop ? 1 : -1));
+                        }
+
+                        var itemHeight = this._selectedItem.elementHeight;
+                        var itemWidth = this._selectedItem.elementWidth;
+                        var listOffset = this._selectedItem.listOffset;
+                        var clusterData = this.getClusterizeData();
+                        var rowsObove = clusterData.rows_above <= 1 ? 0 : clusterData.rows_above;
+                        var bottomOffset = clusterData.bottomOffset;
+                        var hoverY = scrollElement.scrollTop + lastMouseOffset.y - listOffset.y;
+                        var placeIdx = Math.floor(hoverY / itemHeight);
+                        var totalItemCount = this._clusterize.getRowsAmount();
+                        var isAbove = hoverY % itemHeight < itemHeight / 2;
+                        var $moveTo;
+                        var children;
+                        if(placeIdx < 0) {
+                            placeIdx = 0;
+                            isAbove = true;
+                        } else if(placeIdx >= totalItemCount) {
+                            placeIdx = totalItemCount -1;
+                            isAbove = false;
+                        }
+                        if(!this._placeholder) {
+                            this._placeholder = {
+                                $element: $('<div class="" style="width: '+ itemWidth +'px; height: '+ itemHeight +'px; "></div>'),
+                                index: -1,
+                                isAbove: false
+                            };
+                        }
+                        if(this._placeholder.index !== placeIdx || this._placeholder.isAbove != isAbove) {
+                            this._placeholder.$element.detach();
+                            this._placeholder.index = placeIdx;
+                            this._placeholder.isAbove = isAbove;
+                            children = this._$contentElem.children();
+                            $moveTo = $(children[placeIdx - Math.max(rowsObove-2, 0)]);
+                            if(isAbove) {
+                                $moveTo.before(this._placeholder.$element);
+                            } else {
+                                $moveTo.after(this._placeholder.$element);
+                            }
+                        }
+
+                        window.requestAnimationFrame(this._scrollAnimationFrameHandler.bind(this));
+                    }
+                };
+
+                DragableClusterize.prototype.isDestructed = function() {
+                    return this._destructed;
+                };
+
+                DragableClusterize.prototype.destruct = function() {
+                    if(!this.isDestructed()) {
+                        this._$contentElem.off("mousedown", this._onMouseDownHandler);
+                        this._$contentElem.off("click", this._onMouseClickHandler);
+                        $(document).off('mousemove', this._onMouseMoveHandler);
+                        $(document).off('mouseup', this._onMouseUpHandler);
+                        this._destructed = true;
+                    }
+                };
+
+
+
+                return DragableClusterize;
+            }();
+
             function createElementFromHTML(htmlString) {
                 var div = document.createElement('div');
                 div.innerHTML = htmlString.trim();
@@ -351,6 +832,8 @@
                 this._TrackListImageLoadList = [];
                 this._trackItemImageCacheList = [];
                 this._trackItemFadeAnimatioinTimerList = [];
+                this._trackListDragableClusterize = null;
+                this._trackListClusterChangeDispatcher = new EventDispatcher;
 
                 this._ListClusterize = null;
 
@@ -425,6 +908,7 @@
                 this._onLyricClickHandler = this._handleLyricClick.bind(this);
                 this._onExtendedLyricCloseButtonClickHandler = this._handleExtendedLyricCloseButtonClick.bind(this);
                 this._onExtendedLyricLineClickHandler = this._handleExtendedLyricLineClick.bind(this);
+                this._onSortTrackListHandler = this._handleSortTrackList.bind(this);
 
                 this._init();
             }
@@ -733,6 +1217,7 @@
                             });
                         }
                     }
+
                     this._ListClusterize = new window.Clusterize({
                         rows: [],
                         scrollElem: this._TrackListSimpleBar ? this._TrackListSimpleBar.getScrollElement() : this._$TrackListWrapper[0],
@@ -742,11 +1227,44 @@
                         tag: 'div',
                         callbacks: {
                             clusterChanged: function(e){
-                                that._onClusterChanged();
+                                that._trackListClusterChangeDispatcher.dispatch(e);
                             }
                         }
                     });
+                    this._trackListDragableClusterize = new DragableClusterize({
+                        scrollElem: this._TrackListSimpleBar ? this._TrackListSimpleBar.getScrollElement() : this._$TrackListWrapper[0],
+                        contentElem: this._$TrackList[0],
+                        itemSelector: 'div.TrackItem',
+                        clusterize: this._ListClusterize,
+                        onClusterChanged: this._trackListClusterChangeDispatcher,
+                        placeholdBeforeCallback: function(idx) {
+                            return;
+                        },
+                        cursorContentBeforeCallback: function(idx) {
+                            var trackItemElement = that._getTrackItemContentByIndex(idx);
+                            if(!trackItemElement) {
+                                return null;
+                            }
 
+                            var $trackItemElement = $(trackItemElement);
+                            var $template = $('<div class="BluePlayer__cursorContent" style="width: '+trackItemElement.offsetWidth+'px; height: '+trackItemElement.offsetHeight+'px;">' +
+                                    '<div class="BluePlayer__cursorContent_left">' +
+                                    '</div>' +
+                                    '<div class="BluePlayer__cursorContent_right">' +
+                                    '</div>' +
+                                    '<div class="clear"></div>' +
+                                '</div>');
+
+                            $template.find('.BluePlayer__cursorContent_left').append($trackItemElement.find('.TrackItemDescription__left').children().clone());
+                            $template.find('.BluePlayer__cursorContent_right').append($trackItemElement.find('.TrackItemDescription__right .duration').clone());
+
+                            return $template;
+                        },
+                        onSortCallback: this._onSortTrackListHandler
+                    });
+                    this._trackListClusterChangeDispatcher.subscribe(function(e) {
+                        that._onClusterChanged();
+                    });
                     this.setRandom(this._random);
                     this.setMode(this._mode);
                     this.enableLyric(this._enableLyric);
@@ -770,7 +1288,8 @@
                 if(this._TrackListLazyTimerID !== null) {
                     window.clearTimeout(this._TrackListLazyTimerID);
                 }
-                this._TrackListLazyTimerID = window.setTimeout(this._onTrackListLazyLoad.bind(this), 0);
+                this._onTrackListLazyLoad();
+                //this._TrackListLazyTimerID = window.setTimeout(this._onTrackListLazyLoad.bind(this), 0);
             };
 
             UI.prototype._onTrackListLazyLoad = function() {
@@ -1339,9 +1858,9 @@
                 var strMaxWidth = trackListWidth - 130 + (isMobile ? 25 : 0);
                 var playerID = this._Player.getID();
                 var className = 'trackItemTextWidth';
-                var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span {max-width: '+strMaxWidth+'px;}\n';
-                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info .artist {max-width: '+strMaxWidth+'px;}\n';
-                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__right {left: '+(trackListWidth-67)+'px; height: 48px;}\n';
+                var css = '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info span, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info span {max-width: '+strMaxWidth+'px;}\n';
+                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__left .info .artist, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info .artist {max-width: '+strMaxWidth+'px;}\n';
+                css += '#BluePlayer.PlayerID_'+playerID+' .TrackItemDescription__right, .BluePlayer__cursorContent .BluePlayer__cursorContent_right {left: '+(trackListWidth-67)+'px; height: 48px;}\n';
                 if(this.isEnabledLyric()) {
                     var $rightControlSection = this._$PlayerControls;
                     var rightControlWidth = $rightControlSection.width();
@@ -1388,6 +1907,26 @@
                         }
                     }
                 }
+            };
+
+            UI.prototype._handleSortTrackList = function(idxObj) {
+                this._ensureNotDestructed();
+                var beforeIndex = idxObj.beforeIndex;
+                var afterIndex = idxObj.afterIndex;
+                var player = this._Player;
+                var playlist = player._Playlist;
+                var output = playlist.moveTrackItemByIndex(beforeIndex, afterIndex);
+                if(!output) {
+                    return;
+                }
+
+                var templates = [];
+                var element = this._TrackListTemplates[beforeIndex];
+                this._TrackListTemplates.splice(beforeIndex, 1);
+                this._TrackListTemplates.splice(afterIndex, 0, element);
+                this._ListClusterize.update(this._TrackListTemplates.map(function(each) {
+                    return each.template.container;
+                }));
             };
 
             UI.prototype._reflectTrackItemToPlayer = function(trackItem) {
@@ -2814,6 +3353,18 @@
                     return false;
                 };
 
+                PlaylistManager.prototype.moveTrackItemByIndex = function(fromIndex, toIndex) {
+                    if(fromIndex >= 0 && toIndex >= 0 && fromIndex < this._playlist.length && toIndex < this._playlist.length) {
+                        var element = this._playlist[fromIndex];
+                        this._playlist.splice(fromIndex, 1);
+                        this._playlist.splice(toIndex, 0, element);
+
+                        return true;
+                    }
+
+                    return false;
+                };
+
                 PlaylistManager.prototype.setTrackMode = function(mode) {
                     return null;
                 };
@@ -2909,18 +3460,6 @@
                     if(jobCompleted) {
                         this._standByPlaylist = this._standByPlaylist.concat(jobCompleted);
                         this.buildPlaylist(this._standByPlaylist);
-                    }
-                };
-
-                RandomPlaylistManager.prototype.removeTrackItem = function(trackItem) {
-                    PlaylistManager.prototype.removeTrackItem.call(this, trackItem);
-                    var pickedTrackItemIndex = this._pickedPlaylist.indexOf(trackItem);
-                    var standByTrackItemIndex = this._standByPlaylist.indexOf(trackItem);
-                    if(pickedTrackItemIndex > -1) {
-                        this._pickedPlaylist.splice(pickedTrackItemIndex, 1);
-                    }
-                    if(standByTrackItemIndex > -1) {
-                        this._standByPlaylist.splice(standByTrackItemIndex, 1);
                     }
                 };
 
@@ -3180,6 +3719,10 @@
                 }
 
                 return false;
+            };
+
+            Playlist.prototype.moveTrackItemByIndex = function(fromIndex, toIndex) {
+                return PlaylistManager.prototype.moveTrackItemByIndex.call(this, fromIndex, toIndex);
             };
 
             Playlist.prototype.resetSequence = function() {

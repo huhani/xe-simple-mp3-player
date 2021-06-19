@@ -179,17 +179,17 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackItemDescription {height:100%; animation: fadein 0.4s;}
 #BluePlayer .trackItem_content.loaded .TrackItemDescription {animation: inherit;}
 #BluePlayer .TrackItem .trackItem_content.loading .TrackItemDescription, #BluePlayer .TrackList.loading .TrackItemDescription {display: none;}
-#BluePlayer .TrackItemDescription__left {float:left; display: table; height: 100%;}
-#BluePlayer .TrackItemDescription__left .albumCover__wrapper {display: table-cell; vertical-align: middle; padding: 0 4px 0 8px; }
-#BluePlayer .TrackItemDescription__left .albumCover {width: 32px; height: 32px; background-color: #E0E0E0; display: block;}
-#BluePlayer .TrackItemDescription__left .albumCover .albumCover__img {width: 32px; height: 32px; object-fit: cover;}
-#BluePlayer .TrackItemDescription__left .info {display: table-cell; vertical-align: middle; padding: 0 5px;}
-#BluePlayer .TrackItemDescription__left .info span {display: inline-block; text-align: left; vertical-align: middle;}
-#BluePlayer .TrackItemDescription__left .info .artist span{font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
-#BluePlayer .TrackItemDescription__left .info .title span{font-size: 12px; color: #353535; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
-#BluePlayer .TrackItemDescription__left .info .separator {font-size: 11px; color: #353535; max-width: 200px; padding: 0 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+#BluePlayer .TrackItemDescription__left, .BluePlayer__cursorContent .BluePlayer__cursorContent_left {float:left; display: table; height: 100%;}
+#BluePlayer .TrackItemDescription__left .albumCover__wrapper, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .albumCover__wrapper {display: table-cell; vertical-align: middle; padding: 0 4px 0 8px; }
+#BluePlayer .TrackItemDescription__left .albumCover, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .albumCover {width: 32px; height: 32px; background-color: #E0E0E0; display: block;}
+#BluePlayer .TrackItemDescription__left .albumCover .albumCover__img, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .albumCover .albumCover__img {width: 32px; height: 32px; object-fit: cover;}
+#BluePlayer .TrackItemDescription__left .info, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info {display: table-cell; vertical-align: middle; padding: 0 5px;}
+#BluePlayer .TrackItemDescription__left .info span, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info span {display: inline-block; text-align: left; vertical-align: middle;}
+#BluePlayer .TrackItemDescription__left .info .artist span, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info .artist span {font-size: 11px; color: #A0A0A0; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+#BluePlayer .TrackItemDescription__left .info .title span, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info .title span {font-size: 12px; color: #353535; max-width: 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
+#BluePlayer .TrackItemDescription__left .info .separator, .BluePlayer__cursorContent .BluePlayer__cursorContent_left .info .separator {font-size: 11px; color: #353535; max-width: 200px; padding: 0 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;}
 
-#BluePlayer .TrackItemDescription__right {position:absolute; display: table; height: 100%;}
+#BluePlayer .TrackItemDescription__right, .BluePlayer__cursorContent .BluePlayer__cursorContent_right {position:absolute; display: table; height: 100%;}
 
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .controls, #BluePlayer .TrackItem.rightClick .TrackItemDescription__right.enableControl .controls {display:table-cell;}
 #BluePlayer .TrackItemDescription:hover .TrackItemDescription__right.enableControl .duration {display: none;}
@@ -202,8 +202,8 @@ body {margin: 0; padding: 0;}
 #BluePlayer .TrackItemDescription__right .controls-icon.remove .icon {background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgd2lkdGg9IjM1N3B4IiBoZWlnaHQ9IjM1N3B4IiB2aWV3Qm94PSIwIDAgMzU3IDM1NyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzU3IDM1NzsiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPGc+DQoJPGcgaWQ9ImNsb3NlIj4NCgkJPHBvbHlnb24gcG9pbnRzPSIzNTcsMzUuNyAzMjEuMywwIDE3OC41LDE0Mi44IDM1LjcsMCAwLDM1LjcgMTQyLjgsMTc4LjUgMCwzMjEuMyAzNS43LDM1NyAxNzguNSwyMTQuMiAzMjEuMywzNTcgMzU3LDMyMS4zIA0KCQkJMjE0LjIsMTc4LjUgCQkiLz4NCgk8L2c+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
 #BluePlayer .TrackItemDescription__right .controls-icon.more .icon {background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJDYXBhXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgNjAgNjAiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDYwIDYwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8Zz4NCgk8cGF0aCBkPSJNOCwyMmMtNC40MTEsMC04LDMuNTg5LTgsOHMzLjU4OSw4LDgsOHM4LTMuNTg5LDgtOFMxMi40MTEsMjIsOCwyMnoiLz4NCgk8cGF0aCBkPSJNNTIsMjJjLTQuNDExLDAtOCwzLjU4OS04LDhzMy41ODksOCw4LDhzOC0zLjU4OSw4LThTNTYuNDExLDIyLDUyLDIyeiIvPg0KCTxwYXRoIGQ9Ik0zMCwyMmMtNC40MTEsMC04LDMuNTg5LTgsOHMzLjU4OSw4LDgsOHM4LTMuNTg5LDgtOFMzNC40MTEsMjIsMzAsMjJ6Ii8+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8Zz4NCjwvZz4NCjxnPg0KPC9nPg0KPGc+DQo8L2c+DQo8L3N2Zz4NCg==') no-repeat; background-size: cover;}
 
-#BluePlayer .TrackItemDescription__right .duration {display: table-cell; vertical-align: middle; padding: 0; width: 65px; text-align: center;}
-#BluePlayer .TrackItemDescription__right .duration span {font-size: 11px; color: #A0A0A0; position: relative; left: 5px;}
+#BluePlayer .TrackItemDescription__right .duration, .BluePlayer__cursorContent .BluePlayer__cursorContent_right .duration{display: table-cell; vertical-align: middle; padding: 0; width: 65px; text-align: center;}
+#BluePlayer .TrackItemDescription__right .duration span, .BluePlayer__cursorContent .BluePlayer__cursorContent_right .duration span {font-size: 11px; color: #A0A0A0; position: relative; left: 5px;}
 
 #BluePlayer.mobile {max-height: 620px;}
 #BluePlayer.mobile .BluePlayer__Controls__container {display:block; width: 100%; border-right: unset;}
@@ -238,6 +238,11 @@ body {margin: 0; padding: 0;}
 #BluePlayer.mobile .AlbumCover__image__container {width: 40px; height: 40px;}
 #BluePlayer.mobile .TrackInfo__AlbumCover .AlbumCover__image__container .AlbumCover__image {width: 40px; height: 40px;}
 #BluePlayer.mobile .TrackInfo__Tags { position: relative; padding: 0 5px; box-sizing: border-box;}
+
+.BluePlayer__cursorContent {height: 100%; height: 48px; overflow: hidden; line-height: 1.2; background-color: #E0E0E0;
+    -webkit-user-select: none;  -moz-user-select: none;  -ms-user-select: none;  user-select: none;
+    line-height: 1.5;  outline: none; cursor: pointer;
+    opacity: 0.7;}
 
 @keyframes fadein {
     from { opacity: 0; }

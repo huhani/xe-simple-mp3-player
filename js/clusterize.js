@@ -148,6 +148,9 @@
     self.prepend = function(rows) {
       add('prepend', rows);
     }
+    self.getRows = function() {
+      return rows;
+    };
   }
 
   Clusterize.prototype = {
