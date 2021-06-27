@@ -414,7 +414,10 @@
                         this._listeners.push(this.onMouseUp.subscribe(function(evt) {
                             if(that._placeholder) {
                                 var beforeIdx = that._selectedItem.index;
-                                var afterIndex = getBetween(that._placeholder.index, 0, that._clusterize.getRowsAmount());
+                                var afterIndex = beforeIdx !== that._placeholder.index ?
+                                    getBetween(that._placeholder.index + (that._placeholder.isAbove ? -1 : 0) + (beforeIdx >= that._placeholder.index ? 1 : 0), 0, that._clusterize.getRowsAmount()) :
+                                    beforeIdx;
+
                                 if(that._onSort && beforeIdx !== afterIndex) {
                                     that._onSort({
                                         beforeIndex: beforeIdx,
@@ -460,8 +463,6 @@
                             this._onMouseUpHandler(evt);
                         }
                     }
-
-                    console.log('mousemove', evt);
 
                     return !this._mouseStarted;
                 };
@@ -709,13 +710,15 @@
                             this._placeholder = {
                                 $element: $('<div class="" style="width: '+ itemWidth +'px; height: '+ itemHeight +'px; "></div>'),
                                 index: -1,
-                                isAbove: false
+                                isAbove: true,
+                                clusterNum: -1
                             };
                         }
                         if(this._placeholder.index !== placeIdx || this._placeholder.isAbove != isAbove) {
                             this._placeholder.$element.detach();
                             this._placeholder.index = placeIdx;
                             this._placeholder.isAbove = isAbove;
+                            this._placeholder.clusterNum = this._clusterize.getClusterNum();
                             children = this._$contentElem.children();
                             $moveTo = $(children[placeIdx - Math.max(rowsObove-2, 0)]);
                             if(isAbove) {
