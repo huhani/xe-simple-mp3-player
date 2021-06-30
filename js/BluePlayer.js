@@ -598,10 +598,7 @@
                                 $element.hide();
                             }
                         }
-
-                        // 1. 해당하는 element를 찾는다
-                        // 2. 숨긴다.
-                        // 3. 마우스업 이벤트 발생시 다시 보여준다.
+                        
                         this._scrollAnimationFrameHandler();
                     }
                 };
