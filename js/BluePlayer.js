@@ -226,6 +226,10 @@
 
     var BluePlayer = function() {
 
+        function getBetween(num, min, max) {
+            return Math.max(min, Math.min(num, max));
+        }
+
         var PLAYER_ID = 0;
         var SEEK_TIME = 20000;
         var _MediaSession = typeof navigator !== "undefined" && "mediaSession" in navigator && navigator.mediaSession || null;
@@ -302,10 +306,6 @@
                 return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
             }
 
-            function getBetween(num, min, max) {
-                return Math.max(min, Math.min(num, max));
-            }
-
             var DragableClusterize = function() {
                 function DragableClusterize(config) {
                     this._$scrollElem = $(config.scrollElem);
@@ -327,10 +327,11 @@
                         $element: null,
                         elementOffset: null,
                         elementHeight: null,
-                        index: null,
+                        index: -1,
                         mouseOffset: null,
                         listOffset: null,
-                        lastMouseOffset: null
+                        lastMouseOffset: null,
+                        clusterNum: -1
                     };
                     this._cursorContainer = null;
 
@@ -358,7 +359,6 @@
                     };
 
                     this._listeners = [];
-
                     this._onMouseMoveHandler = this._onMouseMove.bind(this);
                     this._onMouseUpHandler = this._onMouseUp.bind(this);
                     this._onMouseDownHandler = this._onMouseDown.bind(this);
@@ -398,7 +398,8 @@
                                         x: listOffset.left,
                                         y: listOffset.top
                                     },
-                                    lastMouseOffset : mouseOffset
+                                    lastMouseOffset : mouseOffset,
+                                    clusterNum: that._clusterize.getClusterNum()
                                 };
                             }
                             that._buildCursorContent();
@@ -412,8 +413,13 @@
                         }));
 
                         this._listeners.push(this.onMouseUp.subscribe(function(evt) {
+                            var selectedItem = that._selectedItem;
+                            that._selectedItem = null;
+                            selectedItem.$element.show();
                             if(that._placeholder) {
-                                var beforeIdx = that._selectedItem.index;
+                                var scrollElement = that._$scrollElem[0];
+                                var itemHeight = selectedItem.elementHeight;
+                                var beforeIdx = selectedItem.index;
                                 var afterIndex = beforeIdx !== that._placeholder.index ?
                                     getBetween(that._placeholder.index + (that._placeholder.isAbove ? -1 : 0) + (beforeIdx >= that._placeholder.index ? 1 : 0), 0, that._clusterize.getRowsAmount()) :
                                     beforeIdx;
@@ -423,14 +429,21 @@
                                         beforeIndex: beforeIdx,
                                         afterIndex: afterIndex
                                     });
+                                    if(selectedItem.clusterNum < that._clusterize.getClusterNum()) {
+                                        scrollElement.scrollTop -= itemHeight;
+                                    }
                                 }
                             }
-                            that._selectedItem.$element.show();
-                            that._selectedItem = null;
+                            var $element = that.getTrackItemElementByIndex(afterIndex);
+                            if($element) {
+                                $element.show();
+                            }
+
                             that._removeCursorContent();
                         }));
 
                         this._listeners.push(this._clusterChangedDispatcher.subscribe(this._onClusterizeChangedHandler));
+
                         this._initialized = true;
                     }
                 };
@@ -572,15 +585,29 @@
                     return this._mouseDelayMet;
                 };
 
-                DragableClusterize.prototype._onClusterizeChanged = function(evt) {
+                DragableClusterize.prototype._onClusterizeChanged = function() {
+                    this.drainClusterizeCache();
                     if(this._placeholder) {
                         this._placeholder.$element.detach();
                         this._placeholder = null;
                     }
                     if(this._selectedItem) {
-                        this._clusterizeIndexCache = null;
+                        if(this._selectedItem.index > -1) {
+                            var $element = this.getTrackItemElementByIndex(this._selectedItem.index);
+                            if($element) {
+                                $element.hide();
+                            }
+                        }
+
+                        // 1. 해당하는 element를 찾는다
+                        // 2. 숨긴다.
+                        // 3. 마우스업 이벤트 발생시 다시 보여준다.
                         this._scrollAnimationFrameHandler();
                     }
+                };
+
+                DragableClusterize.prototype.drainClusterizeCache = function() {
+                    this._clusterizeIndexCache = null;
                 };
 
                 DragableClusterize.prototype.getClusterizeData = function(update) {
@@ -602,6 +629,17 @@
                     var rowsAbove = data.rows_above <= 1 ? 0 : data.rows_above;
 
                     return rowsAbove + this._$contentElem.find(this._itemSelector).index($trackItem);
+                };
+
+                DragableClusterize.prototype.getTrackItemElementByIndex = function(index) {
+                    var data = this.getClusterizeData();
+                    var rowsAbove = data.rows_above <= 1 ? 0 : data.rows_above;
+                    var listIdx = index - rowsAbove;
+                    if(listIdx >= 0) {
+                        return this._$contentElem.find(this._itemSelector).eq(listIdx);
+                    }
+
+                    return null;
                 };
 
                 DragableClusterize.prototype._getTrackItemElementByChild = function($child) {
@@ -677,15 +715,6 @@
                         var quarter = scrollElementHeight / 4;
                         var above = this._selectedItem.listOffset.y + quarter;
                         var beyond = this._selectedItem.listOffset.y + scrollElementHeight - quarter;
-                        if(lastMouseOffset.y < above || lastMouseOffset.y > beyond) {
-                            var disatance = getDistance({
-                                x: this._selectedItem.lastMouseOffset.x,
-                                y: lastMouseOffset.y < above ? above : beyond
-                            }, this._selectedItem.lastMouseOffset);
-                            var speed = disatance / 40;
-                            var gotoTop = lastMouseOffset.y > beyond;
-                            scrollElement.scrollTop = Math.max(0,  scrollElement.scrollTop + speed * (gotoTop ? 1 : -1));
-                        }
 
                         var itemHeight = this._selectedItem.elementHeight;
                         var itemWidth = this._selectedItem.elementWidth;
@@ -708,7 +737,7 @@
                         }
                         if(!this._placeholder) {
                             this._placeholder = {
-                                $element: $('<div class="" style="width: '+ itemWidth +'px; height: '+ itemHeight +'px; "></div>'),
+                                $element: $('<div class="placeholder" style="width: '+ itemWidth +'px; height: '+ itemHeight +'px; display:block; "></div>'),
                                 index: -1,
                                 isAbove: true,
                                 clusterNum: -1
@@ -728,6 +757,16 @@
                             }
                         }
 
+                        if(lastMouseOffset.y < above || lastMouseOffset.y > beyond) {
+                            var disatance = getDistance({
+                                x: this._selectedItem.lastMouseOffset.x,
+                                y: lastMouseOffset.y < above ? above : beyond
+                            }, this._selectedItem.lastMouseOffset);
+                            var speed = disatance / 40;
+                            var gotoTop = lastMouseOffset.y > beyond;
+                            scrollElement.scrollTop = Math.max(0,  scrollElement.scrollTop + speed * (gotoTop ? 1 : -1));
+                        }
+
                         window.requestAnimationFrame(this._scrollAnimationFrameHandler.bind(this));
                     }
                 };
@@ -745,8 +784,6 @@
                         this._destructed = true;
                     }
                 };
-
-
 
                 return DragableClusterize;
             }();
@@ -831,6 +868,7 @@
                 this.onPlaybackTimelineChange = new EventDispatcher;
 
                 this._TrackListTemplates = [];
+                this._TrackListClusterizeTemplates = [];
                 this._TrackListLazyTimerID = null;
                 this._TrackListImageLoadList = [];
                 this._trackItemImageCacheList = [];
@@ -1088,7 +1126,7 @@
                     album = null;
                 }
 
-                var container = '<div class="TrackItem" data-id="'+id+'"></div>';
+                var container = '<div class="TrackItem"></div>';
                 var content = '<div class="TrackItemDescription">\n' +
                     '<div class="TrackItemDescription__left">\n' +
                     '<div class="albumCover__wrapper">\n' +
@@ -1203,7 +1241,7 @@
                     this._$ModeButton.on('click', this._onModeButtonClickHandler);
                     this._$RandomButton.on('click', this._onRandomButtonClickHandler);
                     this._$VolumeButton.on('click', this._onVolumeButtonClickHandler);
-                    this._$TrackLisContainer.on('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
+                    this._$TrackLisContainer.on('click', '.TrackList > .TrackItem', this._onTrackItemClickHandler);
                     this._$Lyric.on('click', this._onLyricClickHandler);
                     this._$LyricExtendCloseButton.on('click', this._onExtendedLyricCloseButtonClickHandler);
                     this._$LyricExtendContent.on('click', '.lrc[data-position]', this._onExtendedLyricLineClickHandler);
@@ -1279,19 +1317,19 @@
             };
 
             UI.prototype._onClusterChanged = function() {
-                if(this._currentTrackItem) {
-                    var trackID = this._currentTrackItem.id;
-                    var $currentTrackItem = this._$TrackList.find('.TrackItem[data-id="'+trackID+'"]');
-                    if($currentTrackItem.length && !$currentTrackItem.hasClass('current')) {
+                DragableClusterize.prototype.drainClusterizeCache.call(this._trackListDragableClusterize);
+                if(this._currentTrackItemIndex > -1) {
+                    var $currentTrackItem = this._getTrackItemNode(this._currentTrackItemIndex);
+                    if($currentTrackItem && !$currentTrackItem.hasClass('current')) {
                         $currentTrackItem.addClass('current');
                     }
-
                 }
                 this._focusTrackItemOnRightClick();
                 if(this._TrackListLazyTimerID !== null) {
                     window.clearTimeout(this._TrackListLazyTimerID);
                 }
                 this._onTrackListLazyLoad();
+
                 //this._TrackListLazyTimerID = window.setTimeout(this._onTrackListLazyLoad.bind(this), 0);
             };
 
@@ -1321,11 +1359,7 @@
                 this._$TrackList.find('.TrackItem').each(function(idx, each) {
                     var $each = $(each);
                     if(lastTrackItemIdx === -1) {
-                        var id = parseInt($each.attr('data-id'), 10);
-                        if(isNaN(id)){
-                            return;
-                        }
-                        lastTrackItemIdx = that._getTrackItemIndex(id);
+                        lastTrackItemIdx = DragableClusterize.prototype._getTrackItemIndex.call(that._trackListDragableClusterize, $each);
                     }
                     if(lastTrackItemIdx === -1) {
                         return;
@@ -1500,33 +1534,31 @@
                 if($parents.length) {
                     $target = $parents;
                 }
-                var trackID = $item.attr('data-id');
-                if(trackID) {
-                    trackID = parseInt(trackID, 10);
-                    var playlist = this._Player._Playlist;
-                    var trackItem = playlist.getTrackItem(trackID);
-                    if($target.length && $target.hasClass('controls-icon')) {
-                        if($target.hasClass('remove')) {
-                            this._handleRemoveButtonClick(trackItem);
-                        } else if($target.hasClass('more')) {
-                            this._handleMoreButtonClick(trackItem, $target, evt);
+
+                var trackItemIndex = DragableClusterize.prototype._getTrackItemIndex.call(this._trackListDragableClusterize, $item);
+                if($target.length && $target.hasClass('controls-icon')) {
+                    if($target.hasClass('remove')) {
+                        this._handleRemoveButtonClick(trackItemIndex);
+                    } else if($target.hasClass('more')) {
+                        this._handleMoreButtonClick(trackItemIndex, $target, evt);
+                    }
+                } else {
+                    var player = this._Player;
+                    var playback = player._Playback;
+                    var playlist = player._Playlist;
+
+                    if(playback && playlist.getTrackItemIndex(playback.getCurrentTrackItem()) === trackItemIndex) {
+                        if(playback.isReady()) {
+                            if(playback.isPlaying()) {
+                                playback.pause();
+                                this.setUIPlaying();
+                            } else {
+                                playback.play();
+                            }
                         }
                     } else {
-                        var player = this._Player;
-                        var playback = player._Playback;
-                        if(playback && playback.getCurrentTrackItem() === trackItem) {
-                            if(playback.isReady()) {
-                                if(playback.isPlaying()) {
-                                    playback.pause();
-                                    this.setUIPlaying();
-                                } else {
-                                    playback.play();
-                                }
-                            }
-                        } else {
-                            this.setCurrentTrackItem(trackItem);
-                            this.onTrackItemClick.dispatch(trackItem);
-                        }
+                        this.setCurrentTrackItemByIndex(trackItemIndex);
+                        this.onTrackItemClick.dispatch(trackItemIndex);
                     }
                 }
             };
@@ -1578,23 +1610,26 @@
                 this.onRandomButtonClick.dispatch(!random);
             };
 
-            UI.prototype._handleRemoveButtonClick = function(trackItem) {
-                if(trackItem) {
+            UI.prototype._handleRemoveButtonClick = function(trackItemIndex) {
+                if(trackItemIndex >= 0) {
                     var player = this._Player;
                     var playlist = player._Playlist;
                     var playback = player._Playback;
                     var controller = player._Controller;
-                    if(trackItem === playback.getCurrentTrackItem()) {
+                    if(trackItemIndex === playlist.getTrackItemIndex(playback.getCurrentTrackItem())) {
                         controller.skipForwardTrack(playback.isPlaying() || playback.isSignalledPlay());
                     }
-                    playlist.removeTrackItem(trackItem);
-                    this.removeTrackItem(trackItem.id);
-                    this.onTrackRemoveClick.dispatch(trackItem);
+                    playlist.removeTrackItemByIndex(trackItemIndex);
+                    this.removeTrackItemByIndex(trackItemIndex);
+                    this.onTrackRemoveClick.dispatch(trackItemIndex);
                 }
             };
 
-            UI.prototype._handleMoreButtonClick = function(trackItem, $target, evt) {
-                if(trackItem) {
+            UI.prototype._handleMoreButtonClick = function(trackItemIndex, $target, evt) {
+                if(trackItemIndex > -1) {
+                    var player = this._Player;
+                    var playlist = player._Playlist;
+                    var trackItem = playlist.getTrackItemByIndex(trackItemIndex);
                     var trackListContainerOffset = this._getTrackListContainerOffset();
                     var targetOffset = $target.offset();
                     var containerOffsetX = trackListContainerOffset.left;
@@ -1669,11 +1704,10 @@
             UI.prototype._handleTrackListContext = function(evt) {
                 var $target = $(evt.srcElement ? evt.srcElement : evt.target);
                 var $TrackItem = $target.hasClass('TrackItem') ? $target : $target.parents('.TrackItem');
-                var trackItemID = $TrackItem.attr('data-id');
-                if($TrackItem.length && trackItemID) {
-                    trackItemID = parseInt(trackItemID, 10);
+                var trackItemIndex = DragableClusterize.prototype._getTrackItemIndex.call(this._trackListDragableClusterize, $TrackItem);
+                if(trackItemIndex > -1) {
                     var playback = this._Player._Playback;
-                    var trackItem = this._Player._Playlist.getTrackItem(trackItemID);
+                    var trackItem = this._Player._Playlist.getTrackItemByIndex(trackItemIndex);
                     if(trackItem) {
                         var trackListContainerOffset = this._getTrackListContainerOffset();
                         var containerOffsetX = trackListContainerOffset.left;
@@ -1925,11 +1959,18 @@
 
                 var templates = [];
                 var element = this._TrackListTemplates[beforeIndex];
+                if(beforeIndex < this._currentTrackItemIndex && afterIndex >= this._currentTrackItemIndex) {
+                    this._currentTrackItemIndex--;
+                } else if(beforeIndex > this._currentTrackItemIndex && afterIndex <= this._currentTrackItemIndex) {
+                    this._currentTrackItemIndex++;
+                } else if(beforeIndex === this._currentTrackItemIndex) {
+                    this._currentTrackItemIndex = afterIndex;
+                }
                 this._TrackListTemplates.splice(beforeIndex, 1);
                 this._TrackListTemplates.splice(afterIndex, 0, element);
-                this._ListClusterize.update(this._TrackListTemplates.map(function(each) {
-                    return each.template.container;
-                }));
+                this._ListClusterize.resetCache();
+                this._ListClusterize.refresh(true);
+                this._ListClusterize.update(this._TrackListClusterizeTemplates);
             };
 
             UI.prototype._reflectTrackItemToPlayer = function(trackItem) {
@@ -1942,10 +1983,8 @@
                 }
             };
 
-            UI.prototype._getTrackItemNode = function(trackItem) {
-                var id = trackItem.id;
-                var $target = this._$TrackList.find('.TrackItem[data-id="'+id+'"]');
-                return $target.length ? $target : null;
+            UI.prototype._getTrackItemNode = function(trackItemIndex) {
+                return DragableClusterize.prototype.getTrackItemElementByIndex.call(this._trackListDragableClusterize, trackItemIndex);
             };
 
             UI.prototype._showTrackListRightClickMenu = function(menuObject, trackItem, posX, posY) {
@@ -2259,11 +2298,11 @@
                 this._ensureNotDestructed();
                 if(trackItems && trackItems.length) {
                     var that = this;
-                    var templateDatas = [];
+                    var templateDataList = [];
                     trackItems.forEach(function(trackItem){
                         if(trackItem) {
                             var templateHTML = that.getTrackItemTemplate(trackItem);
-                            templateDatas.push({
+                            templateDataList.push({
                                 id: trackItem.id,
                                 TrackItem: trackItem,
                                 template: templateHTML,
@@ -2272,32 +2311,45 @@
                             });
                         }
                     });
-                    if(templateDatas.length) {
-                        var templates = templateDatas.map(function(each){
+                    if(templateDataList.length) {
+                        var templates = templateDataList.map(function(each){
                             return each.template.container;
                         });
-                        this._TrackListTemplates = this._TrackListTemplates.concat(templateDatas);
-                        this._ListClusterize.append(templates);
+                        this._TrackListTemplates = this._TrackListTemplates.concat(templateDataList);
+                        this._TrackListClusterizeTemplates = this._TrackListClusterizeTemplates.concat(templates);
+                        this._ListClusterize.update(this._TrackListClusterizeTemplates);
                     }
                 }
             };
 
             UI.prototype.removeTrackItem = function(trackItemID) {
                 this._ensureNotDestructed();
-                var templates = [];
                 this._TrackListTemplates = this._TrackListTemplates.filter(function(each){
                     var isTarget = !!(each.TrackItem && each.TrackItem.id == trackItemID);
                     if(isTarget) {
+                        that._TrackListClusterizeTemplates.shift();
                         return false;
                     } else {
                         templates.push(each.template.container);
                         return true;
                     }
                 });
-                this._ListClusterize.update(templates);
+
+                this._ListClusterize.update(this._TrackListClusterizeTemplates);
             };
 
-            UI.prototype.scrollToTrackList = function(trackItem) {
+            UI.prototype.removeTrackItemByIndex = function(trackItemIndex) {
+                this._ensureNotDestructed();
+                var trackListCount = this._TrackListTemplates.length;
+                if(trackListCount >= 0 && trackItemIndex < trackListCount) {
+                    this._TrackListTemplates.splice(trackItemIndex, 1);
+                    this._TrackListClusterizeTemplates.shift();
+                }
+
+                this._ListClusterize.update(this._TrackListClusterizeTemplates);
+            };
+
+            UI.prototype.scrollToTrackList = function(trackItemIndex) {
                 this._ensureNotDestructed();
                 var $TrackList = this._$TrackList;
                 var $TrackItems = $TrackList.find('.TrackItem');
@@ -2327,10 +2379,9 @@
                 var trackListWrapperHeight = (this.isMobileMode() ? listWrapperMaxHeight : ($TrackListWrapper.height() || this._$PlayerControls.height()));
                 var totalCount = playlist.getTrackItemCount();
                 var trackListHeight = totalCount * trackItemHeight;
-                var idx = playlist.getTrackItemIndex(trackItem);
                 var trackListWrapperHeightHalf = trackListWrapperHeight/2;
-                if(idx > -1) {
-                    var targetTrackHeightOffset = idx * trackItemHeight;
+                if(trackItemIndex > -1) {
+                    var targetTrackHeightOffset = trackItemIndex * trackItemHeight;
                     var targetScrollTopOffset = null;
                     if(targetTrackHeightOffset > trackListWrapperHeightHalf && trackListHeight-trackListWrapperHeightHalf>targetTrackHeightOffset) {
                         targetScrollTopOffset = targetTrackHeightOffset - trackListWrapperHeightHalf + (trackItemHeight/2);
@@ -2345,12 +2396,12 @@
                 }
             };
 
-            UI.prototype.focusTrackItemFromList = function (trackItem) {
+            UI.prototype.focusTrackItemFromList = function (trackItemIndex) {
                 this._ensureNotDestructed();
-                if(this._currentTrackItem) {
-                    this.focusOutTrackItemFromList(this._currentTrackItem);
+                if(this._currentTrackItemIndex >= 0) {
+                    this.focusOutTrackItemFromList(this._currentTrackItemIndex);
                 }
-                var $target = this._getTrackItemNode(trackItem);
+                var $target = this._getTrackItemNode(trackItemIndex);
                 if($target) {
                     if(!$target.hasClass('current')) {
                         $target.addClass('current');
@@ -2358,21 +2409,34 @@
                 }
             };
 
-            UI.prototype.focusOutTrackItemFromList = function(trackItem) {
+            UI.prototype.focusOutTrackItemFromList = function(trackItemIndex) {
                 this._ensureNotDestructed();
-                var $target = this._getTrackItemNode(trackItem);
+                var $target = this._getTrackItemNode(trackItemIndex);
                 if($target) {
                     $target.removeClass('current');
                 }
             };
 
             UI.prototype.setCurrentTrackItem = function(trackItem) {
+                var player = this._Player;
+                var playlist = player._Playlist;
+                var trackItemIndex = playlist.getTrackItemIndex(trackItem);
+                if(trackItemIndex >= 0) {
+                    return this.setCurrentTrackItemByIndex(trackItemIndex);
+                }
+            };
+
+            UI.prototype.setCurrentTrackItemByIndex = function(trackItemIndex) {
+                var player = this._Player;
+                var playlist = player._Playlist;
+                var trackItem = playlist.getTrackItemByIndex(trackItemIndex);
                 this._ensureNotDestructed();
                 this._reflectTrackItemToPlayer(trackItem);
-                this.focusTrackItemFromList(trackItem);
-                this.scrollToTrackList(trackItem);
+                this.focusTrackItemFromList(trackItemIndex);
+                this.scrollToTrackList(trackItemIndex);
                 this.setPosition(0);
-                this._currentTrackItem = trackItem;
+                //this._currentTrackItem = trackItem;
+                this._currentTrackItemIndex = trackItemIndex;
             };
 
             UI.prototype.destruct = function() {
@@ -2395,7 +2459,7 @@
                     this._$ModeButton.off('click', this._onModeButtonClickHandler);
                     this._$RandomButton.off('click', this._onRandomButtonClickHandler);
                     this._$VolumeButton.off('click', this._onVolumeButtonClickHandler);
-                    this._$TrackLisContainer.off('click', '.TrackList .TrackItem[data-id]', this._onTrackItemClickHandler);
+                    this._$TrackLisContainer.off('click', '.TrackList > .TrackItem', this._onTrackItemClickHandler);
                     this._$Lyric.off('click', this._onLyricClickHandler);
                     this._$LyricExtendCloseButton.off('click', this._onExtendedLyricCloseButtonClickHandler);
                     this._$LyricExtendContent.off('click', '.lrc[data-position]', this._onExtendedLyricLineClickHandler);
@@ -2550,6 +2614,8 @@
 
                 this._Player = player;
                 this._seekTimerID = null;
+                this._timeupdateTimerID = null;
+                this._lastTimeupdatePosition = -1;
                 this._destructed = false;
                 this._seekPosition = null;
                 this._seekDeferred = null;
@@ -2815,11 +2881,15 @@
             };
 
             Playback.prototype._handleAudioTimeUpdateEvent = function() {
-                if(this.isReady()) {
-                    var position = this._getElementPosition();
+                var position = parseInt(this._getElementPosition(), 10);
+                if(this.isReady() && !isNaN(position) && position >= 0) {
+                    var positionFloor = Math.floor(position / 1000) * 1000;
                     var ui = this._Player._UI;
                     this.onTimeUpdate.dispatch(position);
-                    ui.setPosition(position);
+                    if(this._lastTimeupdatePosition !== positionFloor) {
+                        ui.setPosition(position);
+                    }
+                    this._lastTimeupdatePosition = positionFloor;
                 }
                 if(this.isPlaying()) {
                     this._checkIsActuallyPlaying();
@@ -2883,6 +2953,7 @@
                     }
                 }
                 this.onPlaying.dispatch(void 0);
+                this._setTimeupdateTimer();
             };
 
             Playback.prototype._handleAudioPlayEvent = function() {
@@ -2896,6 +2967,7 @@
                 ui.setUIPlaying();
                 this.onPaused.dispatch();
                 this._actuallyPlaying = false;
+                this._unsetTimeupdateTimer();
             };
 
             Playback.prototype._handleAudioLoadedDataEvent = function() {
@@ -2988,6 +3060,28 @@
                     var listener = this._listeners.shift();
                     listener.remove();
                 }
+            };
+
+            Playback.prototype._unsetTimeupdateTimer = function() {
+                if(this._timeupdateTimerID !== null) {
+                    window.clearTimeout(this._timeupdateTimerID);
+                    this._timeupdateTimerID = null;
+                }
+            };
+
+            Playback.prototype._setTimeupdateTimer = function() {
+                this._unsetTimeupdateTimer();
+                if(!this.isPlaying()) {
+                    return;
+                }
+                var that = this;
+                var position = parseInt(this._getElementPosition(), 10);
+                var positionFloor = Math.floor(position / 1000) * 1000;
+                var nextUpdateTime = Math.max(positionFloor + 1000 - position, 0);
+                this._timeupdateTimerID = window.setTimeout(function() {
+                    that._onAudioTimeupdate();
+                    that._setTimeupdateTimer();
+                }, nextUpdateTime);
             };
 
             Playback.prototype._getElementPosition = function() {
@@ -3351,6 +3445,16 @@
                             this._playlist.splice(idx, 1);
                             return true;
                         }
+                    }
+
+                    return false;
+                };
+
+                PlaylistManager.prototype.removeTrackItemByIndex = function(trackItemIndex) {
+                    var trackCount = this._playlist.length;
+                    if(trackCount > 0 && trackItemIndex >= 0 && trackItemIndex < trackCount) {
+                        this._playlist.splice(trackItemIndex, 1);
+                        return true;
                     }
 
                     return false;
@@ -3724,7 +3828,25 @@
                 return false;
             };
 
+            Playlist.prototype.removeTrackItemByIndex = function(trackItemIndex) {
+                var trackCount = this._playlist.length;
+                if(trackCount > 0 && trackItemIndex >= 0 && trackItemIndex < trackCount) {
+                    this._playlist.splice(trackItemIndex, 1);
+                    if(this._PlaylistManager) {
+                        this._PlaylistManager.removeTrackItemByIndex(trackItemIndex);
+                    }
+
+                    return true;
+                }
+
+                return false;
+            };
+
             Playlist.prototype.moveTrackItemByIndex = function(fromIndex, toIndex) {
+                if(this._PlaylistManager) {
+                    this._PlaylistManager.moveTrackItemByIndex(fromIndex, toIndex)
+                }
+
                 return PlaylistManager.prototype.moveTrackItemByIndex.call(this, fromIndex, toIndex);
             };
 
@@ -3785,7 +3907,10 @@
                 this._subscribers.push(this._Playback.onAudioEnded.subscribe(this._handleAudioEnded.bind(this)));
             };
 
-            Controller.prototype._onTrackItemClick = function(trackItem) {
+            Controller.prototype._onTrackItemClick = function(trackItemIndex) {
+                var player = this._Player;
+                var playlist = player._Playlist;
+                var trackItem = playlist.getTrackItemByIndex(trackItemIndex);
                 if(trackItem && this._currentTrackItem === trackItem) {
                     if(this._Playback.isPlaying()) {
                         this._Playback.pause();

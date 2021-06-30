@@ -107,7 +107,9 @@
       self.html((clean ? self.generateEmptyRow() : rows).join(''));
     }
     self.refresh = function(force) {
-      if(self.getRowsHeight(rows) || force) self.update(rows);
+      if(self.getRowsHeight(rows) || force) {
+        self.update(rows);
+      }
     }
     self.update = function(new_rows) {
       rows = isArray(new_rows)
@@ -150,7 +152,10 @@
     }
     self.getRows = function() {
       return rows;
-    };
+    }
+    self.resetCache = function() {
+      cache['data'] = NaN;
+    }
   }
 
   Clusterize.prototype = {
