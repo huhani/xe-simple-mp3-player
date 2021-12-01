@@ -118,6 +118,8 @@
                         if(_MSE) {
                             _MSE.provideCacheManager($SimpleMP3Player.MemoryCacheManager);
                         }
+                    } else {
+                        audioElement.src = audio.url;
                     }
                 }
             }
