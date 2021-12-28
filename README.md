@@ -1,6 +1,6 @@
 # Simple MP3 Player 애드온 
 
-Simple MP3 Player 애드온은 XpressEngine에서 게시글의 첨부된 파일(mp3, m4a, ogg, flac)을 플레이어로 나타내주는 프로그램입니다.
+Simple MP3 Player 애드온은 XpressEngine(또는 Rhymix)에서 게시글의 첨부된 파일(mp3, m4a, ogg, flac)을 플레이어로 나타내주는 프로그램입니다.
 
 특히, MP3파일의 경우 브라우저가 [Media Source Extension API](https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API)를 지원할 경우 Progressive방식이 아닌 HLS나 MPEG-DASH와 같이 실시간으로 재생합니다.
 
@@ -9,7 +9,7 @@ Simple MP3 Player 애드온은 XpressEngine에서 게시글의 첨부된 파일(
 
 # 체험
 
-XE환경
+Rhymix환경
 [https://dev52.dnip.co.kr/board/](https://dev52.dnip.co.kr/board/)
 
 # 테스트
@@ -21,6 +21,7 @@ XE환경
 |1.8.27          |5.4	              |            |
 |1.11.5          |7.0                 |            |
 |1.11.5          |7.2                 |Win64       |
+|RX 2.0.16       |7.4                 |            |
 
 # 기능
 
@@ -32,7 +33,7 @@ XE환경
 
 ## MP3 실시간 재생
 
-브라우저가  [MSE](https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API) 를 지원하는 경우 MP3파일의 프레임을 실시간으로 받아 재생합니다.
+브라우저가  [MSE](https://developer.mozilla.org/en-US/docs/Web/API/Media_Source_Extensions_API) 를 지원하는 경우 MP3파일의 프레임을 실시간으로 받아 재생합니다. (MP3파일 HLS 스트리밍 지원)
 
 ## MediaSession 지원
 브라우저가 [MediaSession API](https://developer.mozilla.org/en-US/docs/Web/API/MediaSession)를 지원하는 경우 안드로이드 알림창에서 재생을 관리 할 수 있도록 합니다.
