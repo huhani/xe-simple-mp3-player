@@ -10,7 +10,7 @@ Simple MP3 Player 애드온은 XpressEngine에서 게시글의 첨부된 파일(
 # 체험
 
 XE환경
-[https://dev17.dnip.co.kr/index.php?mid=music](https://dev17.dnip.co.kr/index.php?mid=music)
+[https://dev52.dnip.co.kr/board/](https://dev52.dnip.co.kr/board/)
 
 # 테스트
 
